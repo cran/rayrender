@@ -35,7 +35,8 @@ If `TRUE`, the background will be a gradient varying from `backgroundhigh` direc
 
 \item{camera_up}{Default `c(0,1,0)`. Vector indicating the "up" position of the camera.}
 
-\item{aperture}{Default `0.1`. Aperture of the camera. Higher numbers will increase depth of field.}
+\item{aperture}{Default `0.1`. Aperture of the camera. Smaller numbers will increase depth of field, causing
+more blurring in areas not in focus.}
 
 \item{clamp_value}{Default `Inf`. If a bright light or a reflective material is in the scene, occasionally
 there will be bright spots that will not go away even with a large number of samples. These 
@@ -82,21 +83,21 @@ Takes the scene description and renders an image, either to the device or to a f
 }
 \examples{
 #Generate a large checkered sphere as the ground
-scene = generate_ground(depth=-0.5, material = lambertian(color="white", checkercolor="darkgreen"))
+scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
 \donttest{
 render_scene(scene,parallel=TRUE,samples=500)
 }
 
 #Add a sphere to the center
 scene = scene \%>\%
-  add_object(sphere(x=0,y=0,z=0,radius=0.5,material = lambertian(color=c(1,0,1))))
+  add_object(sphere(x=0,y=0,z=0,radius=0.5,material = diffuse(color=c(1,0,1))))
 \donttest{
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
 #Add a marbled cube 
 scene = scene \%>\%
-  add_object(cube(x=1.1,y=0,z=0,material = lambertian(noise=3)))
+  add_object(cube(x=1.1,y=0,z=0,material = diffuse(noise=3)))
 \donttest{
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
@@ -122,7 +123,7 @@ dev.off()
 image_array = aperm(png::readPNG(tempfileplot),c(2,1,3))
 scene = scene \%>\%
   add_object(xy_rect(x=0,y=1.1,z=0,xwidth=2,angle = c(0,180,0),
-                     material = lambertian(image = image_array)))
+                     material = diffuse(image = image_array)))
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
