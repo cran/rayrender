@@ -4,14 +4,33 @@
 \alias{render_scene}
 \title{Render Scene}
 \usage{
-render_scene(scene, width = 400, height = 400, fov = 20,
-  samples = 100, ambient_light = FALSE, lookfrom = c(0, 1, 10),
-  lookat = c(0, 0, 0), camera_up = c(0, 1, 0), aperture = 0.1,
-  clamp_value = Inf, filename = NULL, backgroundhigh = "#80b4ff",
-  backgroundlow = "#ffffff", shutteropen = 0, shutterclose = 1,
-  focal_distance = NULL, ortho_dimensions = c(1, 1),
-  tonemap = "gamma", parallel = TRUE, backgroundimage = NULL,
-  progress = interactive(), debug = NULL)
+render_scene(
+  scene,
+  width = 400,
+  height = 400,
+  fov = 20,
+  samples = 100,
+  ambient_light = FALSE,
+  lookfrom = c(0, 1, 10),
+  lookat = c(0, 0, 0),
+  camera_up = c(0, 1, 0),
+  aperture = 0.1,
+  clamp_value = Inf,
+  filename = NULL,
+  backgroundhigh = "#80b4ff",
+  backgroundlow = "#ffffff",
+  shutteropen = 0,
+  shutterclose = 1,
+  focal_distance = NULL,
+  ortho_dimensions = c(1, 1),
+  tonemap = "gamma",
+  parallel = TRUE,
+  environment_light = NULL,
+  rotate_env = 0,
+  progress = interactive(),
+  verbose = FALSE,
+  debug = NULL
+)
 }
 \arguments{
 \item{scene}{Tibble of object locations and properties.}
@@ -36,7 +55,7 @@ If `TRUE`, the background will be a gradient varying from `backgroundhigh` direc
 \item{camera_up}{Default `c(0,1,0)`. Vector indicating the "up" position of the camera.}
 
 \item{aperture}{Default `0.1`. Aperture of the camera. Smaller numbers will increase depth of field, causing
-more blurring in areas not in focus.}
+less blurring in areas not in focus.}
 
 \item{clamp_value}{Default `Inf`. If a bright light or a reflective material is in the scene, occasionally
 there will be bright spots that will not go away even with a large number of samples. These 
@@ -64,14 +83,21 @@ otherwise specified.}
 Default `gamma` solely adjusts for gamma and clamps values greater than 1 to 1. 
 `reinhold` scales values by their individual color channels `color/(1+color)` and then performs the 
 gamma adjustment. `uncharted` uses the mapping developed for Uncharted 2 by John Hable. `hbd` uses an
-optimized formula by Jim Hejl and Richard Burgess-Dawson.}
+optimized formula by Jim Hejl and Richard Burgess-Dawson. Note: If set to anything other than `gamma`,
+objects with material `light()` may not be anti-aliased.}
 
 \item{parallel}{Default `FALSE`. If `TRUE`, it will use all available cores to render the image
 (or the number specified in `options("cores")` if that option is not `NULL`).}
 
-\item{backgroundimage}{Default `NULL`.}
+\item{environment_light}{Default `NULL`. An image to be used for the background for rays that escape
+the scene. Supports both HDR (`.hdr`) and low-dynamic range (`.png`, `.jpg`) images.}
+
+\item{rotate_env}{Default `0`. The number of degrees to rotate the environment map around the scene.}
 
 \item{progress}{Default `TRUE` if interactive session, `FALSE` otherwise.}
+
+\item{verbose}{Default `FALSE`. Prints information and timing information about scene
+construction and raytracing progress.}
 
 \item{debug}{Default `NULL`. If `bvh`, will return an image indicated the number of BVH lookups.}
 }
@@ -139,7 +165,7 @@ render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
              samples=500)
 }
                  
-#Increase the aperture to give more depth of field.
+#Increase the aperture to blur objects that are further from the focal plane.
 \donttest{
 render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
              aperture = 0.5,parallel=TRUE,samples=500)

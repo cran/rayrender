@@ -51,11 +51,16 @@ class material {
     virtual vec3 emitted(const ray& r_in, const hit_record& rec, Float u, Float v, const vec3& p) const {
       return(vec3(0,0,0));
     }
+    virtual ~material() {};
 };
 
 class lambertian : public material {
   public: 
     lambertian(texture *a) : albedo(a) {}
+    ~lambertian() {
+      // Rcpp::Rcout << "delete albedo" << "\n";
+      if(albedo) delete albedo;
+    }
     Float scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const {
       //unit_vector(scattered.direction()) == wo
       //r_in.direction() == wi
@@ -131,6 +136,10 @@ class dielectric : public material {
 class diffuse_light : public material {
 public:
   diffuse_light(texture *a) : emit(a) {}
+  ~diffuse_light() {
+    // Rcpp::Rcout << "delete diffuse_light" << "\n";
+    if(emit) delete emit;
+  }
   virtual bool scatter(const ray& r_in, const hit_record& rec, scatter_record& srec, random_gen& rng) {
     return(false);
   }
@@ -147,6 +156,10 @@ public:
 class isotropic : public material {
 public:
   isotropic(texture *a) : albedo(a) {}
+  ~isotropic() {
+    // Rcpp::Rcout << "delete isotropic" << "\n";
+    if(albedo) delete albedo;
+  }
   virtual bool scatter(const ray& r_in, const hit_record& rec, scatter_record& srec, random_gen& rng) {
     srec.is_specular = true;
     srec.specular_ray = ray(rec.p, rng.random_in_unit_sphere());
@@ -159,12 +172,16 @@ public:
   texture *albedo;
 };
 
-class orennayer : public material {
+class orennayar : public material {
 public:
-  orennayer(texture *a, Float sigma) : albedo(a) {
+  orennayar(texture *a, Float sigma) : albedo(a) {
     Float sigma2 = sigma*sigma;
     A = 1.0f - (sigma2 / (2.0f * (sigma2 + 0.33f)));
     B = 0.45f * sigma2 / (sigma2 + 0.09f);
+  }
+  ~orennayar() {
+    // Rcpp::Rcout << "delete orennayar" << "\n";
+    if(albedo) delete albedo;
   }
   bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
     srec.is_specular = false;

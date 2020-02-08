@@ -4,11 +4,22 @@
 \alias{diffuse}
 \title{Diffuse Material}
 \usage{
-diffuse(color = "#ffffff", checkercolor = NA, checkerperiod = 3,
-  noise = 0, noisephase = 0, noiseintensity = 10,
-  noisecolor = "#000000", image_array = NA, lightintensity = NA,
-  fog = FALSE, fogdensity = 0.01, sigma = NULL,
-  implicit_sample = FALSE)
+diffuse(
+  color = "#ffffff",
+  checkercolor = NA,
+  checkerperiod = 3,
+  noise = 0,
+  noisephase = 0,
+  noiseintensity = 10,
+  noisecolor = "#000000",
+  gradient_color = NA,
+  gradient_transpose = FALSE,
+  image_array = NA,
+  fog = FALSE,
+  fogdensity = 0.01,
+  sigma = NULL,
+  importance_sample = FALSE
+)
 }
 \arguments{
 \item{color}{Default `white`. The color of the surface. Can be either
@@ -30,10 +41,13 @@ the amount of turbulence in the texture.}
 \item{noisecolor}{Default `#000000`. The secondary color of the noise pattern.
 Can be either a hexadecimal code, or a numeric rgb vector listing three intensities between `0` and `1`.}
 
-\item{image_array}{A 3-layer RGB array to be used as the texture on the surface of the object.}
+\item{gradient_color}{Default `NA`. If not `NA`, creates a secondary color for a linear gradient 
+between the this color and color specified in `color`. Direction is determined by `gradient_transpose`.}
 
-\item{lightintensity}{Default `NA`. If a positive value, this will turn this object into a light emitting the value specified
-in `color` (ignoring other properties). Higher values will produce a brighter light.}
+\item{gradient_transpose}{Default `FALSE`. If `TRUE`, this will use the `v` coordinate texture instead
+of the `u` coordinate texture to map the gradient.}
+
+\item{image_array}{A 3-layer RGB array to be used as the texture on the surface of the object.}
 
 \item{fog}{Default `FALSE`. If `TRUE`, the object will be a volumetric scatterer.}
 
@@ -43,8 +57,10 @@ in `color` (ignoring other properties). Higher values will produce a brighter li
 Higher numbers indicate a roughed surface, where sigma is the standard deviation of the microfacet orientation angle. When 0, this reverts
 to the default lambertian behavior.}
 
-\item{implicit_sample}{Default `FALSE`, unless the object is a light. If `TRUE`, the object will
-be sampled as part of the scattering probability density function.}
+\item{importance_sample}{Default `FALSE`. If `TRUE`, the object will be sampled explicitly during 
+the rendering process. If the object is particularly important in contributing to the light paths
+in the image (e.g. light sources, refracting glass ball with caustics, metal objects concentrating light),
+this will help with the convergence of the image.}
 }
 \value{
 Single row of a tibble describing the diffuse material.
@@ -83,6 +99,15 @@ render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
 scene = scene \%>\%
   add_object(cube(x=555/2-555/4,y=555/2,z=555/2,xwidth=555/4,ywidth=555/4,zwidth=555/4,
   material = diffuse(fog=TRUE, fogdensity=0.05,color="orange")))
+\donttest{
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
+             aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
+}
+
+#' #Add an line segment with a color gradient        
+scene = scene \%>\%
+  add_object(segment(start = c(555,450,450),end=c(0,450,450),radius = 50, 
+                     material = diffuse(color="#1f7326", gradient_color = "#a60d0d")))
 \donttest{
 render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)

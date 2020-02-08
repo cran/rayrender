@@ -48,11 +48,13 @@ hitable *build_scene(IntegerVector& type,
                      List& properties, List& velocity, LogicalVector& moving,
                      int n, Float shutteropen, Float shutterclose,
                      LogicalVector& ischeckered, List& checkercolors, 
+                     List gradient_info,
                      NumericVector& noise, LogicalVector& isnoise,
                      NumericVector& noisephase, NumericVector& noiseintensity, List noisecolorlist,
                      List& angle, 
-                     LogicalVector& isimage, CharacterVector& filelocation,
-                     LogicalVector& islight, NumericVector& lightintensity,
+                     LogicalVector& isimage, 
+                     std::vector<Float* > textures, std::vector<int* > nvec,
+                     NumericVector& lightintensity,
                      LogicalVector& isflipped,
                      LogicalVector& isvolume, NumericVector& voldensity,
                      List& order_rotation_list, 
@@ -60,10 +62,15 @@ hitable *build_scene(IntegerVector& type,
                      List& group_angle, List& group_order_rotation, List& group_scale,
                      LogicalVector& tri_normal_bools, LogicalVector& is_tri_color, List& tri_color_vert, 
                      CharacterVector& fileinfo, CharacterVector& filebasedir,
-                     List& scale_list, NumericVector& sigma, random_gen& rng) {
-  hitable **list = new hitable*[n+1];
+                     List& scale_list, NumericVector& sigma,  random_gen& rng) {
+  hitable **list = new hitable*[n + 1]; //change to vector
+  LogicalVector isgradient = gradient_info["isgradient"];
+  List gradient_colors = gradient_info["gradient_colors"];
+  LogicalVector gradient_trans = gradient_info["gradient_trans"];
+  
   NumericVector tempvector;
   NumericVector tempchecker;
+  NumericVector tempgradient;
   NumericVector tempvel;
   NumericVector tempnoisecolor;
   NumericVector temprotvec;
@@ -86,6 +93,7 @@ hitable *build_scene(IntegerVector& type,
   vec3 vel(x(0), y(0), z(0));
   for(int i = 0; i < n; i++) {
     tempvector = as<NumericVector>(properties(i));
+    tempgradient = as<NumericVector>(gradient_colors(i));
     tempchecker = as<NumericVector>(checkercolors(i));
     tempvel = as<NumericVector>(velocity(i));
     tempnoisecolor = as<NumericVector>(noisecolorlist(i));
@@ -116,14 +124,10 @@ hitable *build_scene(IntegerVector& type,
     prop_len=2;
     vel = vec3(tempvel(0),tempvel(1),tempvel(2));
     //Generate texture
-    material *tex;
+    material *tex = nullptr;
     if(type(i) == 1) {
       if(isimage(i)) {
-        int nx, ny, nn;
-        unsigned char *tex_data = stbi_load(filelocation(i), &nx, &ny, &nn, 4);
-        tex = new lambertian(new image_texture(tex_data,nx,ny,nn));
-      } else if (islight(i)) {
-        tex = new diffuse_light(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))*lightintensity(i)) );
+        tex = new lambertian(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2]));
       } else if (isnoise(i)) {
         tex = new lambertian(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
@@ -131,6 +135,10 @@ hitable *build_scene(IntegerVector& type,
       } else if (ischeckered(i)) {
         tex = new lambertian(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
                                                  new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),tempchecker(3)));
+      } else if (isgradient(i)) {
+        tex = new lambertian(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                  vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                  gradient_trans(i)));
       } else if (is_tri_color(i)) {
         tex = new lambertian(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
                                                   vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
@@ -145,28 +153,30 @@ hitable *build_scene(IntegerVector& type,
     } else if (type(i) == 3) {
       tex = new dielectric(vec3(tempvector(0),tempvector(1),tempvector(2)),tempvector(3), rng);
       prop_len = 3;
-    } else {
+    } else if (type(i) == 4) {
       if(isimage(i)) {
-        int nx, ny, nn;
-        unsigned char *tex_data = stbi_load(filelocation(i), &nx, &ny, &nn, 4);
-        tex = new orennayer(new image_texture(tex_data,nx,ny,nn), sigma(i));
-      } else if (islight(i)) {
-        tex = new diffuse_light(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))*lightintensity(i)) );
+        tex = new orennayar(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2]), sigma(i));
       } else if (isnoise(i)) {
-        tex = new orennayer(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
+        tex = new orennayar(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
                                                noisephase(i), noiseintensity(i)), sigma(i));
       } else if (ischeckered(i)) {
-        tex = new orennayer(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
+        tex = new orennayar(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
                                                  new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),tempchecker(3)), 
                                                  sigma(i));
+      } else if (isgradient(i)) {
+        tex = new orennayar(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                  vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                  gradient_trans(i)), sigma(i));
       } else if (is_tri_color(i)) {
-        tex = new orennayer(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
+        tex = new orennayar(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
                                                   vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
                                                   vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))), sigma(i) );
       } else {
-        tex = new orennayer(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))), sigma(i));
+        tex = new orennayar(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))), sigma(i)); //marked as small definite loss in valgrind memcheck
       }
+    } else {
+      tex = new diffuse_light(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))*lightintensity(i)) );
     }
     //Generate center vector
     if(shape(i) == 1) {
@@ -192,6 +202,7 @@ hitable *build_scene(IntegerVector& type,
     } else if(shape(i) == 11) {
       center = vec3(x(i), y(i), z(i));
     }
+    
     //Generate objects
     if (shape(i) == 1) {
       hitable *entry = new sphere(vec3(0,0,0), radius(i), tex);
@@ -327,11 +338,13 @@ hitable *build_scene(IntegerVector& type,
                             vec3(tempvector(prop_len+10),tempvector(prop_len+11),tempvector(prop_len+12)),
                             vec3(tempvector(prop_len+13),tempvector(prop_len+14),tempvector(prop_len+15)),
                             vec3(tempvector(prop_len+16),tempvector(prop_len+17),tempvector(prop_len+18)),
+                            true,
                             tex);
       } else {
         entry= new triangle(vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3)),
                             vec3(tempvector(prop_len+4),tempvector(prop_len+5),tempvector(prop_len+6)),
                             vec3(tempvector(prop_len+7),tempvector(prop_len+8),tempvector(prop_len+9)),
+                            true,
                             tex);
       }
       if(is_scaled) {
@@ -386,9 +399,15 @@ hitable *build_scene(IntegerVector& type,
       hitable *entry;
       std::string objfilename = Rcpp::as<std::string>(fileinfo(i));
       std::string objbasedirname = Rcpp::as<std::string>(filebasedir(i));
-      entry = new trimesh(objfilename, objbasedirname, 
-                          tempvector(prop_len+1),
-                          shutteropen, shutterclose, rng);
+      if(sigma(i) == 0) {
+        entry = new trimesh(objfilename, objbasedirname, 
+                            tempvector(prop_len+1), 
+                            shutteropen, shutterclose, rng);
+      } else {
+        entry = new trimesh(objfilename, objbasedirname, 
+                            tempvector(prop_len+1), sigma(i),
+                            shutteropen, shutterclose, rng);
+      }
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -541,7 +560,7 @@ hitable* build_imp_sample(IntegerVector& type,
     gpivot = vec3(0,0,0); 
     gtrans = vec3(0,0,0); 
   }
-  if(type(i) != 1) {
+  if(type(i) != 1 && type(i) != 5) {
     prop_len = 3;
   }
   
@@ -660,6 +679,7 @@ hitable* build_imp_sample(IntegerVector& type,
     hitable *entry = new triangle(vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3)),
                                   vec3(tempvector(prop_len+4),tempvector(prop_len+5),tempvector(prop_len+6)),
                                   vec3(tempvector(prop_len+7),tempvector(prop_len+8),tempvector(prop_len+9)),
+                                  false,
                                   0);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
@@ -680,7 +700,6 @@ hitable* build_imp_sample(IntegerVector& type,
     std::string objfilename = Rcpp::as<std::string>(fileinfo(i));
     std::string objbasedirname = Rcpp::as<std::string>(filebasedir(i));
     entry = new trimesh(objfilename, objbasedirname,
-                        0,
                         tempvector(prop_len+1),
                         shutteropen, shutterclose, rng);
     if(is_scaled) {

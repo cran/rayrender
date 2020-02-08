@@ -2,10 +2,12 @@
 #define TEXTUREH
 
 #include "perlin.h"
+#include "Rcpp.h"
 
 class texture {
 public: 
   virtual vec3 value(Float u, Float v, const vec3& p) const = 0;
+  virtual ~texture() {};
 };
 
 class constant_texture : public texture {
@@ -21,11 +23,20 @@ public:
 class checker_texture : public texture {
 public:
   checker_texture() {}
+  ~checker_texture() {
+    if(even) delete even;
+    if(odd) delete odd;
+  }
   checker_texture(texture *t0, texture *t1, Float p) : even(t0), odd(t1), period(p) {}
   virtual vec3 value(Float u, Float v, const vec3& p) const {
     Float invperiod = 1.0/period;
-    Float sines  = sin(invperiod*p.x()*M_PI) * sin(invperiod*p.y()*M_PI) * sin(invperiod*p.z()*M_PI);
-    if(sines < 0) {
+    Float sinx  = sin(invperiod*p.x()*M_PI);
+    sinx = sinx == 0 ? 1 : sinx;
+    Float siny  = sin(invperiod*p.y()*M_PI);
+    siny = siny == 0 ? 1 : siny;
+    Float sinz  = sin(invperiod*p.z()*M_PI);
+    sinz = sinz == 0 ? 1 : sinz;
+    if(sinx * siny * sinz < 0) {
       return(odd->value(u,v,p));
     } else {
       return(even->value(u,v,p));
@@ -41,6 +52,7 @@ public:
   noise_texture() {}
   noise_texture(Float sc, vec3 c, vec3 c2, Float ph, Float inten) : 
     scale(sc), color(c), color2(c2), phase(ph), intensity(inten) {
+    noise = new perlin();
   }
   ~noise_texture() {
     if(noise != 0) delete noise;
@@ -60,9 +72,9 @@ public:
 class image_texture : public texture {
 public:
   image_texture() {}
-  image_texture(unsigned char *pixels, int A, int B, int nn) : data(pixels), nx(A), ny(B), channels(nn) {}
+  image_texture(Float *pixels, int A, int B, int nn) : data(pixels), nx(A), ny(B), channels(nn) {}
   virtual vec3 value(Float u, Float v, const vec3& p) const;
-  unsigned char *data;
+  Float *data;
   int nx, ny, channels;
 };
 
@@ -73,9 +85,9 @@ vec3 image_texture::value(Float u, Float v, const vec3& p) const {
   if (j < 0) j = 0;
   if (i > nx-1) i = nx-1;
   if (j > ny-1) j = ny-1;
-  Float r = int(data[channels*i + channels*nx*j])/255.0;
-  Float g = int(data[channels*i + channels*nx*j+1])/255.0;
-  Float b = int(data[channels*i + channels*nx*j+2])/255.0;
+  Float r = data[channels*i + channels*nx*j];
+  Float g = data[channels*i + channels*nx*j+1];
+  Float b = data[channels*i + channels*nx*j+2];
   return(vec3(r,g,b));
 }
 
@@ -92,7 +104,11 @@ public:
 class triangle_image_texture : public texture {
 public:
   triangle_image_texture() {}
-  triangle_image_texture(unsigned char *pixels, int A, int B, int nn,
+  ~triangle_image_texture() {
+    // Rcpp::Rcout << "deleting triangle" << "\n";
+    // delete data;
+  }
+  triangle_image_texture(Float *pixels, int A, int B, int nn,
                          Float tex_u_a, Float tex_v_a,
                          Float tex_u_b, Float tex_v_b,
                          Float tex_u_c, Float tex_v_c) : data(pixels),  nx(A), ny(B), channels(nn),
@@ -101,7 +117,7 @@ public:
                          c_u(tex_u_c), c_v(tex_v_c) {}
   virtual vec3 value(Float u, Float v, const vec3& p) const;
   
-  unsigned char *data;
+  Float *data;
   int nx, ny, channels;
   Float a_u, a_v, b_u, b_v,c_u, c_v;
 };
@@ -115,10 +131,23 @@ vec3 triangle_image_texture::value(Float u, Float v, const vec3& p) const {
   if (j < 0) j = 0;
   if (i > nx-1) i = nx-1;
   if (j > ny-1) j = ny-1;
-  Float r = int(data[channels*i + channels*nx*j])/255.0;
-  Float g = int(data[channels*i + channels*nx*j+1])/255.0;
-  Float b = int(data[channels*i + channels*nx*j+2])/255.0;
+  Float r = data[channels*i + channels*nx*j];
+  Float g = data[channels*i + channels*nx*j+1];
+  Float b = data[channels*i + channels*nx*j+2];
   return(vec3(r,g,b));
 }
+
+class gradient_texture : public texture {
+public: 
+  gradient_texture() {}
+  gradient_texture(vec3 c1, vec3 c2, bool v) : 
+    gamma_color1(c1.pow(1/2.2)), gamma_color2(c2.pow(1/2.2)), aligned_v(v) {}
+  virtual vec3 value(Float u, Float v, const vec3& p) const {
+    vec3 final_color = aligned_v ? gamma_color1 * (1-u) + u * gamma_color2 : gamma_color1 * (1-v) + v * gamma_color2;
+    return(final_color.pow(2.2));
+  }
+  vec3 gamma_color1, gamma_color2;
+  bool aligned_v;
+};
 
 #endif

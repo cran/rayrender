@@ -4,9 +4,19 @@
 \alias{obj_model}
 \title{`obj` File Object}
 \usage{
-obj_model(filename, x = 0, y = 0, z = 0, scale_obj = 1,
-  texture = FALSE, material = diffuse(), angle = c(0, 0, 0),
-  order_rotation = c(1, 2, 3), flipped = FALSE, scale = c(1, 1, 1))
+obj_model(
+  filename,
+  x = 0,
+  y = 0,
+  z = 0,
+  scale_obj = 1,
+  texture = FALSE,
+  material = diffuse(),
+  angle = c(0, 0, 0),
+  order_rotation = c(1, 2, 3),
+  flipped = FALSE,
+  scale = c(1, 1, 1)
+)
 }
 \arguments{
 \item{filename}{Filename and path to the `obj` file. Can also be a `txt` file, if it's in the correct `obj` internally.}
@@ -57,7 +67,7 @@ generate_ground(material = diffuse(checkercolor = "grey50")) \%>\%
   add_object(obj_model(x = -1.8, y = -0.8, filename = r_obj() , 
                        material = dielectric(color = "pink"))) \%>\%
   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
-                    material = diffuse(lightintensity = 20, implicit_sample = TRUE))) \%>\%
+                    material = light(intensity = 20))) \%>\%
   render_scene(parallel = TRUE, samples = 400, 
                tonemap = "reinhold", aperture = 0.05, fov = 32, lookfrom = c(0, 2, 10))
 }
@@ -68,7 +78,7 @@ generate_ground(material = diffuse(checkercolor = "grey50")) \%>\%
   add_object(obj_model(y = -0.8, filename = r_obj(), scale_obj = 2,
                        material = diffuse(noise = TRUE, noiseintensity = 10,noisephase=45))) \%>\%
   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
-                    material = diffuse(lightintensity = 10, implicit_sample = TRUE))) \%>\%
+                    material = light(intensity = 10))) \%>\%
   render_scene(parallel = TRUE, samples = 400, ambient = TRUE, 
                backgroundhigh="blue", backgroundlow="red",
                aperture = 0.05, fov = 32, lookfrom = c(0, 2, 10),

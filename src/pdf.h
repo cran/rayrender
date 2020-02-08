@@ -50,10 +50,9 @@ public:
     Float r0 = rng.unif_rand();
     Float theta = std::acos(std::sqrt((1 - r0) / ((a2-1)*r0 + 1)));
     Float phi = 2 * M_PI * rng.unif_rand();
-    Float x = std::sin(theta) * std::cos(phi);
-    Float y = std::cos(theta);
-    Float z = std::sin(theta) * std::sin(phi);
-    vec3 wm = vec3(x,y,z);
+    vec3 wm = vec3(std::sin(theta) * std::cos(phi),
+                   std::cos(theta),
+                   std::sin(theta) * std::sin(phi));
     wm.make_unit_vector();
     vec3 wi = 2.0f * dot(wo, wm) * wm - wo;
     return(uvw.local(wi));

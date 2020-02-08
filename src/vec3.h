@@ -4,6 +4,15 @@
 #include <iostream>
 #include <cmath>
 
+#ifndef FLOATDEF
+#define FLOATDEF
+#ifdef RAY_FLOAT_AS_DOUBLE
+typedef double Float;
+#else
+typedef float Float;
+#endif 
+#endif
+
 class vec3 {
 public:
   vec3() {}
@@ -25,9 +34,15 @@ public:
   inline vec3& operator/=(const vec3 &v2);
   inline vec3& operator*=(const Float t);
   inline vec3& operator/=(const Float t);
+  bool HasNaNs() const {
+    return(std::isnan(e[0]) || std::isnan(e[1]) || std::isnan(e[2]));
+  }
   
   inline Float length() const { return sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); }
   inline Float squared_length() const { return e[0]*e[0] + e[1]*e[1] + e[2]*e[2]; }
+  inline vec3 pow(Float exponent) const {
+    return(vec3(std::pow(e[0],exponent),std::pow(e[1],exponent),std::pow(e[2],exponent)));
+  }
   inline void make_unit_vector();
   
   Float e[3];
