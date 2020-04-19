@@ -10,6 +10,8 @@ render_scene(
   height = 400,
   fov = 20,
   samples = 100,
+  min_variance = 5e-05,
+  min_adaptive_size = 8,
   ambient_light = FALSE,
   lookfrom = c(0, 1, 10),
   lookat = c(0, 0, 0),
@@ -24,12 +26,13 @@ render_scene(
   focal_distance = NULL,
   ortho_dimensions = c(1, 1),
   tonemap = "gamma",
+  bloom = TRUE,
   parallel = TRUE,
   environment_light = NULL,
   rotate_env = 0,
+  debug_channel = "none",
   progress = interactive(),
-  verbose = FALSE,
-  debug = NULL
+  verbose = FALSE
 )
 }
 \arguments{
@@ -42,7 +45,14 @@ render_scene(
 \item{fov}{Default `20`. Field of view, in degrees. If this is zero, the camera will use an orthographic projection. The size of the plane
 used to create the orthographic projection is given in argument `ortho_dimensions`.}
 
-\item{samples}{Default `100`. Number of samples for each pixel.}
+\item{samples}{Default `100`. The maximum number of samples for each pixel.}
+
+\item{min_variance}{Default `0.00005`. Minimum acceptable variance for a block of pixels for the 
+adaptive sampler. Smaller numbers give higher quality images, at the expense of longer rendering times.
+If this is set to zero, the adaptive sampler will be turned off and the renderer
+will use the maximum number of samples everywhere.}
+
+\item{min_adaptive_size}{Default `8`. Width of the minimum block size in the adaptive sampler.}
 
 \item{ambient_light}{Default `FALSE`, unless there are no emitting objects in the scene. 
 If `TRUE`, the background will be a gradient varying from `backgroundhigh` directly up (+y) to 
@@ -84,7 +94,15 @@ Default `gamma` solely adjusts for gamma and clamps values greater than 1 to 1.
 `reinhold` scales values by their individual color channels `color/(1+color)` and then performs the 
 gamma adjustment. `uncharted` uses the mapping developed for Uncharted 2 by John Hable. `hbd` uses an
 optimized formula by Jim Hejl and Richard Burgess-Dawson. Note: If set to anything other than `gamma`,
-objects with material `light()` may not be anti-aliased.}
+objects with material `light()` may not be anti-aliased. If `raw`, the raw array of HDR values will be
+returned, rather than an image or a plot.}
+
+\item{bloom}{Default `TRUE`. Set to `FALSE` to get the raw, pathtraced image. Otherwise,
+this performs a convolution of the HDR image of the scene with a sharp, long-tailed
+exponential kernel, which does not visibly affect dimly pixels, but does result in emitters light
+slightly bleeding into adjacent pixels. This provides an antialiasing effect for lights, even when
+tonemapping the image. Pass in a matrix to specify the convolution kernel manually, or a positive number
+to control the intensity of the bloom (higher number = more bloom).}
 
 \item{parallel}{Default `FALSE`. If `TRUE`, it will use all available cores to render the image
 (or the number specified in `options("cores")` if that option is not `NULL`).}
@@ -94,12 +112,15 @@ the scene. Supports both HDR (`.hdr`) and low-dynamic range (`.png`, `.jpg`) ima
 
 \item{rotate_env}{Default `0`. The number of degrees to rotate the environment map around the scene.}
 
+\item{debug_channel}{Default `none`. If `depth`, function will return a depth map of rays into the scene 
+instead of an image. If `normals`, function will return an image of scene normals, mapped from 0 to 1.
+If `uv`, function will return an image of the uv coords. If `variance`, function will return an image 
+showing the number of samples needed to take for each block to converge (when the}
+
 \item{progress}{Default `TRUE` if interactive session, `FALSE` otherwise.}
 
 \item{verbose}{Default `FALSE`. Prints information and timing information about scene
 construction and raytracing progress.}
-
-\item{debug}{Default `NULL`. If `bvh`, will return an image indicated the number of BVH lookups.}
 }
 \value{
 Raytraced plot to current device, or an image saved to a file.
@@ -175,7 +196,7 @@ render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
 #an animation, specify the a filename in `render_scene` for each frame and use the `av` package
 #or ffmpeg to combine them all into a movie.
 
-t=1:30
+t=1:30 
 xpos = 10 * sin(t*12*pi/180+pi/2)
 zpos = 10 * cos(t*12*pi/180+pi/2)
 \donttest{

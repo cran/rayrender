@@ -11,6 +11,7 @@ obj_model(
   z = 0,
   scale_obj = 1,
   texture = FALSE,
+  vertex_colors = FALSE,
   material = diffuse(),
   angle = c(0, 0, 0),
   order_rotation = c(1, 2, 3),
@@ -31,6 +32,9 @@ obj_model(
 more robust to numerical precision errors than the generic scale option.}
 
 \item{texture}{Default `FALSE`. Whether to load the obj file texture.}
+
+\item{vertex_colors}{Default `FALSE`. Set to `TRUE` if the OBJ file has vertex colors to apply them
+to the model.}
 
 \item{material}{Default  \code{\link{diffuse}}.The material, called from one of the material 
 functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.}
@@ -68,7 +72,7 @@ generate_ground(material = diffuse(checkercolor = "grey50")) \%>\%
                        material = dielectric(color = "pink"))) \%>\%
   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
                     material = light(intensity = 20))) \%>\%
-  render_scene(parallel = TRUE, samples = 400, 
+  render_scene(parallel = TRUE, samples = 500, 
                tonemap = "reinhold", aperture = 0.05, fov = 32, lookfrom = c(0, 2, 10))
 }
 
@@ -79,9 +83,9 @@ generate_ground(material = diffuse(checkercolor = "grey50")) \%>\%
                        material = diffuse(noise = TRUE, noiseintensity = 10,noisephase=45))) \%>\%
   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
                     material = light(intensity = 10))) \%>\%
-  render_scene(parallel = TRUE, samples = 400, ambient = TRUE, 
+  render_scene(parallel = TRUE, samples = 500, ambient = TRUE, 
                backgroundhigh="blue", backgroundlow="red",
                aperture = 0.05, fov = 32, lookfrom = c(0, 2, 10),
-               lookat = c(0,1,0))
+               lookat = c(0,1,0)) 
 }
 }

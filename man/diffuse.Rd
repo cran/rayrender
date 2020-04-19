@@ -14,7 +14,8 @@ diffuse(
   noisecolor = "#000000",
   gradient_color = NA,
   gradient_transpose = FALSE,
-  image_array = NA,
+  image_texture = NA,
+  alpha_texture = NA,
   fog = FALSE,
   fogdensity = 0.01,
   sigma = NULL,
@@ -47,7 +48,9 @@ between the this color and color specified in `color`. Direction is determined b
 \item{gradient_transpose}{Default `FALSE`. If `TRUE`, this will use the `v` coordinate texture instead
 of the `u` coordinate texture to map the gradient.}
 
-\item{image_array}{A 3-layer RGB array to be used as the texture on the surface of the object.}
+\item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
+
+\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
 
 \item{fog}{Default `FALSE`. If `TRUE`, the object will be a volumetric scatterer.}
 
