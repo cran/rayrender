@@ -12,6 +12,9 @@ render_scene(
   samples = 100,
   min_variance = 5e-05,
   min_adaptive_size = 8,
+  sample_method = "random",
+  max_depth = 50,
+  roulette_active_depth = 10,
   ambient_light = FALSE,
   lookfrom = c(0, 1, 10),
   lookat = c(0, 0, 0),
@@ -30,6 +33,7 @@ render_scene(
   parallel = TRUE,
   environment_light = NULL,
   rotate_env = 0,
+  intensity_env = 1,
   debug_channel = "none",
   progress = interactive(),
   verbose = FALSE
@@ -45,7 +49,9 @@ render_scene(
 \item{fov}{Default `20`. Field of view, in degrees. If this is zero, the camera will use an orthographic projection. The size of the plane
 used to create the orthographic projection is given in argument `ortho_dimensions`.}
 
-\item{samples}{Default `100`. The maximum number of samples for each pixel.}
+\item{samples}{Default `100`. The maximum number of samples for each pixel. If this is a length-2
+vector and the `sample_method` is `stratified`, this will control the number of strata in each dimension.
+The total number of samples in this case will be the product of the two numbers.}
 
 \item{min_variance}{Default `0.00005`. Minimum acceptable variance for a block of pixels for the 
 adaptive sampler. Smaller numbers give higher quality images, at the expense of longer rendering times.
@@ -53,6 +59,15 @@ If this is set to zero, the adaptive sampler will be turned off and the renderer
 will use the maximum number of samples everywhere.}
 
 \item{min_adaptive_size}{Default `8`. Width of the minimum block size in the adaptive sampler.}
+
+\item{sample_method}{Default `random`. The type of sampling method used to generate
+random numbers. The other option is `stratified`, which can improve the render quality (at the cost
+of increased time allocating the random samples).}
+
+\item{max_depth}{Default `50`. Maximum number of bounces a ray can make in a scene.}
+
+\item{roulette_active_depth}{Default `10`. Number of ray bounces until a ray can stop bouncing via
+Russian roulette.}
 
 \item{ambient_light}{Default `FALSE`, unless there are no emitting objects in the scene. 
 If `TRUE`, the background will be a gradient varying from `backgroundhigh` directly up (+y) to 
@@ -112,6 +127,9 @@ the scene. Supports both HDR (`.hdr`) and low-dynamic range (`.png`, `.jpg`) ima
 
 \item{rotate_env}{Default `0`. The number of degrees to rotate the environment map around the scene.}
 
+\item{intensity_env}{Default `1`. The amount to increase the intensity of the environment lighting. Useful
+if using a LDR (JPEG or PNG) image as an environment map.}
+
 \item{debug_channel}{Default `none`. If `depth`, function will return a depth map of rays into the scene 
 instead of an image. If `normals`, function will return an image of scene normals, mapped from 0 to 1.
 If `uv`, function will return an image of the uv coords. If `variance`, function will return an image 
@@ -130,34 +148,36 @@ Takes the scene description and renders an image, either to the device or to a f
 }
 \examples{
 #Generate a large checkered sphere as the ground
-scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
 \donttest{
+scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
 render_scene(scene,parallel=TRUE,samples=500)
 }
 
 #Add a sphere to the center
+\donttest{
 scene = scene \%>\%
   add_object(sphere(x=0,y=0,z=0,radius=0.5,material = diffuse(color=c(1,0,1))))
-\donttest{
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
 #Add a marbled cube 
+\donttest{
 scene = scene \%>\%
   add_object(cube(x=1.1,y=0,z=0,material = diffuse(noise=3)))
-\donttest{
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
-#Add a metallic gold sphere
+#Add a metallic gold sphere, using stratified sampling for a higher quality render
+\donttest{
 scene = scene \%>\%
   add_object(sphere(x=-1.1,y=0,z=0,radius=0.5,material = metal(color="gold",fuzz=0.1)))
-\donttest{
-render_scene(scene,fov=20,parallel=TRUE,samples=500)
+render_scene(scene,fov=20,parallel=TRUE,samples=500, sample_method = "stratified")
 }
 
 #Lower the number of samples to render more quickly (here, we also use only one core).
+\donttest{
 render_scene(scene, samples=4)
+}
 
 #Add a floating R plot using the iris dataset as a png onto a floating 2D rectangle
 
@@ -205,7 +225,7 @@ old.par = par(no.readonly = TRUE)
 on.exit(par(old.par))
 par(mfrow=c(5,6))
 for(i in 1:30) {
- render_scene(scene, samples=5,
+ render_scene(scene, samples=16, 
    lookfrom = c(xpos[i],1.5,zpos[i]),lookat = c(0,0.5,0), parallel=TRUE)
 }
 }

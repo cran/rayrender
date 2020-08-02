@@ -5,6 +5,7 @@
 #include "vec3.h"
 #include "texture.h"
 #include "rng.h"
+#include "sampler.h"
 #include <Rcpp.h>
 
 class material;
@@ -25,6 +26,9 @@ struct hit_record {
 #endif
   vec3 p;
   vec3 normal;
+  vec3 dpdu, dpdv;
+  vec3 bump_normal;
+  bool has_bump;
   material *mat_ptr;
 };
 
@@ -36,6 +40,9 @@ class hitable {
       return(0.0);
     }
     virtual vec3 random(const vec3& o, random_gen& rng) {
+      return(vec3(0,1,0));
+    }
+    virtual vec3 random(const vec3& o, Sampler* sampler) {
       return(vec3(0,1,0));
     }
     virtual ~hitable() {}
@@ -51,6 +58,9 @@ public:
   virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
     if(ptr->hit(r, t_min, t_max, rec, rng)) {
       rec.normal = -rec.normal;
+      if(rec.has_bump) {
+        rec.bump_normal = -rec.bump_normal;
+      }
       return(true);
     } else {
       return(false);
@@ -64,6 +74,9 @@ public:
   }
   vec3 random(const vec3& o, random_gen& rng) {
     return(ptr->random(o, rng));
+  }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    return(ptr->random(o, sampler));
   }
   
   hitable *ptr;
@@ -85,6 +98,9 @@ public:
   }
   vec3 random(const vec3& o, random_gen& rng) {
     return(ptr->random(o - offset, rng));
+  }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    return(ptr->random(o - offset, sampler));
   }
   hitable *ptr;
   vec3 offset;
@@ -128,6 +144,9 @@ public:
   vec3 random(const vec3& o, random_gen& rng) {
     return(ptr->random(o * inv_scale, rng));
   }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    return(ptr->random(o * inv_scale, sampler));
+  }
   hitable *ptr;
   vec3 scale_factor;
   vec3 inv_scale;
@@ -139,6 +158,10 @@ bool scale::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_
     rec.p *= scale_factor;
     rec.normal *= scale_factor;
     rec.normal.make_unit_vector();
+    if(rec.has_bump) {
+      rec.bump_normal *= scale_factor;
+      rec.bump_normal.make_unit_vector();
+    }
     return(true);
   } else {
     return(false);
@@ -180,6 +203,16 @@ public:
     o2.e[0] = cos_theta*o.x() - sin_theta*o.z();
     o2.e[2] = sin_theta*o.x() + cos_theta*o.z();
     vec3 temp = ptr->random(o2, rng);
+    vec3 temp2 = temp;
+    temp2.e[0] = cos_theta*temp.x() + sin_theta*temp.z();
+    temp2.e[2] = -sin_theta*temp.x() + cos_theta*temp.z(); 
+    return(temp2);
+  }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    vec3 o2 = o;
+    o2.e[0] = cos_theta*o.x() - sin_theta*o.z();
+    o2.e[2] = sin_theta*o.x() + cos_theta*o.z();
+    vec3 temp = ptr->random(o2, sampler);
     vec3 temp2 = temp;
     temp2.e[0] = cos_theta*temp.x() + sin_theta*temp.z();
     temp2.e[2] = -sin_theta*temp.x() + cos_theta*temp.z(); 
@@ -239,6 +272,12 @@ bool rotate_y::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     normal.e[2] = -sin_theta*rec.normal.e[0] + cos_theta*rec.normal.e[2]; 
     rec.p = p;
     rec.normal = normal;
+    if(rec.has_bump) {
+      normal = rec.bump_normal;
+      normal.e[0] = cos_theta*rec.bump_normal.e[0] + sin_theta*rec.bump_normal.e[2];
+      normal.e[2] = -sin_theta*rec.bump_normal.e[0] + cos_theta*rec.bump_normal.e[2]; 
+      rec.bump_normal = normal;
+    }
     return(true);
   } else {
     return(false);
@@ -271,6 +310,16 @@ public:
     o2.e[1] = cos_theta*o.y() - sin_theta*o.z();
     o2.e[2] = sin_theta*o.y() + cos_theta*o.z();
     vec3 temp = ptr->random(o2, rng);
+    vec3 temp2 = temp;
+    temp2.e[1] = cos_theta*temp.y() + sin_theta*temp.z();
+    temp2.e[2] = -sin_theta*temp.y() + cos_theta*temp.z(); 
+    return(temp2);
+  }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    vec3 o2 = o;
+    o2.e[1] = cos_theta*o.y() - sin_theta*o.z();
+    o2.e[2] = sin_theta*o.y() + cos_theta*o.z();
+    vec3 temp = ptr->random(o2, sampler);
     vec3 temp2 = temp;
     temp2.e[1] = cos_theta*temp.y() + sin_theta*temp.z();
     temp2.e[2] = -sin_theta*temp.y() + cos_theta*temp.z(); 
@@ -330,6 +379,12 @@ bool rotate_x::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     normal.e[2] = -sin_theta*rec.normal.e[1] + cos_theta*rec.normal.e[2]; 
     rec.p = p;
     rec.normal = normal;
+    if(rec.has_bump) {
+      normal = rec.bump_normal;
+      normal.e[1] = cos_theta*rec.bump_normal.e[1] + sin_theta*rec.bump_normal.e[2];
+      normal.e[2] = -sin_theta*rec.bump_normal.e[1] + cos_theta*rec.bump_normal.e[2]; 
+      rec.bump_normal = normal;
+    }
     return(true);
   } else {
     return(false);
@@ -361,6 +416,16 @@ public:
     o2.e[0] = cos_theta*o.x() - sin_theta*o.y();
     o2.e[1] = sin_theta*o.x() + cos_theta*o.y();
     vec3 temp = ptr->random(o2, rng);
+    vec3 temp2 = temp;
+    temp2.e[0] = cos_theta*temp.x() + sin_theta*temp.y();
+    temp2.e[1] = -sin_theta*temp.x() + cos_theta*temp.y(); 
+    return(temp2);
+  }
+  vec3 random(const vec3& o, Sampler* sampler) {
+    vec3 o2 = o;
+    o2.e[0] = cos_theta*o.x() - sin_theta*o.y();
+    o2.e[1] = sin_theta*o.x() + cos_theta*o.y();
+    vec3 temp = ptr->random(o2, sampler);
     vec3 temp2 = temp;
     temp2.e[0] = cos_theta*temp.x() + sin_theta*temp.y();
     temp2.e[1] = -sin_theta*temp.x() + cos_theta*temp.y(); 
@@ -420,6 +485,12 @@ bool rotate_z::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     normal.e[1] = -sin_theta*rec.normal.e[0] + cos_theta*rec.normal.e[1]; 
     rec.p = p;
     rec.normal = normal;
+    if(rec.has_bump) {
+      normal = rec.bump_normal;
+      normal.e[0] = cos_theta*rec.bump_normal.e[0] + sin_theta*rec.bump_normal.e[1];
+      normal.e[1] = -sin_theta*rec.bump_normal.e[0] + cos_theta*rec.bump_normal.e[1]; 
+      rec.bump_normal = normal;
+    }
     return(true);
   } else {
     return(false);

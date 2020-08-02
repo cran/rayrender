@@ -24,6 +24,7 @@ class vec3 {
 public:
   vec3() {}
   vec3(Float e0, Float e1, Float e2) {e[0] = e0; e[1] = e1; e[2] = e2;}
+  vec3(Float e0) {e[0] = e0; e[1] = e0; e[2] = e0;}
   inline Float x() const { return e[0]; }
   inline Float y() const { return e[1]; }
   inline Float z() const { return e[2]; }
@@ -47,7 +48,7 @@ public:
     return(std::isnan(e[0]) || std::isnan(e[1]) || std::isnan(e[2]));
   }
   
-  inline Float length() const { return sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); }
+  inline Float length() const { return std::sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]); }
   inline Float squared_length() const { return e[0]*e[0] + e[1]*e[1] + e[2]*e[2]; }
   inline vec3 pow(Float exponent) const {
     return(vec3(std::pow(e[0],exponent),std::pow(e[1],exponent),std::pow(e[2],exponent)));
@@ -58,7 +59,7 @@ public:
 };
 
 inline void vec3::make_unit_vector() {
-  Float k = 1.0 / sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
+  Float k = 1.0 / std::sqrt(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
   e[0] *= k; e[1] *= k; e[2] *= k; 
 }
 
@@ -68,7 +69,7 @@ inline std::istream& operator>>(std::istream &is, vec3 &t) {
 }
 
 inline std::ostream& operator<<(std::ostream &os, const vec3 &t) {
-  os << t.e[0] << " " << t.e[1] << " " << t.e[2];
+  os << t.e[0] << ", " << t.e[1] << ", " << t.e[2];
   return os;
 }
 

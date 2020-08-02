@@ -25,10 +25,10 @@
 #' # Show the pig staring into a mirror, worried 
 #' \donttest{
 #' generate_cornell() %>%
-#'   add_object(pig(x=555/2-70,z=555/2+50,y=120,scale=c(80,80,80), 
+#'   add_object(pig(x=555/2-70,z=555/2+50,y=120,scale=c(80,80,80),
 #'                  angle = c(0,-40,0), emotion = "worried")) %>%
-#'   add_object(xy_rect(x=450,z=450,y=250, ywidth=500, xwidth=200,  
-#'                  angle = c(0,45,0), material = metal())) %>%
+#'   add_object(cube(x=450,z=450,y=250, ywidth=500, xwidth=200,
+#'                   angle = c(0,45,0), material = metal())) %>%
 #'   render_scene(parallel=TRUE, samples=500,clamp_value=10)
 #' }
 #' 
@@ -43,11 +43,11 @@
 #' }
 #' 
 #' many_pigs_scene = do.call(rbind, lots_of_pigs) %>%
-#'  add_object(generate_cornell(lightintensity=20)) %>%
+#'  add_object(generate_cornell(lightintensity=30, lightwidth=100)) %>%
 #'  add_object(pig(z=500,x=555/2,y=400, emotion = "angry",
 #'             scale=c(100,100,100),angle=c(30,90,0), order_rotation=c(2,1,3)))
 #' \donttest{
-#' render_scene(many_pigs_scene,parallel=TRUE,clamp_value=10, samples=500, tonemap = "reinhold")
+#' render_scene(many_pigs_scene,parallel=TRUE,clamp_value=10, samples=500)
 #' }
 pig = function(x = 0, y = 0, z = 0, emotion = "neutral",
                angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -66,8 +66,17 @@ pig = function(x = 0, y = 0, z = 0, emotion = "neutral",
                                   -0.2 * sinpi(tail_angles[i+1]/180- pi/2)),
                           radius=0.05,
                           material = diffuse(color="#f09089"))
+    spiral[[i+32]] = sphere(x= -1.9 - 0.02 * (i+1), 
+                            y=1 - 0.2 * cospi(tail_angles[i+1]/180 - pi/2), 
+                            z=-0.2 * sinpi(tail_angles[i+1]/180- pi/2),
+                          radius=0.05,
+                          material = diffuse(color="#f09089"))
   }
-  spiralscene = do.call(rbind,spiral)
+  if("dplyr" %in% rownames(utils::installed.packages())) {
+    spiralscene = dplyr::bind_rows(spiral)
+  } else {
+    spiralscene = do.call(rbind,spiral)
+  }
   if(emotion == "skeptical") {
     eyebrow_offset_left = c(0.1, -0.1)
     eyebrow_offset_right = c(0, 0)
@@ -92,10 +101,10 @@ pig = function(x = 0, y = 0, z = 0, emotion = "neutral",
     add_object(cylinder(x = -1, y = 0.4, z = 0.5, length=2,radius=0.25,material = diffuse(color="#f09089"))) %>%
     add_object(cylinder(x = -1, y = 0.4, z = -0.5, length=2,radius=0.25,material = diffuse(color="#f09089"))) %>%
     add_object(segment(start = c(1.5,2,0), end = c(2.5,2,0),radius=0.3,material = diffuse(color="#f09089"))) %>%
-    add_object(sphere(x = 2, y = 2.5, z = 0.3, radius=0.25,material = diffuse(color="white"))) %>%
-    add_object(sphere(x = 2, y = 2.5, z = -0.3, radius=0.25,material = diffuse(color="white"))) %>%
-    add_object(sphere(x = 2.2, y = 2.5, z = 0.3, radius=0.1,material = diffuse(color="black"))) %>%
-    add_object(sphere(x = 2.2, y = 2.5, z = -0.3, radius=0.1,material = diffuse(color="black"))) %>%
+    add_object(sphere(x = 2, y = 2.5, z = 0.3, radius=0.25,material = glossy(color="white"))) %>%
+    add_object(sphere(x = 2, y = 2.5, z = -0.3, radius=0.25,material = glossy(color="white"))) %>%
+    add_object(sphere(x = 2.2, y = 2.5, z = 0.3, radius=0.1,material = glossy(color="black"))) %>%
+    add_object(sphere(x = 2.2, y = 2.5, z = -0.3, radius=0.1,material = glossy(color="black"))) %>%
     add_object(spiralscene) %>%
     add_object(ellipsoid(x = 1.98+0.02, y = 1.6, z = 0, a= 0.2, b= 0.2, c= 0.3,material = diffuse(color="black"))) %>%
     add_object(ellipsoid(x = 2.5, y = 2, z = 0.1, a= 0.05, b= 0.1, c= 0.05,material = diffuse(color="black"))) %>%

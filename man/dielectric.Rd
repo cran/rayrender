@@ -9,7 +9,9 @@ dielectric(
   refraction = 1.5,
   attenuation = c(0, 0, 0),
   priority = 0,
-  importance_sample = FALSE
+  importance_sample = FALSE,
+  bump_texture = NA,
+  bump_intensity = 1
 )
 }
 \arguments{
@@ -30,6 +32,11 @@ will not be taken into account when determining hits to other objects also insid
 the rendering process. If the object is particularly important in contributing to the light paths
 in the image (e.g. light sources, refracting glass ball with caustics, metal objects concentrating light),
 this will help with the convergence of the image.}
+
+\item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+be used to specify a bump map for the surface.}
+
+\item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
 }
 \value{
 Single row of a tibble describing the dielectric material.
@@ -104,7 +111,7 @@ generate_ground(depth=-0.51,material=diffuse(checkercolor="grey30",checkerperiod
   add_object(cube(material = dielectric(attenuation = c(6,6,2),priority=1))) \%>\%
   add_object(sphere(radius=1,x=1.01,
                     material = dielectric(priority=0,refraction=1))) \%>\%
-  add_object(sphere(radius=1,x=-1.01,
+  add_object(sphere(radius=1,x=-1.01, 
                     material = dielectric(priority=0,refraction=1))) \%>\%
   add_object(sphere(y=10,x=3,material=light(intensit=150))) \%>\%
   render_scene(parallel=TRUE, samples = 400,lookfrom=c(5,3,5))

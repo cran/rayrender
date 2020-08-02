@@ -7,6 +7,26 @@
 #include "pdf.h"
 #include "rng.h"
 #include "mathinline.h"
+#include "microfacetdist.h"
+
+// #define DEBUG2
+
+// #ifdef DEBUG2
+// #include <iostream>
+// #include <fstream>
+// using namespace std;
+// #endif
+
+// #ifdef DEBUG2
+//     ray debugrayi(rec.p, wi);
+//     ray debugrayo(rec.p, wo);
+//     ofstream myfile;
+//     myfile.open("onb.txt", ios::app | ios::out);
+//     myfile << rec.p << ", " << uvw.world_to_local(wi) << ", " << uvw.world_to_local(wo) << ", " << 
+//       uvw.w() << ", " << uvw.v() << ", " << uvw.u() << "\n";
+//     myfile.close();
+// #endif
+
 #include <utility>
 
 struct hit_record;
@@ -19,6 +39,24 @@ Float schlick(Float cosine, Float ref_idx, Float ref_idx2) {
   Float r0 = (ref_idx2 - ref_idx) / (ref_idx2 + ref_idx);
   r0 = r0 * r0;
   return(r0 + (1-r0) * pow((1-cosine),5));
+}
+
+Float schlick_reflection(Float cosine, Float r0) {
+  Float r02 = (1 - r0) / (1 + r0);
+  r02 = r02 * r02;
+  return(r02 + (1-r02) * pow((1-cosine),5));
+}
+
+bool refract(const vec3& v, const vec3& n, Float ni_over_nt, vec3& refracted) {
+  vec3 uv = unit_vector(v);
+  Float dt = dot(uv, n);
+  Float discriminant = 1.0 - ni_over_nt * ni_over_nt * (1 - dt * dt);
+  if(discriminant > 0) {
+    refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
+    return(true);
+  } else {
+    return(false);
+  }
 }
 
 vec3 refract(const vec3& uv, const vec3& n, Float ni_over_nt) {
@@ -41,8 +79,8 @@ class material {
     virtual bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
       return(false);
     };
-    virtual Float scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const {
-      return(false);
+    virtual vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+      return(vec3(0,0,0));
     }
     virtual vec3 emitted(const ray& r_in, const hit_record& rec, Float u, Float v, const vec3& p) const {
       return(vec3(0,0,0));
@@ -53,25 +91,28 @@ class material {
 
 class lambertian : public material {
   public: 
-    // lambertian(texture *a) : albedo(a), hasAlphaTexture(false), alphaTexture(nullptr) {
-    //   Rcpp::Rcout << "inside no alpha " << hasAlphaTexture << " " << typeid(alphaTexture).name() << "\n";
-    // 
-    // }
-    lambertian(texture *a) : albedo(a) {
-      // Rcpp::Rcout << "inside alpha " << hasAlphaTexture << " " << typeid(alphaTexture).name() << "\n";
-    }
+    lambertian(texture *a) : albedo(a) {}
     ~lambertian() {
-      // Rcpp::Rcout << "delete albedo" << "\n";
       if(albedo) delete albedo;
     }
-    Float scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+    vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
       //unit_vector(scattered.direction()) == wo
       //r_in.direction() == wi
-      Float cosine = dot(rec.normal, unit_vector(scattered.direction()));
+      vec3 wi = unit_vector(scattered.direction());
+      Float cosine = dot(rec.normal, wi);
+      //Shadow terminator if bump map
+      Float G = 1.0f;
+      if(rec.has_bump) {
+        Float NsNlight = dot(rec.bump_normal, wi);
+        Float NsNg = dot(rec.bump_normal, rec.normal);
+        G = NsNlight > 0.0 && NsNg > 0.0 ? std::fmin(1.0, dot(wi, rec.normal) / (NsNlight * NsNg)) : 0;
+        G = G > 0.0f ? -G * G * G + G * G + G : 0.0f;
+        cosine = dot(rec.bump_normal, wi);
+      }
       if(cosine < 0) {
         cosine = 0;
       }
-      return(cosine*M_1_PI);
+      return(G * albedo->value(rec.u, rec.v, rec.p) * cosine * M_1_PI);
     }
     bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
       srec.is_specular = false;
@@ -85,21 +126,34 @@ class lambertian : public material {
 
 class metal : public material {
   public:
-    metal(const vec3& a, Float f) : albedo(a) { 
+    metal(texture* a, Float f, vec3 eta, vec3 k) : albedo(a), eta(eta), k(k) { 
       if (f < 1) fuzz = f; else fuzz = 1;
     }
+    ~metal() {
+      if(albedo) delete albedo;
+    }
     virtual bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
-      vec3 reflected = reflect(unit_vector(r_in.direction()),hrec.normal);
-      srec.specular_ray = ray(hrec.p, reflected + fuzz * rng.random_in_unit_sphere(), r_in.pri_stack, r_in.time());
-      srec.attenuation = albedo;
+      vec3 normal = !hrec.has_bump ? hrec.normal : hrec.bump_normal;
+      vec3 wi = -unit_vector(r_in.direction());
+      vec3 reflected = Reflect(wi,unit_vector(normal));
+      Float cosine = AbsDot(unit_vector(reflected), unit_vector(normal));
+      if(cosine < 0) {
+        cosine = 0;
+      }
+      vec3 offset_p = offset_ray(hrec.p-r_in.A, hrec.normal) + r_in.A;
+      
+      srec.specular_ray = ray(offset_p, reflected + fuzz * rng.random_in_unit_sphere(), r_in.pri_stack, r_in.time());
+      srec.attenuation = albedo->value(hrec.u, hrec.v, hrec.p) * FrCond(cosine, eta, k);
       srec.is_specular = true;
       srec.pdf_ptr = 0;
       return(true);
     }
-    vec3 albedo;
+    texture *albedo;
+    vec3 eta, k;
     Float fuzz;
 };
 // 
+
 class dielectric : public material {
   public:
     dielectric(const vec3& a, Float ri, const vec3& atten, int priority2, random_gen& rng) : ref_idx(ri), 
@@ -107,7 +161,9 @@ class dielectric : public material {
     virtual bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
       srec.is_specular = true;
       vec3 outward_normal;
-      vec3 reflected = reflect(r_in.direction(), hrec.normal);
+      vec3 normal = !hrec.has_bump ? hrec.normal : hrec.bump_normal;
+      
+      vec3 reflected = reflect(r_in.direction(), normal);
       Float ni_over_nt;
       srec.attenuation = albedo;
       Float current_ref_idx = 1.0;
@@ -153,10 +209,10 @@ class dielectric : public material {
       
       Float reflect_prob;
       if(!entering) {
-        outward_normal = -hrec.normal;
+        outward_normal = -normal;
         ni_over_nt = ref_idx / current_ref_idx ;
       } else {
-        outward_normal = hrec.normal;
+        outward_normal = normal;
         ni_over_nt = current_ref_idx / ref_idx;
       }
       vec3 unit_direction = unit_vector(r_in.direction());
@@ -210,7 +266,6 @@ class diffuse_light : public material {
 public:
   diffuse_light(texture *a) : emit(a) {}
   ~diffuse_light() {
-    // Rcpp::Rcout << "delete diffuse_light" << "\n";
     if(emit) delete emit;
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec, scatter_record& srec, random_gen& rng) {
@@ -230,7 +285,6 @@ class isotropic : public material {
 public:
   isotropic(texture *a) : albedo(a) {}
   ~isotropic() {
-    // Rcpp::Rcout << "delete isotropic" << "\n";
     if(albedo) delete albedo;
   }
   virtual bool scatter(const ray& r_in, const hit_record& rec, scatter_record& srec, random_gen& rng) {
@@ -239,8 +293,8 @@ public:
     srec.attenuation = albedo->value(rec.u,rec.v,rec.p);
     return(true);
   }
-  Float scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const {
-    return(0.25 * M_1_PI);
+  vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+    return(albedo->value(rec.u,rec.v,rec.p) * 0.25 * M_1_PI);
   }
   texture *albedo;
 };
@@ -253,7 +307,6 @@ public:
     B = 0.45f * sigma2 / (sigma2 + 0.09f);
   }
   ~orennayar() {
-    // Rcpp::Rcout << "delete orennayar" << "\n";
     if(albedo) delete albedo;
   }
   bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
@@ -262,11 +315,18 @@ public:
     srec.pdf_ptr = new cosine_pdf(hrec.normal);
     return(true);
   }
-  Float scattering_pdf(const ray& r_in, const hit_record& rec, const ray& scattered) const {
-    vec3 wi = unit_vector(r_in.direction());
-    vec3 wo = unit_vector(scattered.direction());
+vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+    onb uvw;
+    if(!rec.has_bump) {
+      uvw.build_from_w(rec.normal);
+    } else {
+      uvw.build_from_w(rec.bump_normal);
+    }
+    vec3 wi = -unit_vector(uvw.world_to_local(r_in.direction()));
+    vec3 wo = unit_vector(uvw.world_to_local(scattered.direction()));
+
+    Float cosine = wo.z();
     
-    Float cosine = dot(rec.normal, wo);
     if(cosine < 0) {
       cosine = 0;
     }
@@ -280,7 +340,7 @@ public:
       Float sinPhiO = SinPhi(wo);
       Float cosPhiO = CosPhi(wo);
       Float dCos = cosPhiI * cosPhiO + sinPhiI * sinPhiO;
-      maxCos = std::max((Float)0, dCos);
+      maxCos = std::fmax((Float)0, dCos);
     }
     Float sinAlpha, tanBeta;
     if(AbsCosTheta(wi) > AbsCosTheta(wo)) {
@@ -290,11 +350,119 @@ public:
       sinAlpha = sinThetaI;
       tanBeta = sinThetaO / AbsCosTheta(wo);
     }
-    return((A + B * maxCos * sinAlpha * tanBeta ) * M_1_PI * cosine);
+    return(albedo->value(rec.u, rec.v, rec.p) * (A + B * maxCos * sinAlpha * tanBeta ) * cosine * M_1_PI );
   }
   Float A, B;
   texture *albedo;
 };
 
+class MicrofacetReflection : public material {
+public:
+  MicrofacetReflection(texture* a, MicrofacetDistribution *distribution, 
+                       vec3 eta, vec3 k)
+    : albedo(a), distribution(distribution), eta(eta), k(k) {}
+  ~MicrofacetReflection() {
+    if(albedo) delete albedo;
+    if(distribution) delete distribution;
+  }
+  
+  bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
+    srec.is_specular = false;
+    srec.attenuation = albedo->value(hrec.u, hrec.v, hrec.p);
+    if(!hrec.has_bump) {
+      srec.pdf_ptr = new micro_pdf(hrec.normal, r_in.direction(), distribution);
+    } else {
+      srec.pdf_ptr = new micro_pdf(hrec.bump_normal, r_in.direction(), distribution);
+    }
+    return(true);
+  }
+
+  vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+    onb uvw;
+    if(!rec.has_bump) {
+      uvw.build_from_w(rec.normal);
+    } else {
+      uvw.build_from_w(rec.bump_normal);
+    }
+    vec3 wi = -unit_vector(uvw.world_to_local(r_in.direction()));
+    vec3 wo = unit_vector(uvw.world_to_local(scattered.direction()));
+    
+    Float cosThetaO = AbsCosTheta(wo);
+    Float cosThetaI = AbsCosTheta(wi);
+    vec3 normal = unit_vector(wi + wo);
+    if (cosThetaI == 0 || cosThetaO == 0) {
+      return(vec3(0,0,0));
+    }
+    if (normal.x() == 0 && normal.y() == 0 && normal.z() == 0) {
+      return(vec3(0,0,0));
+    }
+    vec3 F = FrCond(cosThetaO, eta, k);
+    Float G = distribution->G(wo,wi,normal);
+    Float D = distribution->D(normal);
+    return(albedo->value(rec.u, rec.v, rec.p) * F * G * D  * cosThetaI / (4 * CosTheta(wo) * CosTheta(wi) ));
+  }
+private:
+  texture *albedo;
+  MicrofacetDistribution *distribution;
+  vec3 eta;
+  vec3 k;
+};
+
+class glossy : public material {
+public:
+  glossy(texture* a, MicrofacetDistribution *distribution, 
+         vec3 Rs, vec3 Rd2)
+    : albedo(a), distribution(distribution), Rs(Rs) {}
+  ~glossy() {
+    if(albedo) delete albedo;
+    if(distribution) delete distribution;
+  }
+  
+  bool scatter(const ray& r_in, const hit_record& hrec, scatter_record& srec, random_gen& rng) {
+    srec.is_specular = false;
+    srec.attenuation = albedo->value(hrec.u, hrec.v, hrec.p);
+    srec.pdf_ptr = new glossy_pdf(hrec.normal, r_in.direction(), distribution);
+    return(true);
+  }
+  
+  vec3 f(const ray& r_in, const hit_record& rec, const ray& scattered) const {
+    onb uvw;
+    if(!rec.has_bump) {
+      uvw.build_from_w(rec.normal);
+    } else {
+      uvw.build_from_w(rec.bump_normal);
+    }
+    vec3 wi = -unit_vector(uvw.world_to_local(r_in.direction()));
+    vec3 wo = unit_vector(uvw.world_to_local(scattered.direction()));
+    
+    auto pow5 = [](Float v) { return (v * v) * (v * v) * v; };
+    vec3 diffuse = (28.0f/(23.0f*M_PI)) * albedo->value(rec.u, rec.v, rec.p) *
+      (vec3(1.0f) - Rs) *
+      (1.0 - pow5(1 - 0.5f * AbsCosTheta(wi))) *
+      (1.0 - pow5(1 - 0.5f * AbsCosTheta(wo)));
+    vec3 wh = unit_vector(wi + wo);
+    if (wh.x() == 0 && wh.y() == 0 && wh.z() == 0) {
+      return(vec3(0.0f));
+    }
+    Float cosine  = dot(wh,wi);
+    if(cosine < 0) {
+      cosine = 0;
+    }
+    vec3 specular = distribution->D(wh) /
+        (4 * AbsDot(wi, wh) *
+        std::fmax(AbsCosTheta(wi), AbsCosTheta(wo))) *
+        SchlickFresnel(dot(wo, wh));
+    return((diffuse + specular) * cosine);
+  }
+  vec3 SchlickFresnel(Float cosTheta) const {
+    auto pow5 = [](Float v) { return (v * v) * (v * v) * v; };
+    return Rs + pow5(1 - cosTheta) * (vec3(1.0f) - Rs);
+  }
+  
+private:
+  texture *albedo;
+  MicrofacetDistribution *distribution;
+  vec3 Rs;
+};
 
 #endif

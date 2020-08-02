@@ -3,6 +3,7 @@
 
 #include "perlin.h"
 #include "Rcpp.h"
+#include "mathinline.h"
 
 class texture {
 public: 
@@ -55,7 +56,7 @@ public:
     noise = new perlin();
   }
   ~noise_texture() {
-    if(noise != 0) delete noise;
+    if(noise) delete noise;
   }
   virtual vec3 value(Float u, Float v, const vec3& p) const {
     Float weight = 0.5*(1+sin(scale*p.y()  + intensity*noise->turb(scale * p) + phase));
@@ -69,25 +70,55 @@ public:
   Float intensity;
 };
 
+class world_gradient_texture : public texture {
+public:
+  world_gradient_texture() {}
+  world_gradient_texture(vec3 p1, vec3 p2, vec3 c1, vec3 c2, bool hsv2) : 
+    point1(p1)  {
+    gamma_color1 = hsv2 ? RGBtoHSV(c1) : c1;
+    gamma_color2 = hsv2 ? RGBtoHSV(c2) : c2;
+    dir = p2 - p1;
+    inv_trans_length = 1.0/dir.squared_length();
+    hsv = hsv2;
+  }
+  ~world_gradient_texture() {}
+  virtual vec3 value(Float u, Float v, const vec3& p) const {
+    vec3 offsetp = p - point1;
+    Float mix = clamp(dot(offsetp, dir)*inv_trans_length, 0, 1);
+    vec3 color = gamma_color1 * (1-mix) + mix * gamma_color2;
+    return(hsv ? HSVtoRGB(color) : color);
+  }
+  vec3 point1;
+  vec3 gamma_color1, gamma_color2;
+  Float inv_trans_length;
+  vec3 dir;
+  bool hsv;
+};
+
 class image_texture : public texture {
 public:
   image_texture() {}
-  image_texture(Float *pixels, int A, int B, int nn) : data(pixels), nx(A), ny(B), channels(nn) {}
+  image_texture(Float *pixels, int A, int B, int nn, Float repeatu, Float repeatv, Float intensity) : 
+    data(pixels), nx(A), ny(B), channels(nn), repeatu(repeatu), repeatv(repeatv), intensity(intensity) {}
   virtual vec3 value(Float u, Float v, const vec3& p) const;
   Float *data;
   int nx, ny, channels;
+  Float repeatu, repeatv;
+  Float intensity;
 };
 
 vec3 image_texture::value(Float u, Float v, const vec3& p) const {
+  u = fmod(u * repeatu,1);
+  v = fmod(v * repeatv,1);
   int i = u * nx;
   int j = (1-v) * ny - 0.00001;
   if (i < 0) i = 0;
   if (j < 0) j = 0;
   if (i > nx-1) i = nx-1;
   if (j > ny-1) j = ny-1;
-  Float r = data[channels*i + channels*nx*j];
-  Float g = data[channels*i + channels*nx*j+1];
-  Float b = data[channels*i + channels*nx*j+2];
+  Float r = data[channels*i + channels*nx*j] * intensity;
+  Float g = data[channels*i + channels*nx*j+1] * intensity;
+  Float b = data[channels*i + channels*nx*j+2] * intensity;
   return(vec3(r,g,b));
 }
 
@@ -104,10 +135,7 @@ public:
 class triangle_image_texture : public texture {
 public:
   triangle_image_texture() {}
-  ~triangle_image_texture() {
-    // Rcpp::Rcout << "deleting triangle" << "\n";
-    // delete data;
-  }
+  ~triangle_image_texture() {}
   triangle_image_texture(Float *pixels, int A, int B, int nn,
                          Float tex_u_a, Float tex_v_a,
                          Float tex_u_b, Float tex_v_b,
@@ -125,6 +153,10 @@ public:
 vec3 triangle_image_texture::value(Float u, Float v, const vec3& p) const {
   Float uu = ((1 - u - v) * a_u + u * b_u + v * c_u);
   Float vv = ((1 - u - v) * a_v + u * b_v + v * c_v);
+  while(uu < 0) uu += 1;
+  while(vv < 0) vv += 1;
+  while(uu > 1) uu -= 1;
+  while(vv > 1) vv -= 1;
   int i = uu * nx;
   int j = (1-vv) * ny - 0.00001;
   if (i < 0) i = 0;
@@ -140,22 +172,27 @@ vec3 triangle_image_texture::value(Float u, Float v, const vec3& p) const {
 class gradient_texture : public texture {
 public: 
   gradient_texture() {}
-  gradient_texture(vec3 c1, vec3 c2, bool v) : 
-    gamma_color1(c1.pow(1/2.2)), gamma_color2(c2.pow(1/2.2)), aligned_v(v) {}
+  gradient_texture(vec3 c1, vec3 c2, bool v, bool hsv2) : 
+    aligned_v(v) {
+    gamma_color1 = hsv2 ? RGBtoHSV(c1) : c1;
+    gamma_color2 = hsv2 ? RGBtoHSV(c2) : c2;
+    hsv = hsv2;
+  }
   virtual vec3 value(Float u, Float v, const vec3& p) const {
     vec3 final_color = aligned_v ? gamma_color1 * (1-u) + u * gamma_color2 : gamma_color1 * (1-v) + v * gamma_color2;
-    return(final_color.pow(2.2));
+    return(hsv ? HSVtoRGB(final_color) : final_color);
   }
   vec3 gamma_color1, gamma_color2;
   bool aligned_v;
+  bool hsv;
 };
 
 class alpha_texture {
 public:
   alpha_texture() {}
   alpha_texture(Float *pixels, int A, int B, int nn) : data(pixels), nx(A), ny(B), channels(nn) {
-    u_vec = vec3(0,0,0);
-    v_vec = vec3(0,0,0);
+    u_vec = vec3(0,1,0);
+    v_vec = vec3(0,0,1);
   }
   alpha_texture(Float *pixels, int A, int B, int nn, vec3 u, vec3 v) : 
                 data(pixels), nx(A), ny(B), channels(nn), u_vec(u), v_vec(v) {}
@@ -180,13 +217,70 @@ vec3 alpha_texture::value(Float u, Float v, const vec3& p) const {
 Float alpha_texture::channel_value(Float u, Float v, const vec3& p) const {
   Float uu = ((1 - u - v) * u_vec.x() + u * u_vec.y() + v * u_vec.z());
   Float vv = ((1 - u - v) * v_vec.x() + u * v_vec.y() + v * v_vec.z());
+  while(uu < 0) uu += 1;
+  while(vv < 0) vv += 1;
+  while(uu > 1) uu -= 1;
+  while(vv > 1) vv -= 1;
   int i = uu * nx;
   int j = (1-vv) * ny - 0.00001;
   if (i < 0) i = 0;
   if (j < 0) j = 0;
   if (i > nx-1) i = nx-1;
   if (j > ny-1) j = ny-1;
-  return(data[channels*i + channels*nx*j+3]);
+  return(data[channels*i + channels*nx*j + 3]);
 }
+
+class bump_texture {
+public:
+  bump_texture() {}
+  bump_texture(Float *pixels, int A, int B, int nn, Float intensity) : 
+    data(pixels), nx(A), ny(B), channels(nn), intensity(intensity) { 
+    u_vec = vec3(0,1,0);
+    v_vec = vec3(0,0,1);
+  }
+  bump_texture(Float *pixels, int A, int B, int nn, vec3 u, vec3 v, Float intensity) : 
+    data(pixels), nx(A), ny(B), channels(nn), u_vec(u), v_vec(v), intensity(intensity) {}
+  vec3 value(Float u, Float v, const vec3& p) const;
+  vec3 mesh_value(Float u, Float v, const vec3& p) const;
+  Float *data;
+  int nx, ny, channels;
+  vec3 u_vec, v_vec;
+  Float intensity;
+};
+
+vec3 bump_texture::value(Float u, Float v, const vec3& p) const {
+  while(u < 0) u += 1;
+  while(v < 0) v += 1;
+  while(u > 1) u -= 1;
+  while(v > 1) v -= 1;
+  int i = u * (nx-1);
+  int j = (1-v) * (ny-1) - 0.00001;
+  if (i < 1) i = 1;
+  if (j < 1) j = 1;
+  if (i > nx-2) i = nx-2;
+  if (j > ny-2) j = ny-2;
+  Float bu = (data[channels*(i+1) + channels*nx*j] - data[channels*(i-1) + channels*nx*j])/2;
+  Float bv = (data[channels*i + channels*nx*(j+1)] - data[channels*i + channels*nx*(j-1)])/2;
+  return(vec3(intensity*bu,intensity*bv,0));
+}
+
+vec3 bump_texture::mesh_value(Float u, Float v, const vec3& p) const {
+  Float uu = ((1 - u - v) * u_vec.x() + u * u_vec.y() + v * u_vec.z());
+  Float vv = ((1 - u - v) * v_vec.x() + u * v_vec.y() + v * v_vec.z());
+  while(uu < 0) uu += 1;
+  while(vv < 0) vv += 1;
+  while(uu > 1) uu -= 1;
+  while(vv > 1) vv -= 1;
+  int i = uu * (nx-1);
+  int j = (1-vv) * (ny-1) - 0.00001;
+  if (i < 1) i = 1;
+  if (j < 1) j = 1;
+  if (i > nx-2) i = nx-2;
+  if (j > ny-2) j = ny-2;
+  Float bu = (data[channels*(i+1) + channels*nx*j] - data[channels*(i-1) + channels*nx*j])/2;
+  Float bv = (data[channels*i + channels*nx*(j+1)] - data[channels*i + channels*nx*(j-1)])/2;
+  return(vec3(intensity*bu,intensity*bv,0));
+}
+
 
 #endif

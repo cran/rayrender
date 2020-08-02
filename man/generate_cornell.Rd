@@ -10,9 +10,11 @@ generate_cornell(
   lightcolor = "white",
   lightwidth = 332,
   lightdepth = 343,
+  sigma = 0,
   leftcolor = "#1f7326",
   rightcolor = "#a60d0d",
-  roomcolor = "#bababa"
+  roomcolor = "#bababa",
+  importance_sample = TRUE
 )
 }
 \arguments{
@@ -26,11 +28,15 @@ generate_cornell(
 
 \item{lightdepth}{Default `343`. Depth (x) of the light.}
 
+\item{sigma}{Default `0`. Oren-Nayar microfacet angle.}
+
 \item{leftcolor}{Default `#1f7326` (green).}
 
 \item{rightcolor}{Default `#a60d0d` (red).}
 
 \item{roomcolor}{Default `#bababa` (light grey).}
+
+\item{importance_sample}{Default `TRUE`. Importance sample the light in the room.}
 }
 \value{
 Tibble containing the scene description of the Cornell box.

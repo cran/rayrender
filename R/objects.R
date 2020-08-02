@@ -50,21 +50,24 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
-  tibble::tibble(x = x, y = y, z = z, radius = radius, type = material$type, shape = "sphere",
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "sphere",
                  properties = material$properties, velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image,  alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample, sigma = material$sigma,
+                 implicit_sample = material$implicit_sample, sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Cube Object
@@ -109,7 +112,7 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #'                ambient_light = FALSE, samples = 500, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
-#' #Generate a rotateddielectric box in the cornell box
+#' #Generate a rotated dielectric box in the cornell box
 #' \donttest{
 #' generate_cornell() %>%
 #'   add_object(cube(x = 555/2, y = 200, z = 555/2, 
@@ -128,21 +131,24 @@ cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth =
   ywidth = ifelse(missing(ywidth), width, ywidth)
   zwidth = ifelse(missing(zwidth), width, zwidth)
   boxinfo = c(unlist(material$properties), xwidth, ywidth, zwidth)
-  tibble::tibble(x = x, y = y, z = z, radius = NA, type = material$type, shape = "box",
+  new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "box",
                  properties = list(boxinfo), velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image,  alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
-                 order_rotation = list(order_rotation),
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
+                 order_rotation = list(order_rotation), 
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Rectangular XY Plane Object 
@@ -190,21 +196,24 @@ xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,
     scale = c(scale, scale, scale)
   }
   rectinfo = c(unlist(material$properties), x, xwidth, y, ywidth, z)
-  tibble::tibble(x = x, y = y, z = z, radius = NA, type = material$type, shape = "xy_rect",
+  new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "xy_rect",
                  properties = list(rectinfo), velocity = list(c(0, 0, 0)),
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Rectangular YZ Plane Object
@@ -251,21 +260,24 @@ yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffu
     scale = c(scale, scale, scale)
   }
   rectinfo = c(unlist(material$properties), y, ywidth, z, zwidth, x)
-  tibble::tibble(x = x, y = y, z = z, radius = NA, type = material$type, shape = "yz_rect",
+  new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "yz_rect",
                  properties = list(rectinfo), velocity = list(c(0, 0, 0)),
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Rectangular XZ Plane Object
@@ -313,22 +325,25 @@ xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffu
     scale = c(scale, scale, scale)
   }
   rectinfo = c(unlist(material$properties), x, xwidth, z, zwidth, y)
-  tibble::tibble(x = x, y = y, z = z, radius = NA, 
+  new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                  type = material$type, shape = "xz_rect",
                  properties = list(rectinfo), velocity = list(c(0, 0, 0)),
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Triangle Object
@@ -412,22 +427,25 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
     color3 = info[1:3]
   }
   colorvec = c(color1, color2, color3)
-  tibble::tibble(x = 0, y = 0, z = 0, radius = NA, 
+  new_tibble_row(list(x = 0, y = 0, z = 0, radius = NA, 
                  type = material$type, shape = "triangle",
                  properties = list(info), velocity = list(c(0, 0, 0)),
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(colorvec), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Disk Object
@@ -485,21 +503,24 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
     scale = c(scale, scale, scale)
   }
   info = c(unlist(material$properties), inner_radius)
-  tibble::tibble(x = x, y = y, z = z, radius = radius, type = material$type, shape = "disk",
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "disk",
                  properties = list(info), velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' `obj` File Object
@@ -577,22 +598,25 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
   if(vertex_colors) {
     shape = "objvertexcolor"
   }
-  tibble::tibble(x = x, y = y, z = z, radius = NA, 
+  new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                  type = material$type, shape = shape,
                  properties = list(info), velocity = list(c(0, 0, 0)),
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = filename, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Cylinder Object
@@ -626,10 +650,6 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #' generate_cornell() %>%
 #'   add_object(cylinder(x = 555/2, y = 250, z = 555/2, 
 #'                       length = 300, radius = 100, material = metal())) %>%
-#'   add_object(disk(x = 555/2, y = 400, z = 555/2, 
-#'                   radius = 100, material = metal())) %>%
-#'   add_object(disk(x = 555/2, y = 100, z = 555/2, 
-#'                   radius = 100, material = metal(), flipped = TRUE)) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 #' }
@@ -652,7 +672,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 #' }
-cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
+cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1, 
                     phi_min = 0, phi_max = 360, material = diffuse(), 
                     angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
                     flipped = FALSE, scale = c(1,1,1)) {
@@ -661,21 +681,24 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
   }
   assertthat::assert_that(phi_max > phi_min)
   info = c(unlist(material$properties), length, phi_min * pi / 180, phi_max * pi / 180)
-  tibble::tibble(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
                  properties = list(info), velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Segment Object
@@ -687,6 +710,11 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' @param radius Default `1`. Radius of the segment.
 #' @param phi_min Default `0`. Minimum angle around the segment.
 #' @param phi_max Default `360`. Maximum angle around the segment.
+#' @param direction Default `NA`. Alternative to `start` and `end`, specify the direction (via 
+#' a length-3 vector) of the segment. Segment will be centered at `start`, and the length will be
+#' determined by the magnitude of the direction vector.
+#' @param from_center Default `TRUE`. If orientation specified via `direction`, setting this argument
+#' to `FALSE` will make `start` specify the bottom of the segment, instead of the middle.
 #' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
@@ -759,18 +787,29 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 #' }
 segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1, 
-                   phi_min = 0, phi_max = 360,
+                   phi_min = 0, phi_max = 360, from_center = TRUE, direction = NA,
                    material = diffuse(), 
                    velocity = c(0, 0, 0), flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
   assertthat::assert_that(phi_max > phi_min)
+  if(all(!is.na(direction)) && length(direction) == 3) {
+    if(from_center) {
+      new_start = start - direction/2
+      new_end = start + direction/2
+    } else {
+      new_start = start
+      new_end = start + direction
+    }
+    start = new_start
+    end = new_end
+  } 
   x = (start[1] + end[1])/2
   y = (start[2] + end[2])/2
   z = (start[3] + end[3])/2
   order_rotation = c(3, 2, 1)
-  phi =  atan2(end[1]-start[1], end[3]-start[3])/pi*180 + 90
+  phi =  atan2( as.numeric(end[1]-start[1]), as.numeric(end[3]-start[3]))/pi*180 + 90
   
   length_xy = sqrt((end[1]-start[1])^2 + (end[3]-start[3])^2)
   if(end[1] == start[1] && end[3] == start[3]) {
@@ -781,21 +820,24 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1,
   fulllength = sqrt(sum((end-start)^2))
   angle = c(0, phi, theta)
   info = c(unlist(material$properties), fulllength, phi_min * pi / 180, phi_max * pi / 180)
-  tibble::tibble(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
                  properties = list(info), velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Ellipsoid Object
@@ -859,27 +901,32 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
   }
   radius = 1
   info = c(unlist(material$properties), a, b, c)
-  tibble::tibble(x = x, y = y, z = z, radius = radius, type = material$type, shape = "ellipsoid",
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "ellipsoid",
                  properties = list(info), velocity = list(velocity), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                 world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                 gradient_type = material$gradient_type,
                  noise = material$noise, noisephase = material$noisephase, 
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
-                 angle = list(angle), image = material$image, alphaimage = list(material$alphaimage),
-                 lightintensity = material$lightintensity,
+                 angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                 alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
-                 implicit_sample = material$implicit_sample,  sigma = material$sigma,
+                 implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
                  pivot_point = list(NA), group_translate = list(NA),
                  group_angle = list(NA), group_order_rotation = list(NA),
                  tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA)
+                 material_id = NA))
 }
 
 #' Extruded Polygon Object
 #'
-#' @param polygon `sf` object or xy coordinates of polygon represented in a way that can be processed 
-#' by `xy.coords()`.
+#' @param polygon `sf` object, "SpatialPolygon" `sp` object,  or xy coordinates
+#'   of polygon represented in a way that can be processed by `xy.coords()`.  If
+#'   xy-coordinate based polygons are open, they will be closed by adding an
+#'   edge from the last point to the first.
 #' @param x Default `0`. x-coordinate to offset the extruded model.
 #' @param y Default `0`. y-coordinate to offset the extruded model.
 #' @param z Default `0`. z-coordinate to offset the extruded model.
@@ -933,7 +980,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #' 
 #' #Now, let's add a hole to the center of the polygon. We'll make the polygon
 #' #hollow by shrinking it, combining it with the normal size polygon,
-#' #and specify with the `hole` argument that everything after `nrow(star_polygon)`
+#' #and specify with the `holes` argument that everything after `nrow(star_polygon)`
 #' #in the following should be used to draw a hole:
 #' 
 #' hollow_star = rbind(star_polygon,0.8*star_polygon)
@@ -941,7 +988,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #' \donttest{
 #' generate_ground(depth=-0.01,
 #'                 material = diffuse(color="grey50",checkercolor="grey20")) %>%
-#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, hole = nrow(star_polygon),
+#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, holes = nrow(star_polygon) + 1,
 #'                               material=diffuse(color="red",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,z=-3,material=light(intensity=30))) %>%
 #'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=400,lookat=c(0,0,0),fov=30)
@@ -952,10 +999,10 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #' \donttest{
 #' generate_ground(depth=-0.01,
 #'                 material = diffuse(color="grey50",checkercolor="grey20")) %>%
-#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, hole = nrow(star_polygon),
+#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, holes = nrow(star_polygon),
 #'                               material=diffuse(color="red",sigma=90))) %>%
 #'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, y=1.2, z=-1.2, 
-#'                               hole = nrow(star_polygon), plane = "yx", 
+#'                               holes = nrow(star_polygon) + 1, plane = "yx", 
 #'                               material=diffuse(color="green",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,material=light(intensity=30))) %>%
 #'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=400,lookat=c(0,0.9,0),fov=40)
@@ -965,13 +1012,13 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #' \donttest{
 #' generate_ground(depth=-0.01,
 #'                 material = diffuse(color="grey50",checkercolor="grey20")) %>%
-#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, hole = nrow(star_polygon),
+#'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, holes = nrow(star_polygon) + 1,
 #'                               material=diffuse(color="red",sigma=90))) %>%
 #'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, y=1.2, z=-1.2, 
-#'                               hole = nrow(star_polygon), plane = "yx", 
+#'                               holes = nrow(star_polygon) + 1, plane = "yx", 
 #'                               material=diffuse(color="green",sigma=90))) %>%
 #'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, y=1.2, x=1.2, 
-#'                               hole = nrow(star_polygon), plane = "zy", 
+#'                               holes = nrow(star_polygon) + 1, plane = "zy", 
 #'                               material=diffuse(color="blue",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,material=light(intensity=30))) %>%
 #'   render_scene(parallel=TRUE,lookfrom = c(-4,2,4),samples=400,lookat=c(0,0.9,0),fov=40)
@@ -1037,6 +1084,9 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
     scale = c(scale, scale, scale)
   }
   reversed = FALSE
+  if(!is.character(plane) || length(plane) != 1L || is.na(plane)) {
+    stop("plane must be scalar character and not NA")
+  }
   if(tolower(plane) %in% c("xy","yx","xz","zx","zy","yz")) {
     if(plane == "xz") {
       planeval = 1
@@ -1099,6 +1149,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
   vertex_list = list()
   height_list = list()
   bottom_list = list()
+  holes_start_i_list = list()
   base_poly = FALSE
   counter = 1
   if(inherits(polygon,"sf")) {
@@ -1136,65 +1187,54 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
     data_vals_bottom = bottom[1]
   }
   if(inherits(polygon,"SpatialPolygonsDataFrame") || inherits(polygon,"SpatialPolygons")) {
-    coord_data = raster::geom(polygon)
-    unique_objects = unique(coord_data[,1])
-    counter_obj = 1
-    
-    for(obj in unique_objects) {
-      temp_data = coord_data[coord_data[,1] == obj,]
-      unique_parts = unique(temp_data[,2])
-      counter_holes = 0
-      hole_vec = c()
-      for(part in 1:(length(unique_parts)-1)) {
-        if(all(temp_data[temp_data[,2] == unique_parts[part-counter_holes]+1,4] == 1)) {
-          if(length(temp_data[temp_data[,2] == unique_parts[part-counter_holes]+1,4] == 1) > 0) {
-            hole_vec = c(hole_vec, min(which(temp_data[temp_data[,2] == unique_parts[part-counter_holes]+1,4] == 1)) + 
-                         length(temp_data[temp_data[,2] < unique_parts[part-counter_holes]+1,4]))
-            temp_data[temp_data[,2] > unique_parts[part-counter_holes],2] = temp_data[temp_data[,2] > unique_parts[part-counter_holes],2] - 1
-            counter_holes = counter_holes + 1
-          }
-        }
-      }
-      unique_parts = unique(temp_data[,2])
-      prev_vertices = 0
-      for(part in unique_parts) {
-        min_index = min(which(temp_data[,2] == part))
-        max_index = max(which(temp_data[,2] == part))
-        poly_list[[counter]] = temp_data[temp_data[,2] == part,c(5,6,4)]
-        poly_list[[counter]][,1] = -poly_list[[counter]][,1]
-        height_list[[counter]] = data_vals_top[obj]
-        bottom_list[[counter]] = data_vals_bottom[obj]
-        if(flip_horizontal) {
-          poly_list[[counter]][,1] = -poly_list[[counter]][,1]
-        }
-        if(flip_vertical) {
-          poly_list[[counter]][,2] = -poly_list[[counter]][,2]
-        }
-        if(length(hole_vec) > 0) {
-          if(any(hole_vec >= min_index & hole_vec <= max_index)) {
-            hole_val = hole_vec[hole_vec >= min_index & hole_vec <= max_index] - prev_vertices
-          } else {
-            hole_val = 0
-          }
+    if(!is.null(holes)) {
+      warning("holes is not NULL, but is unused when input is sf or Spatial")
+    }
+    coord_data = raster::geom(polygon) # See ?raster::geom for col meaning
+    coord_data = coord_data[order(coord_data[,1],coord_data[,2] ),] # just in case
+
+    # Holes are only holes if every hole value of `part` column (col 2) is a
+    # hole to match original code (seems like it should always be true?).
+
+    opart = interaction(coord_data[, 1], coord_data[, 2], drop=TRUE)
+    coord_data[, 4] = stats::ave(coord_data[, 4], opart, FUN=min)
+
+    # Every `part` is considered a polygon, unless it is a hole, in which case
+    # it is assumed to be a hole in the nearest preceding non-hole polygon.
+
+    object = coord_data[, 1]
+    object_new = coord_data[, 3]
+    object_new[coord_data[, 4] == 1] = min(coord_data[,3]) - 1L
+    object_new = cummax(object_new)
+    coord_data[, 1] = object_new
+    coord_data[, 5] = -coord_data[, 5]  # due to xz defalt plane need to negate x
+
+    # give distinct hole ids instead of just 0,1 flag
+
+    coord_data[, 4] = coord_data[, 4] * coord_data[, 3]
+
+    # remap the new object id to old to get height data
+
+    obj_new_len = rle(object_new)[['lengths']]
+    obj_map_id = object[c(1L, cumsum(obj_new_len)[-length(obj_new_len)] + 1L)]
+
+    height_list = as.list(data_vals_top[obj_map_id])    # list for compatibility
+    bottom_list = as.list(data_vals_bottom[obj_map_id])
+    poly_list = unname(split.data.frame(coord_data[, c(5,6,4,2)], coord_data[,1]))
+
+    # assume that all holes are after all outer polygons
+
+    holes_start_i_list = lapply(
+      poly_list,
+      function(x) {
+        if(!any(x[,3] > 0)) {              # no hole
+          0
         } else {
-          hole_val = 0
-        }
-        vertex_list[[counter]] = decido::earcut(poly_list[[counter]][,1:2],holes = hole_val)
-        prev_vertices = prev_vertices + nrow(poly_list[[counter]])
-        counter = counter + 1
-      }
-    }
-    if(center) {
-      all_vertices = do.call(rbind,poly_list)
-      middle_x = (max(all_vertices[,1]) + min(all_vertices[,1]))/2
-      middle_y = (max(all_vertices[,2]) + min(all_vertices[,2]))/2
-      counter_center = 1
-      for(part in unique_parts) {
-        poly_list[[counter_center]][,1] = poly_list[[counter_center]][,1] - middle_x
-        poly_list[[counter_center]][,2] = poly_list[[counter_center]][,2] - middle_y
-        counter_center = counter_center + 1
-      }
-    }
+          which(
+            c(TRUE, diff(x[,4]) > 0) &     # start position of each "part"
+            x[,3] > 0                      # that correspond to holes
+          )
+    } } )
   } else {
     base_poly = TRUE
     xylist = grDevices::xy.coords(polygon)
@@ -1202,22 +1242,75 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
     y = xylist$y
     if(is.null(holes)) {
       holes = 0
-    } 
-    poly_list[[1]] = as.matrix(data.frame(x=x,y=y,hole=holes))
-    vertex_list[[1]] = decido::earcut(poly_list[[1]][,1:2],holes = holes)
+    } else if (
+      !is.numeric(holes) || anyNA(holes <- as.integer(holes))
+    ) {
+      stop("holes must be integer")
+    } else if (
+      any(holes < 0L) || any(holes) > length(x) ||
+      (any(holes == 0L) && length(holes) != 1L)
+    ) {
+      stop(
+        "holes must be zero, or contain indices to polygon vertices"
+      )
+    } else if (any(holes < 4)) {
+      stop("holes cannot begin before vertex 4. Hole index here starts at: ", min(holes))
+    }
+    # label each vertex with a hole id
+
+    if(isTRUE(holes == 0)) {
+      xy_dat = data.frame(x, y, holes=0L)
+    } else {
+      xy_dat = data.frame(x, y, holes=cumsum(seq_along(x) %in% holes))
+    }
+    # close polygons if not closed, must do so for outer and each hole;
+    # sf and Spatial polygons should be closed
+
+    xy_dat_split = split(xy_dat, xy_dat[['holes']])
+    close_poly = function(dat) {
+      if(!all(dat[1L,] == dat[nrow(dat),])) {
+        dat[c(seq_len(nrow(dat)), 1L),]
+      } else dat
+    }
+    xy_dat_closed = lapply(xy_dat_split, close_poly)
+    xy_dat_len = vapply(xy_dat_closed, nrow, 0)
+    holes = if(length(xy_dat_closed) > 1) {
+      cumsum(xy_dat_len[-length(xy_dat_closed)]) + 1L
+    } else 0L
+    xy_dat_fin = do.call(rbind, xy_dat_closed)
+    rownames(xy_dat_fin) = NULL
+
+    holes_start_i_list[[1]] = holes  # hole indices for decido::earcut
+    poly_list[[1]] = as.matrix(xy_dat_fin)
     height_list[[1]] = data_vals_top
     bottom_list[[1]] = data_vals_bottom
-    if(center) {
-      all_vertices = do.call(rbind,poly_list)
-      middle_x = (max(all_vertices[,1]) + min(all_vertices[,1]))/2
-      middle_y = (max(all_vertices[,2]) + min(all_vertices[,2]))/2
-      poly_list[[1]][,1] = poly_list[[1]][,1] - middle_x
-      poly_list[[1]][,2] = poly_list[[1]][,2] - middle_y
+  }
+  # Processing common to base and SF: flip/earcut/center
+
+  for(i in seq_along(poly_list)) {
+    if(flip_horizontal) {
+      poly_list[[i]][,1] = -poly_list[[i]][,1]
+    }
+    if(flip_vertical) {
+      poly_list[[i]][,2] = -poly_list[[i]][,2]
+    }
+    vertex_list[[i]] = matrix(
+      decido::earcut(poly_list[[i]][,1:2],holes = holes_start_i_list[[i]]),
+      ncol=3, byrow=TRUE
+    )
+  }
+  if(center) {
+    all_vertices = do.call(rbind,poly_list)
+    middle_x = (max(all_vertices[,1]) + min(all_vertices[,1]))/2
+    middle_y = (max(all_vertices[,2]) + min(all_vertices[,2]))/2
+    for(i in seq_along(poly_list)) {
+      poly_list[[i]][,1] = poly_list[[i]][,1] - middle_x
+      poly_list[[i]][,2] = poly_list[[i]][,2] - middle_y
     }
   }
   scenelist= list()
   counter = 1
-  
+
   for(poly in 1:length(poly_list)) {
     x=poly_list[[poly]][,1]
     y=poly_list[[poly]][,2]
@@ -1225,13 +1318,6 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
     height_poly = height_list[[poly]]
     bottom_poly = bottom_list[[poly]]
     
-    if(!is.matrix(vertices)) {
-      if(length(vertices) %% 3 == 0) {
-        vertices = matrix(vertices,ncol=3,byrow=TRUE)
-      } else {
-        stop("Number of vertices (",length(vertices),") is not divisible by 3")
-      }
-    }
     for(i in 1:nrow(vertices)) {
       scenelist[[counter]] = triangle(v1=scale*permute_axes(c(x[vertices[i,3]],bottom_poly,y[vertices[i,3]]),planeval),
                                       v2=scale*permute_axes(c(x[vertices[i,2]],bottom_poly,y[vertices[i,2]]),planeval),
@@ -1246,57 +1332,62 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
         counter = counter + 1
       }
     }
-    if(base_poly) {
-      hole_start = poly_list[[poly]][1,3]
-      if(hole_start != 0) {
-        if(hole_start < 4) {
-          stop("holes cannot begin before vertex 4. Hole index here starts at: ", hole_start)
-        }
-        holes = rep(TRUE, nrow(poly_list[[poly]]))
-        holes[1:hole_start] = FALSE
-      }
-    } else {
-      holes = poly_list[[poly]][,3] == 1
+    holes = poly_list[[poly]][,3]
+    hole_n = table(holes)
+    if(hole_n[1L] < 4L) {
+      stop(
+        "outer polygon for polygon ", poly, " only has ", hole_n[1L],
+        " vertices including the closing vertex; needs at least 4."
+      )
+    } else if (any(hole_n[-1L] < 4L)) {
+      stop(
+        "hole polygon(s) ",
+        paste0(names(hole_n[-1L])[hole_n[-1L] < 4L], collapse=", "),
+        " for poly ", poly, " do not have at least 4 vertices ",
+        "including the closing vertex."
+      )
     }
-    x_h= x[holes]
-    y_h = y[holes]
-    x = x[!holes]
-    y = y[!holes]
-    flipped = FALSE
-    if(!(flip_horizontal && flip_vertical) && ((flip_horizontal || flip_vertical))) {
-      reversed = !reversed
-    }
+
     if(extruded) {
-      #side
-      for(i in 1:(length(x)-1)) {
-        scenelist[[counter]] = triangle(v1=scale*permute_axes(c(x[i],height_poly,y[i]),planeval),
-                                        v2=scale*permute_axes(c(x[i],bottom_poly,y[i]),planeval),
-                                        v3=scale*permute_axes(c(x[i+1],bottom_poly,y[i+1]),planeval),
-                                        material = material, reversed = reversed)
-        counter = counter + 1
-        scenelist[[counter]] = triangle(v1=scale*permute_axes(c(x[i],height_poly,y[i]),planeval),
-                                        v2=scale*permute_axes(c(x[i+1],bottom_poly,y[i+1]),planeval),
-                                        v3=scale*permute_axes(c(x[i+1],height_poly,y[i+1]),planeval),
-                                        material = material, reversed = reversed)
-        counter = counter + 1
-      }
-      if(length(x_h) > 0) {
-        for(i in 1:(length(x_h)-1)) {
-          scenelist[[counter]] = triangle(v1=scale*permute_axes(c(x_h[i],height_poly,y_h[i]),planeval),
-                                          v2=scale*permute_axes(c(x_h[i],bottom_poly,y_h[i]),planeval),
-                                          v3=scale*permute_axes(c(x_h[i+1],bottom_poly,y_h[i+1]),planeval),
-                                          material = material, reversed = !reversed)
+      for(polyv in split(seq_along(x), holes)) {
+        # Find which direction polygon is wound by computing signed area,
+        # assumes non-intersecting polygon (side is a closed polygon).  CW
+        # outer polygon need to flip sides, as do CCW holes
+
+        i = polyv[seq_len(length(polyv) - 1L)]
+        ii = polyv[seq_len(length(polyv) - 1L) + 1L]   # i + 1
+        area_s = sum(x[i] * y[ii] - x[ii] * y[i]) / 2
+
+        ccw = area_s >= 0  # treat degenerates as counter-clockwise
+        side_rev = (
+          (holes[polyv[1L]] == 0L && !ccw) ||
+          (holes[polyv[1L]] != 0L && ccw)
+        )
+        for(i in seq_len(length(polyv) - 1L)) {  # polygons are closed
+          xi = x[polyv[i]]        # vertex i
+          yi = y[polyv[i]]
+          xii = x[polyv[i + 1L]]  # vertex i + 1
+          yii = y[polyv[i + 1L]]
+
+          scenelist[[counter]] = triangle(v1=scale*permute_axes(c(xi,height_poly,yi),planeval),
+                                          v2=scale*permute_axes(c(xi,bottom_poly,yi),planeval),
+                                          v3=scale*permute_axes(c(xii,bottom_poly,yii),planeval),
+                                          material = material, reversed = xor(reversed, side_rev))
           counter = counter + 1
-          scenelist[[counter]] = triangle(v1=scale*permute_axes(c(x_h[i],height_poly,y_h[i]),planeval),
-                                          v2=scale*permute_axes(c(x_h[i+1],bottom_poly,y_h[i+1]),planeval),
-                                          v3=scale*permute_axes(c(x_h[i+1],height_poly,y_h[i+1]),planeval),
-                                          material = material, reversed = !reversed)
+          scenelist[[counter]] = triangle(v1=scale*permute_axes(c(xi,height_poly,yi),planeval),
+                                          v2=scale*permute_axes(c(xii,bottom_poly,yii),planeval),
+                                          v3=scale*permute_axes(c(xii,height_poly,yii),planeval),
+                                          material = material, reversed = xor(reversed, side_rev))
           counter = counter + 1
         }
       }
     }
   }
-  scenefull = do.call(rbind,scenelist)
+  if("dplyr" %in% rownames(utils::installed.packages())) {
+    scenefull = dplyr::bind_rows(scenelist)
+  } else {
+    scenefull = do.call(rbind, scenelist)
+  }
   if(any(angle != 0)) {
     if(any(pivot_point != 0)) {
       sceneprop = scenefull$properties
@@ -1356,5 +1447,279 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
     scenefull$properties = sceneprop
   }
   scenefull$material_id = rep(material_id, nrow(scenefull))
+  tibble::validate_tibble(scenefull)
   return(scenefull)
+}
+
+#' Cone Object
+#' 
+#'
+#' @param start Default `c(0, 0, 0)`. Base of the cone, specifying `x`, `y`, `z`.
+#' @param end Default `c(0, 1, 0)`. Tip of the cone, specifying `x`, `y`, `z`.
+#' @param radius Default `1`. Radius of the bottom of the cone.
+#' @param direction Default `NA`. Alternative to `start` and `end`, specify the direction (via 
+#' a length-3 vector) of the cone. Cone will be centered at `start`, and the length will be
+#' determined by the magnitude of the direction vector.
+#' @param from_center Default `TRUE`. If orientation specified via `direction`, setting this argument
+#' to `FALSE` will make `start` specify the bottom of the cone, instead of the middle.
+#' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
+#' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
+#' @param angle Default `c(0, 0, 0)`. Rotation angle. Note: This will change the `start` and `end` coordinates.
+#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
+#' @param flipped Default `FALSE`. Whether to flip the normals.
+#' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
+#' number, the object will be scaled uniformly. Notes: this will change the stated start/end position of the cone. 
+#' Emissive objects may not currently function correctly when scaled.
+#' 
+#' @importFrom  grDevices col2rgb
+#'
+#' @return Single row of a tibble describing the cone in the scene.
+#' @export
+#'
+#' @examples
+#' #Generate a cone in a studio, pointing upwards:
+#' \donttest{
+#' generate_studio() %>% 
+#'  add_object(cone(start=c(0,-1,0), end=c(0,1,0), radius=1,material=diffuse(color="red"))) %>% 
+#'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
+#'  render_scene(samples=400,clamp_value=10)
+#'  
+#'  #Change the radius, length, and direction
+#' generate_studio() %>% 
+#'  add_object(cone(start=c(0,0,0), end=c(0,-1,0), radius=0.5,material=diffuse(color="red"))) %>% 
+#'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
+#'  render_scene(samples=400,clamp_value=10)
+#'  
+#' #Give custom start and end points (and customize the color/texture)
+#' generate_studio() %>% 
+#'  add_object(cone(start=c(-1,0.5,-1), end=c(0,0,0), radius=0.5,material=diffuse(color="red"))) %>%
+#'  add_object(cone(start=c(1,0.5,-1), end=c(0,0,0), radius=0.5,material=diffuse(color="green"))) %>%
+#'  add_object(cone(start=c(0,1,-1), end=c(0,0,0), radius=0.5,material=diffuse(color="orange"))) %>% 
+#'  add_object(cone(start=c(-1,-0.5,0), end=c(1,-0.5,0), radius=0.25,
+#'    material = diffuse(color="red",gradient_color="green"))) %>% 
+#'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
+#'  render_scene(samples=400,clamp_value=10)
+#'  
+#'  
+#' #Specify cone via direction and location, instead of start and end positions
+#' #Length is derived from the magnitude of the direction.
+#' gold_mat = microfacet(roughness=0.1,eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661))
+#' generate_studio() %>% 
+#'   add_object(cone(start = c(-1,0,0), direction = c(-0.5,0.5,0), material = gold_mat)) %>% 
+#'   add_object(cone(start = c(1,0,0), direction = c(0.5,0.5,0), material = gold_mat)) %>% 
+#'   add_object(cone(start = c(0,0,-1), direction = c(0,0.5,-0.5), material = gold_mat)) %>% 
+#'   add_object(cone(start = c(0,0,1), direction = c(0,0.5,0.5), material = gold_mat)) %>% 
+#'   add_object(sphere(y=5,material=light())) %>% 
+#'   add_object(sphere(y=3,x=-3,z=-3,material=light(color="red"))) %>% 
+#'   add_object(sphere(y=3,x=3,z=-3,material=light(color="green"))) %>% 
+#'   render_scene(lookfrom=c(0,4,10), clamp_value=10, samples=400)
+#'   
+#'  #Render the position from the base, instead of the center of the cone:
+#'  noise_mat = material = glossy(color="purple",noisecolor="blue", noise=5)
+#'  generate_studio() %>% 
+#'   add_object(cone(start = c(0,-1,0), from_center = FALSE, radius=1, direction = c(0,2,0), 
+#'     material = noise_mat)) %>% 
+#'   add_object(cone(start = c(-1.5,-1,0), from_center = FALSE, radius=0.5, direction = c(0,1,0), 
+#'     material = noise_mat)) %>% 
+#'   add_object(cone(start = c(1.5,-1,0), from_center = FALSE, radius=0.5, direction = c(0,1,0), 
+#'     material = noise_mat)) %>% 
+#'   add_object(cone(start = c(0,-1,1.5), from_center = FALSE, radius=0.5, direction = c(0,1,0), 
+#'     material = noise_mat)) %>% 
+#'   add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
+#'   render_scene(lookfrom=c(0,4,10), clamp_value=10,fov=25, samples=400)
+#'   
+#' }
+#' 
+cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5, 
+                direction = NA, from_center = TRUE,
+                material = diffuse(), angle = c(0,0,0),
+                velocity = c(0, 0, 0), flipped = FALSE, scale = c(1,1,1)) {
+  if(length(scale) == 1) {
+    scale = c(scale, scale, scale)
+  }
+  if(!is.na(material$lightintensity) && material$implicit_sample) {
+    message("Importance sampling not supported with cone lights: turning off")
+    material$implicit_sample = FALSE
+  }
+  if(!is.na(material$alphaimage)) {
+    message("Alpha transparency currently not supported with cones: turning off")
+    material$alphaimage = NA
+  }
+  if(all(!is.na(direction)) && length(direction) == 3) {
+    if(from_center) {
+      new_start = start - direction/2
+      new_end = start + direction/2
+    } else {
+      new_start = start
+      new_end = start + direction
+    }
+    start = new_start
+    end = new_end
+  }
+  x = start[1] 
+  y = start[2] 
+  z = start[3] 
+  order_rotation = c(3, 2, 1)
+  phi =  atan2( as.numeric(end[1]-start[1]), as.numeric(end[3]-start[3]))/pi*180 + 90
+  
+  length_xy = sqrt((end[1]-start[1])^2 + (end[3]-start[3])^2)
+  if(end[1] == start[1] && end[3] == start[3]) {
+    if((end[2]-start[2]) < 0) {
+      theta = 180
+    } else {
+      theta = 0
+    }
+  } else {
+    theta = atan2(-length_xy, (end[2]-start[2]))/pi*180
+  }
+  fulllength = sqrt(sum((end-start)^2))
+  angle = c(0, phi, theta) + angle
+  info = c(unlist(material$properties), fulllength)
+  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cone",
+                      properties = list(info), velocity = list(velocity), 
+                      checkercolor = material$checkercolor, 
+                      gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
+                      world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
+                      gradient_type = material$gradient_type,
+                      noise = material$noise, noisephase = material$noisephase, 
+                      noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
+                      angle = list(angle), image = material$image, image_repeat = material$image_repeat,
+                      alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
+                      flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
+                      implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
+                      order_rotation = list(order_rotation),
+                      pivot_point = list(NA), group_translate = list(NA),
+                      group_angle = list(NA), group_order_rotation = list(NA),
+                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
+                      material_id = NA))
+}
+
+#' Arrow Object
+#' 
+#' Composite object (cone + segment)
+#'
+#' @param start Default `c(0, 0, 0)`. Base of the arrow, specifying `x`, `y`, `z`.
+#' @param end Default `c(0, 1, 0)`. Tip of the arrow, specifying `x`, `y`, `z`.
+#' @param radius_top Default `0.5`. Radius of the top of the arrow.
+#' @param radius_tail Default `0.2`.  Radius of the tail of the arrow.
+#' @param tail_proportion Default `0.5`. Proportion of the arrow that is the tail.
+#' @param direction Default `NA`. Alternative to `start` and `end`, specify the direction (via 
+#' a length-3 vector) of the arrow. Arrow will be centered at `start`, and the length will be
+#' determined by the magnitude of the direction vector.
+#' @param from_center Default `TRUE`. If orientation specified via `direction`, setting this argument
+#' to `FALSE` will make `start` specify the bottom of the cone, instead of the middle.
+#' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
+#' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
+#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
+#' @param flipped Default `FALSE`. Whether to flip the normals.
+#' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
+#' number, the object will be scaled uniformly. Notes: this will change the stated start/end position of the cone. 
+#' Emissive objects may not currently function correctly when scaled.
+#' 
+#' @importFrom  grDevices col2rgb
+#'
+#' @return Single row of a tibble describing the cone in the scene.
+#' @export
+#'
+#' @examples
+#' #Draw a simple arrow from x = -1 to x = 1
+#' \donttest{
+#' generate_studio() %>% 
+#'   add_object(arrow(start = c(-1,0,0), end = c(1,0,0), material=glossy(color="red"))) %>% 
+#'   add_object(sphere(y=5,material=light(intensity=20))) %>% 
+#'   render_scene(clamp_value=10,  samples=400)
+#' 
+#' #Change the proportion of tail to top
+#' generate_studio(depth=-2) %>% 
+#'   add_object(arrow(start = c(-1,-1,0), end = c(1,-1,0), tail_proportion = 0.5,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(arrow(start = c(-1,0,0), end = c(1,0,0), tail_proportion = 0.75,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(arrow(start = c(-1,1,0), end = c(1,1,0), tail_proportion = 0.9,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
+#'   render_scene(clamp_value=10, fov=25,  samples=400)
+#'   
+#' #Change the radius of the tail/top segments
+#' generate_studio(depth=-1.5) %>% 
+#'   add_object(arrow(start = c(-1,-1,0), end = c(1,-1,0), tail_proportion = 0.75,
+#'                    radius_top = 0.1, radius_tail=0.03,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(arrow(start = c(-1,0,0), end = c(1,0,0), tail_proportion = 0.75,
+#'                    radius_top = 0.2, radius_tail=0.1,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(arrow(start = c(-1,1,0), end = c(1,1,0), tail_proportion = 0.75,
+#'                    radius_top = 0.3, radius_tail=0.2,
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
+#'   render_scene(clamp_value=10, samples=400)
+#'   
+#'   
+#' #We can also specify arrows via a midpoint and direction:
+#' generate_studio(depth=-1) %>% 
+#'   add_object(arrow(start = c(-1,-0.5,0), direction = c(0,0,1),
+#'                    material=glossy(color="green"))) %>% 
+#'   add_object(arrow(start = c(1,-0.5,0), direction = c(0,0,-1),
+#'                    material=glossy(color="red"))) %>% 
+#'   add_object(arrow(start = c(0,-0.5,1), direction = c(1,0,0),
+#'                    material=glossy(color="yellow"))) %>% 
+#'   add_object(arrow(start = c(0,-0.5,-1), direction = c(-1,0,0),
+#'                    material=glossy(color="purple"))) %>% 
+#'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
+#'   render_scene(clamp_value=10, samples=400, 
+#'                lookfrom=c(0,5,10), lookat=c(0,-0.5,0), fov=16)
+#' 
+#' #Plot a 3D vector field for a gravitational well:
+#' 
+#' r = 1.5
+#' theta_vals = seq(0,2*pi,length.out = 16)[-16]
+#' phi_vals = seq(0,pi,length.out = 16)[-16][-1]
+#' arrow_list = list()
+#' counter = 1
+#' for(theta in theta_vals) {
+#'   for(phi in phi_vals) {
+#'     rval = c(r*sin(phi)*cos(theta),r*cos(phi),r*sin(phi)*sin(theta)) 
+#'     arrow_list[[counter]] = arrow(rval, direction = -1/2*rval/sqrt(sum(rval*rval))^3,
+#'                                   tail_proportion = 0.66, radius_top=0.03, radius_tail=0.01,
+#'                                   material = diffuse(color="red"))
+#'     counter = counter + 1
+#'   }
+#' }
+#' vector_field = do.call(rbind,arrow_list)
+#' sphere(material=diffuse(noise=1,color="blue",noisecolor="darkgreen")) %>% 
+#'   add_object(vector_field) %>% 
+#'   add_object(sphere(y=0,x=10,z=5,material=light(intensity=200))) %>% 
+#'   render_scene(fov=20, ambient=TRUE, samples=400,
+#'                backgroundlow="black",backgroundhigh="white")
+#' }
+arrow = function(start = c(0,0,0), end = c(0,1,0), 
+                 radius_top = 0.2, radius_tail = 0.1, tail_proportion = 0.5,
+                 direction = NA,  from_center = TRUE, 
+                 material = diffuse(), velocity = c(0,0,0),
+                 flipped = FALSE, scale = c(1,1,1)) {
+  stopifnot(tail_proportion > 0 && tail_proportion < 1)
+  head_proportion = 1 - tail_proportion
+  from_direction = TRUE
+  if(any(is.na(direction)) || length(direction) != 3) {
+    direction = end - start
+    from_direction = FALSE
+  }
+  if(from_center && from_direction) {
+    start = start - direction/2
+  }
+  start_segment = start
+  end_segment = start + direction * tail_proportion 
+  start_tip = end_segment - direction/100
+  end_tip = start + direction + direction/100
+  segment(start = start_segment, 
+          end = end_segment,
+          radius = radius_tail, 
+          material = material, 
+          flipped = flipped, scale = scale, velocity = velocity) %>%
+    add_object(cone(start = start_tip, 
+                    end = end_tip,
+                    radius = radius_top, 
+                    material = material, 
+                    flipped = flipped, scale = scale, velocity = velocity))
 }

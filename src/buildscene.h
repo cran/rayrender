@@ -16,6 +16,7 @@
 #include "disk.h"
 #include "cylinder.h"
 #include "ellipsoid.h"
+#include "cone.h"
 #include <Rcpp.h>
 using namespace Rcpp;
 
@@ -55,6 +56,9 @@ hitable *build_scene(IntegerVector& type,
                      LogicalVector& isimage, LogicalVector has_alpha,
                      std::vector<Float* >& alpha_textures, std::vector<int* >& nveca,
                      std::vector<Float* >& textures, std::vector<int* >& nvec,
+                     LogicalVector has_bump,
+                     std::vector<Float* >& bump_textures, std::vector<int* >& nvecb,
+                     NumericVector& bump_intensity,
                      NumericVector& lightintensity,
                      LogicalVector& isflipped,
                      LogicalVector& isvolume, NumericVector& voldensity,
@@ -63,14 +67,18 @@ hitable *build_scene(IntegerVector& type,
                      List& group_angle, List& group_order_rotation, List& group_scale,
                      LogicalVector& tri_normal_bools, LogicalVector& is_tri_color, List& tri_color_vert, 
                      CharacterVector& fileinfo, CharacterVector& filebasedir,
-                     List& scale_list, NumericVector& sigma,  
+                     List& scale_list, NumericVector& sigma,  List &glossyinfo,
                      IntegerVector& shared_id_mat, LogicalVector& is_shared_mat,
-                     std::vector<material* >* shared_materials,
+                     std::vector<material* >* shared_materials, List& image_repeat_list,
                      random_gen& rng) {
   hitable **list = new hitable*[n + 1]; //change to vector
   LogicalVector isgradient = gradient_info["isgradient"];
   List gradient_colors = gradient_info["gradient_colors"];
   LogicalVector gradient_trans = gradient_info["gradient_trans"];
+  List gradient_control_points = gradient_info["gradient_control_points"];
+  LogicalVector is_world_gradient = gradient_info["is_world_gradient"];
+  LogicalVector gradient_is_hsv = gradient_info["type"];
+  
   NumericVector x = position_list["xvec"];
   NumericVector y = position_list["yvec"];
   NumericVector z = position_list["zvec"];
@@ -89,6 +97,9 @@ hitable *build_scene(IntegerVector& type,
   NumericVector temp_gscale;
   NumericVector temp_tri_color;
   NumericVector temp_scales;
+  NumericVector temp_glossy;
+  NumericVector temp_repeat;
+  NumericVector temp_gradient_control;
   vec3 gpivot;
   vec3 gtrans;
   vec3 gorder;
@@ -108,6 +119,10 @@ hitable *build_scene(IntegerVector& type,
     temp_tri_color = as<NumericVector>(tri_color_vert(i));
     order_rotation = as<NumericVector>(order_rotation_list(i));
     temp_scales = as<NumericVector>(scale_list(i));
+    temp_glossy = as<NumericVector>(glossyinfo(i));
+    temp_repeat = as<NumericVector>(image_repeat_list(i));
+    temp_gradient_control = as<NumericVector>(gradient_control_points(i));
+
     bool is_scaled = false;
     bool is_group_scaled = false;
     if(temp_scales[0] != 1 || temp_scales[1] != 1 || temp_scales[2] != 1) {
@@ -133,8 +148,13 @@ hitable *build_scene(IntegerVector& type,
     //Generate texture
     material *tex = nullptr;
     alpha_texture *alpha = nullptr;
+    bump_texture *bump = nullptr;
     if(has_alpha(i)) {
       alpha = new alpha_texture(alpha_textures[i], nveca[i][0], nveca[i][1], nveca[i][2]);
+    }
+    if(has_bump(i)) {
+      bump = new bump_texture(bump_textures[i], nvecb[i][0], nvecb[i][1], nvecb[i][2], 
+                              bump_intensity(i));
     }
     if(type(i) == 2) {
       prop_len = 3;
@@ -146,7 +166,8 @@ hitable *build_scene(IntegerVector& type,
     } else {
       if(type(i) == 1) {
         if(isimage(i)) {
-          tex = new lambertian(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2]));
+          tex = new lambertian(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2], 
+                                                 temp_repeat[0], temp_repeat[1], 1.0));
         } else if (isnoise(i)) {
           tex = new lambertian(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                  vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
@@ -155,26 +176,81 @@ hitable *build_scene(IntegerVector& type,
           tex = new lambertian(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
                                                    new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),
                                                    tempchecker(3)));
-        } else if (isgradient(i)) {
+        } else if (isgradient(i) && !is_world_gradient(i)) {
           tex = new lambertian(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                     vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
-                                                    gradient_trans(i)));
+                                                    gradient_trans(i), gradient_is_hsv(i)));
         } else if (is_tri_color(i)) {
           tex = new lambertian(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
                                                     vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
                                                     vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))));
+        } else if (is_world_gradient(i)) {
+          tex = new lambertian(new world_gradient_texture(vec3(temp_gradient_control(0),temp_gradient_control(1),temp_gradient_control(2)),
+                                                          vec3(temp_gradient_control(3),temp_gradient_control(4),temp_gradient_control(5)),
+                                                          vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                          vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                          gradient_is_hsv(i)));
         } else {
           tex = new lambertian(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))));
         }
       } else if (type(i) == 2) {
-        tex = new metal(vec3(tempvector(0),tempvector(1),tempvector(2)),tempvector(3));
+        if(isimage(i)) {
+          tex = new metal(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2], 
+                                            temp_repeat[0], temp_repeat[1], 1.0),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (isnoise(i)) {
+          tex = new metal(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                 vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
+                                                 noisephase(i), noiseintensity(i)),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (ischeckered(i)) {
+          tex = new metal(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
+                                              new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),
+                                              tempchecker(3)),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (isgradient(i) && !is_world_gradient(i)) {
+          tex = new metal(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                    vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                    gradient_trans(i), gradient_is_hsv(i)),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_tri_color(i)) {
+          tex = new metal(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
+                                                    vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
+                                                    vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_world_gradient(i)) {
+          tex = new metal(new world_gradient_texture(vec3(temp_gradient_control(0),temp_gradient_control(1),temp_gradient_control(2)),
+                                                     vec3(temp_gradient_control(3),temp_gradient_control(4),temp_gradient_control(5)),
+                                                     vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                     vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                     gradient_is_hsv(i)),
+                         tempvector(3), 
+                         vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                         vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else {
+          tex = new metal(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),
+                          tempvector(3), 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        }
       } else if (type(i) == 3) {
         tex = new dielectric(vec3(tempvector(0),tempvector(1),tempvector(2)), tempvector(3), 
                              vec3(tempvector(4),tempvector(5),tempvector(6)), 
                              tempvector(7), rng);
       } else if (type(i) == 4) {
         if(isimage(i)) {
-          tex = new orennayar(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2]), sigma(i));
+          tex = new orennayar(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2], 
+                                                temp_repeat[0], temp_repeat[1], 1.0), sigma(i));
         } else if (isnoise(i)) {
           tex = new orennayar(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                  vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
@@ -183,19 +259,121 @@ hitable *build_scene(IntegerVector& type,
           tex = new orennayar(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
                                                    new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),tempchecker(3)), 
                                                    sigma(i));
-        } else if (isgradient(i)) {
+        } else if (isgradient(i) && !is_world_gradient(i)) {
           tex = new orennayar(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
                                                     vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
-                                                    gradient_trans(i)), sigma(i));
+                                                    gradient_trans(i), gradient_is_hsv(i)), sigma(i));
         } else if (is_tri_color(i)) {
           tex = new orennayar(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
                                                     vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
                                                     vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))), sigma(i) );
+        } else if (is_world_gradient(i)) {
+          tex = new orennayar(new world_gradient_texture(vec3(temp_gradient_control(0),temp_gradient_control(1),temp_gradient_control(2)),
+                                                         vec3(temp_gradient_control(3),temp_gradient_control(4),temp_gradient_control(5)),
+                                                         vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                         vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                         gradient_is_hsv(i)), sigma(i));
         } else {
           tex = new orennayar(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))), sigma(i)); //marked as small definite loss in valgrind memcheck
         }
-      } else {
+      } else if (type(i) == 5) {
         tex = new diffuse_light(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))*lightintensity(i)) );
+      } else if (type(i) == 6) {
+        MicrofacetDistribution *dist;
+        if(temp_glossy(0) == 1) {
+          dist = new TrowbridgeReitzDistribution(temp_glossy(1), temp_glossy(2), true, true);
+        } else {
+          dist = new BeckmannDistribution(temp_glossy(1), temp_glossy(2), false, true);
+        }
+        if(isimage(i)) {
+          tex = new MicrofacetReflection(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2], 
+                                                           temp_repeat[0], temp_repeat[1], 1.0), dist, 
+                                         vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                         vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (isnoise(i)) {
+          tex = new MicrofacetReflection(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
+                                                noisephase(i), noiseintensity(i)), dist, 
+                                                vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                                vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (ischeckered(i)) {
+          tex = new MicrofacetReflection(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
+                                                  new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),tempchecker(3)), 
+                                                  dist, 
+                                                  vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                                  vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        }  else if (isgradient(i) && !is_world_gradient(i)) {
+          tex = new MicrofacetReflection(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                   vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                   gradient_trans(i), gradient_is_hsv(i)), dist, 
+                                                   vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                                   vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_tri_color(i)) {
+          tex = new MicrofacetReflection(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
+                                                   vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
+                                                   vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))), dist, 
+                                                   vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                                   vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_world_gradient(i)) {
+          tex = new MicrofacetReflection(new world_gradient_texture(vec3(temp_gradient_control(0),temp_gradient_control(1),temp_gradient_control(2)),
+                                                                    vec3(temp_gradient_control(3),temp_gradient_control(4),temp_gradient_control(5)),
+                                                                    vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                                    vec3(tempgradient(0),tempgradient(1),tempgradient(2)), gradient_is_hsv(i)), dist, 
+                                                                    vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                                                    vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else {
+          tex = new MicrofacetReflection(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))), dist, 
+                                         vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                                         vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        }
+      } if (type(i) == 7) {
+        MicrofacetDistribution *dist;
+        if(temp_glossy(0) == 1) {
+          dist = new TrowbridgeReitzDistribution(temp_glossy(1), temp_glossy(2), true, true);
+        } else {
+          dist = new BeckmannDistribution(temp_glossy(1), temp_glossy(2), false, true);
+        }
+        if(isimage(i)) {
+          tex = new glossy(new image_texture(textures[i],nvec[i][0],nvec[i][1],nvec[i][2], 
+                                             temp_repeat[0], temp_repeat[1], 1.0), dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (isnoise(i)) {
+          tex = new glossy(new noise_texture(noise(i),vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                             vec3(tempnoisecolor(0),tempnoisecolor(1),tempnoisecolor(2)),
+                                             noisephase(i), noiseintensity(i)), dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (ischeckered(i)) {
+          tex = new glossy(new checker_texture(new constant_texture(vec3(tempchecker(0),tempchecker(1),tempchecker(2))),
+                                               new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))),tempchecker(3)), 
+                           dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        }  else if (isgradient(i) && !is_world_gradient(i)) {
+          tex = new glossy(new gradient_texture(vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                     vec3(tempgradient(0),tempgradient(1),tempgradient(2)),
+                                                     gradient_trans(i), gradient_is_hsv(i)), dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_tri_color(i)) {
+          tex = new glossy(new triangle_texture(vec3(temp_tri_color(0),temp_tri_color(1),temp_tri_color(2)),
+                                                vec3(temp_tri_color(3),temp_tri_color(4),temp_tri_color(5)),
+                                                vec3(temp_tri_color(6),temp_tri_color(7),temp_tri_color(8))), dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else if (is_world_gradient(i)) {
+          tex = new glossy(new world_gradient_texture(vec3(temp_gradient_control(0),temp_gradient_control(1),temp_gradient_control(2)),
+                                                      vec3(temp_gradient_control(3),temp_gradient_control(4),temp_gradient_control(5)),
+                                                      vec3(tempvector(0),tempvector(1),tempvector(2)),
+                                                      vec3(tempgradient(0),tempgradient(1),tempgradient(2)), gradient_is_hsv(i)), dist, 
+                          vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                          vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        } else {
+          tex = new glossy(new constant_texture(vec3(tempvector(0),tempvector(1),tempvector(2))), dist, 
+                           vec3(temp_glossy(3), temp_glossy(4), temp_glossy(5)), 
+                           vec3(temp_glossy(6),temp_glossy(7),temp_glossy(8)));
+        }
       }
     }
     if(is_shared_mat(i) && shared_materials->size() <= static_cast<size_t>(shared_id_mat(i)) ) {
@@ -226,11 +404,15 @@ hitable *build_scene(IntegerVector& type,
       center = vec3(x(i), y(i), z(i));
     } else if(shape(i) == 12) {
       center = vec3(x(i), y(i), z(i));
+    } else if(shape(i) == 13) {
+      center = vec3(x(i), y(i), z(i));
     }
 
     //Generate objects
     if (shape(i) == 1) {
-      hitable *entry = new sphere(vec3(0,0,0), radius(i), tex, alpha);
+      
+      //Fix moving memory leak
+      hitable *entry = new sphere(vec3(0,0,0), radius(i), tex, alpha, bump);
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -248,7 +430,7 @@ hitable *build_scene(IntegerVector& type,
       } else {
         entry = new moving_sphere(center + vel * shutteropen, 
                                   center + vel * shutterclose, 
-                                  shutteropen, shutterclose, radius(i), tex, alpha);
+                                  shutteropen, shutterclose, radius(i), tex, alpha, bump);
       }
       if(isflipped(i)) {
         entry = new flip_normals(entry);
@@ -261,7 +443,7 @@ hitable *build_scene(IntegerVector& type,
     } else if (shape(i)  == 2) {
       hitable *entry = new xy_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                    -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                   0, tex, alpha, isflipped(i));
+                                   0, tex, alpha, bump, isflipped(i));
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -279,7 +461,7 @@ hitable *build_scene(IntegerVector& type,
     } else if (shape(i)  == 3) {
       hitable *entry = new xz_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                    -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                   0, tex, alpha, isflipped(i));
+                                   0, tex, alpha, bump, isflipped(i));
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -297,7 +479,7 @@ hitable *build_scene(IntegerVector& type,
     } else if (shape(i)  == 4) {
       hitable *entry = new yz_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                    -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                   0, tex, alpha, isflipped(i));
+                                   0, tex, alpha, bump, isflipped(i));
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -315,7 +497,7 @@ hitable *build_scene(IntegerVector& type,
     } else if (shape(i)  == 5) {
       hitable *entry = new box(-vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3))/2, 
                                vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3))/2, 
-                               tex, alpha);
+                               tex, alpha, bump);
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -352,13 +534,13 @@ hitable *build_scene(IntegerVector& type,
                             vec3(tempvector(prop_len+13),tempvector(prop_len+14),tempvector(prop_len+15)),
                             vec3(tempvector(prop_len+16),tempvector(prop_len+17),tempvector(prop_len+18)),
                             !is_shared_mat(i), //turn off if shared material (e.g. extruded polygon)
-                            tex, nullptr);
+                            tex, alpha, bump);
       } else {
         entry= new triangle(vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3)),
                             vec3(tempvector(prop_len+4),tempvector(prop_len+5),tempvector(prop_len+6)),
                             vec3(tempvector(prop_len+7),tempvector(prop_len+8),tempvector(prop_len+9)),
                             !is_shared_mat(i), //turn off if shared material (e.g. extruded polygon)
-                            tex, nullptr);
+                            tex, alpha, bump);
       }
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
@@ -445,7 +627,7 @@ hitable *build_scene(IntegerVector& type,
       }
     } else if (shape(i) == 9) {
       hitable *entry;
-      entry = new disk(vec3(0,0,0), radius(i), tempvector(prop_len+1), tex, alpha);
+      entry = new disk(vec3(0,0,0), radius(i), tempvector(prop_len+1), tex, alpha, bump);
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -465,8 +647,10 @@ hitable *build_scene(IntegerVector& type,
         list[i] = entry;
       }
     } else if (shape(i) == 10) {
+      bool has_caps = type(i) != 5;
       hitable *entry = new cylinder(radius(i), tempvector(prop_len+1), 
-                                    tempvector(prop_len+2), tempvector(prop_len+3), tex, alpha);
+                                    tempvector(prop_len+2), tempvector(prop_len+3),has_caps,
+                                    tex, alpha, bump);
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -487,7 +671,7 @@ hitable *build_scene(IntegerVector& type,
     } else if (shape(i) == 11) {
       hitable *entry = new ellipsoid(vec3(0,0,0), radius(i), 
                                      vec3(tempvector(prop_len + 1), tempvector(prop_len + 2), tempvector(prop_len + 3)),
-                                     tex, alpha);
+                                     tex, alpha, bump);
       if(is_scaled) {
         entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
       }
@@ -540,9 +724,30 @@ hitable *build_scene(IntegerVector& type,
       } else {
         list[i] = entry;
       }
+    } else if (shape(i) == 13) {
+      hitable *entry = new cone(radius(i), tempvector(prop_len+1), tex, alpha, bump);
+      if(is_scaled) {
+        entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
+      }
+      entry = rotation_order(entry, temprotvec, order_rotation);
+      if(isgrouped(i)) {
+        entry = new translate(entry, center - gpivot);
+        if(is_group_scaled) {
+          entry = new scale(entry, vec3(temp_gscale[0], temp_gscale[1], temp_gscale[2]));
+        }
+        entry = rotation_order(entry, temp_gangle, temp_gorder);
+        entry = new translate(entry, -center + gpivot );
+      }
+      entry = new translate(entry, center + gtrans + vel * shutteropen);
+      if(isflipped(i)) {
+        entry = new flip_normals(entry);
+      }
+      list[i] = entry;
     }
   }
-  return(new bvh_node(list, n, shutteropen, shutterclose, rng));
+  hitable *full_scene = new bvh_node(list, n, shutteropen, shutterclose, rng);
+  delete[] list;
+  return(full_scene);
 }
 
 hitable* build_imp_sample(IntegerVector& type, 
@@ -607,8 +812,8 @@ hitable* build_imp_sample(IntegerVector& type,
     gtrans = vec3(0,0,0); 
   }
   if(type(i) == 3) {
-    prop_len = 8;
-  } else if(type(i) != 1 && type(i) != 5) {
+    prop_len = 7;
+  } else if(type(i) == 2) {
     prop_len = 3;
   }
   
@@ -639,7 +844,7 @@ hitable* build_imp_sample(IntegerVector& type,
   }
 
   if(shape(i) == 1) {
-    hitable *entry = new sphere(vec3(0,0,0), radius(i), 0, nullptr);
+    hitable *entry = new sphere(vec3(0,0,0), radius(i), 0, nullptr,nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -656,7 +861,7 @@ hitable* build_imp_sample(IntegerVector& type,
   } else if (shape(i) == 2) {
     hitable *entry = new xy_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                  -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                 0, 0, nullptr, false);
+                                 0, 0, nullptr, nullptr, false);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -674,7 +879,7 @@ hitable* build_imp_sample(IntegerVector& type,
   } else if (shape(i) == 3) {
     hitable *entry = new xz_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                  -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                 0, 0, nullptr, false);
+                                 0, 0, nullptr, nullptr, false);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -692,7 +897,7 @@ hitable* build_imp_sample(IntegerVector& type,
   } else if (shape(i) == 4) {
     hitable *entry = new yz_rect(-tempvector(prop_len+2)/2,tempvector(prop_len+2)/2,
                                  -tempvector(prop_len+4)/2,tempvector(prop_len+4)/2,
-                                 0, 0, nullptr, false);
+                                 0, 0, nullptr, nullptr, false);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -710,7 +915,7 @@ hitable* build_imp_sample(IntegerVector& type,
   } else if (shape(i) == 5) {
     hitable *entry = new box(-vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3))/2, 
                              vec3(tempvector(prop_len+1),tempvector(prop_len+2),tempvector(prop_len+3))/2, 
-                             0, nullptr);
+                             0, nullptr,nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -730,7 +935,7 @@ hitable* build_imp_sample(IntegerVector& type,
                                   vec3(tempvector(prop_len+4),tempvector(prop_len+5),tempvector(prop_len+6)),
                                   vec3(tempvector(prop_len+7),tempvector(prop_len+8),tempvector(prop_len+9)),
                                   false,
-                                  0, nullptr);
+                                  0, nullptr, nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -768,7 +973,7 @@ hitable* build_imp_sample(IntegerVector& type,
     return(entry);
   } else if (shape(i) == 9) {
     hitable *entry;
-    entry = new disk(vec3(0,0,0), radius(i), tempvector(prop_len+1), 0, nullptr);
+    entry = new disk(vec3(0,0,0), radius(i), tempvector(prop_len+1), 0, nullptr,nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -784,8 +989,28 @@ hitable* build_imp_sample(IntegerVector& type,
     entry = new translate(entry, center + gtrans + vel * shutteropen);
     return(entry);
   } else if (shape(i) == 10) {
+    bool has_caps = type(i) != 5;
     hitable *entry = new cylinder(radius(i), tempvector(prop_len+1), 
-                                  tempvector(prop_len+2), tempvector(prop_len+3), 0, nullptr);
+                                  tempvector(prop_len+2), tempvector(prop_len+3),has_caps, 
+                                  0, nullptr,nullptr);
+    if(is_scaled) {
+      entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
+    }
+    entry = rotation_order(entry, temprotvec, order_rotation);
+    if(isgrouped(i)) {
+      entry = new translate(entry, center - gpivot);
+      if(is_group_scaled) {
+        entry = new scale(entry, vec3(temp_gscale[0], temp_gscale[1], temp_gscale[2]));
+      }
+      entry = rotation_order(entry, temp_gangle, temp_gorder);
+      entry = new translate(entry, -center + gpivot );
+    }
+    entry = new translate(entry, center + gtrans + vel * shutteropen);
+    return(entry);
+  } else if (shape(i) == 11) {
+    hitable *entry = new ellipsoid(vec3(0,0,0), radius(i), 
+                                   vec3(tempvector(prop_len + 1), tempvector(prop_len + 2), tempvector(prop_len + 3)),
+                                   0, nullptr,nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }
@@ -801,9 +1026,7 @@ hitable* build_imp_sample(IntegerVector& type,
     entry = new translate(entry, center + gtrans + vel * shutteropen);
     return(entry);
   } else {
-    hitable *entry = new ellipsoid(vec3(0,0,0), radius(i), 
-                                   vec3(tempvector(prop_len + 1), tempvector(prop_len + 2), tempvector(prop_len + 3)),
-                                   0, nullptr);
+    hitable *entry = new cone(radius(i), tempvector(prop_len+1), 0, nullptr, nullptr);
     if(is_scaled) {
       entry = new scale(entry, vec3(temp_scales[0], temp_scales[1], temp_scales[2]));
     }

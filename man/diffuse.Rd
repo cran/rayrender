@@ -14,8 +14,14 @@ diffuse(
   noisecolor = "#000000",
   gradient_color = NA,
   gradient_transpose = FALSE,
+  gradient_point_start = NA,
+  gradient_point_end = NA,
+  gradient_type = "hsv",
   image_texture = NA,
+  image_repeat = 1,
   alpha_texture = NA,
+  bump_texture = NA,
+  bump_intensity = 1,
   fog = FALSE,
   fogdensity = 0.01,
   sigma = NULL,
@@ -48,9 +54,28 @@ between the this color and color specified in `color`. Direction is determined b
 \item{gradient_transpose}{Default `FALSE`. If `TRUE`, this will use the `v` coordinate texture instead
 of the `u` coordinate texture to map the gradient.}
 
+\item{gradient_point_start}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
+begins with value `color`.}
+
+\item{gradient_point_end}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
+begins with value `gradient_color`.}
+
+\item{gradient_type}{Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.}
+
 \item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
 
-\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
+\item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
+`u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
+
+\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to 
+be used to specify the transparency.}
+
+\item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+be used to specify a bump map for the surface.}
+
+\item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
 
 \item{fog}{Default `FALSE`. If `TRUE`, the object will be a volumetric scatterer.}
 
