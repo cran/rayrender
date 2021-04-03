@@ -53,24 +53,24 @@ Sphere Object
 generate_cornell() \%>\%
   add_object(sphere(x = 555/2, y = 555/2, z = 555/2, radius = 100)) \%>\%
   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-               ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
+               ambient_light = FALSE, samples = 400, clamp_value = 5)
 }
 
 #Generate a gold sphere in the cornell box
 \donttest{
 generate_cornell() \%>\%
   add_object(sphere(x = 555/2, y = 100, z = 555/2, radius = 100, 
-                    material = metal(color = "gold", fuzz = 0.2))) \%>\%
+                    material = microfacet(color = "gold"))) \%>\%
   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-               ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
+               ambient_light = FALSE, samples = 400, clamp_value = 5)
 }
   
 #Add motion blur and show the sphere moving
 \donttest{
 generate_cornell() \%>\%
   add_object(sphere(x = 555/2, y = 100, z = 555/2, radius = 100,
-             material = metal(color = "gold", fuzz = 0.2), velocity = c(50, 0, 0))) \%>\%
+             material = microfacet(color = "gold"), velocity = c(50, 0, 0))) \%>\%
   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-               ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
+               ambient_light = FALSE, samples = 400, clamp_value = 5)
 }
 }

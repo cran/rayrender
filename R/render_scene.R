@@ -5,8 +5,9 @@
 #' @param scene Tibble of object locations and properties. 
 #' @param width Default `400`. Width of the render, in pixels.
 #' @param height Default `400`. Height of the render, in pixels.
-#' @param fov Default `20`. Field of view, in degrees. If this is zero, the camera will use an orthographic projection. The size of the plane
-#' used to create the orthographic projection is given in argument `ortho_dimensions`.
+#' @param fov Default `20`. Field of view, in degrees. If this is `0`, the camera will use an orthographic projection. The size of the plane
+#' used to create the orthographic projection is given in argument `ortho_dimensions`. From `0` to `180`, this uses a perspective
+#' projections. If this value is `360`, a 360 degree environment image will be rendered. 
 #' @param samples Default `100`. The maximum number of samples for each pixel. If this is a length-2
 #' vector and the `sample_method` is `stratified`, this will control the number of strata in each dimension.
 #' The total number of samples in this case will be the product of the two numbers.
@@ -15,9 +16,11 @@
 #' If this is set to zero, the adaptive sampler will be turned off and the renderer
 #' will use the maximum number of samples everywhere.
 #' @param min_adaptive_size Default `8`. Width of the minimum block size in the adaptive sampler.
-#' @param sample_method Default `random`. The type of sampling method used to generate
-#' random numbers. The other option is `stratified`, which can improve the render quality (at the cost
-#' of increased time allocating the random samples).
+#' @param sample_method Default `sobol_blue`. The type of sampling method used to generate
+#' random numbers. The other options are `random` (worst quality but simple), 
+#' `stratified` (only implemented for completion), 
+#' and `sobol_blue` (best option for sample counts below 256), and `sobol` (better than `sobol_blue` for 
+#' sample counts greater than 256).
 #' @param max_depth Default `50`. Maximum number of bounces a ray can make in a scene.
 #' @param roulette_active_depth Default `10`. Number of ray bounces until a ray can stop bouncing via
 #' Russian roulette.
@@ -64,9 +67,16 @@
 #' @param debug_channel Default `none`. If `depth`, function will return a depth map of rays into the scene 
 #' instead of an image. If `normals`, function will return an image of scene normals, mapped from 0 to 1.
 #' If `uv`, function will return an image of the uv coords. If `variance`, function will return an image 
-#' showing the number of samples needed to take for each block to converge (when the 
+#' showing the number of samples needed to take for each block to converge. If `dpdu` or `dpdv`, function will return
+#' an image showing the differential `u` and `u` coordinates. If `color`, function will return the raw albedo
+#' values (with white for `metal` and `dielectric` materials).
+#' @param return_raw_array Default `FALSE`. If `TRUE`, function will return raw array with RGB intensity
+#' information.
 #' @param parallel Default `FALSE`. If `TRUE`, it will use all available cores to render the image
 #'  (or the number specified in `options("cores")` if that option is not `NULL`).
+#' @param bvh_type Default `"sah"`, "surface area heuristic". Method of building the bounding volume
+#' hierarchy structure used when rendering. Other option is "equal", which splits tree into groups
+#' of equal size.
 #' @param progress Default `TRUE` if interactive session, `FALSE` otherwise. 
 #' @param verbose Default `FALSE`. Prints information and timing information about scene
 #' construction and raytracing progress.
@@ -78,7 +88,7 @@
 #' #Generate a large checkered sphere as the ground
 #' \donttest{
 #' scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
-#' render_scene(scene,parallel=TRUE,samples=500)
+#' render_scene(scene,parallel=TRUE,samples=500,sample_method="sobol")
 #' }
 #' 
 #' #Add a sphere to the center
@@ -99,7 +109,7 @@
 #' \donttest{
 #' scene = scene %>%
 #'   add_object(sphere(x=-1.1,y=0,z=0,radius=0.5,material = metal(color="gold",fuzz=0.1)))
-#' render_scene(scene,fov=20,parallel=TRUE,samples=500, sample_method = "stratified")
+#' render_scene(scene,fov=20,parallel=TRUE,samples=500)
 #' }
 #' 
 #' #Lower the number of samples to render more quickly (here, we also use only one core).
@@ -118,7 +128,7 @@
 #' image_array = aperm(png::readPNG(tempfileplot),c(2,1,3))
 #' scene = scene %>%
 #'   add_object(xy_rect(x=0,y=1.1,z=0,xwidth=2,angle = c(0,180,0),
-#'                      material = diffuse(image = image_array)))
+#'                      material = diffuse(image_texture = image_array)))
 #' render_scene(scene,fov=20,parallel=TRUE,samples=500)
 #' }
 #' 
@@ -139,6 +149,24 @@
 #' render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
 #'              aperture = 0.5,parallel=TRUE,samples=500)
 #' }
+#' 
+#'#We can also capture a 360 environment image by setting `fov = 360` (can be used for VR)
+#'\donttest{
+#' generate_cornell() %>%
+#'   add_object(ellipsoid(x=555/2,y=100,z=555/2,a=50,b=100,c=50, 
+#'              material = metal(color="lightblue"))) %>%
+#'   add_object(cube(x=100,y=130/2,z=200,xwidth = 130,ywidth=130,zwidth = 130,
+#'                   material=diffuse(checkercolor="purple", 
+#'                                    checkerperiod = 30),angle=c(0,10,0))) %>%
+#'   add_object(pig(x=100,y=190,z=200,scale=40,angle=c(0,30,0))) %>%
+#'   add_object(sphere(x=420,y=555/8,z=100,radius=555/8,
+#'                     material = dielectric(color="orange"))) %>%
+#'   add_object(xz_rect(x=555/2,z=555/2, y=1,xwidth=555,zwidth=555,
+#'                      material = glossy(checkercolor = "white",
+#'                                        checkerperiod=10,color="dodgerblue"))) %>%
+#'   render_scene(lookfrom=c(278,278,30), lookat=c(278,278,500), clamp_value=10,
+#'                fov = 360,  samples = 500, width=800, height=400)
+#'}
 #'                  
 #'#Spin the camera around the scene, decreasing the number of samples to render faster. To make 
 #'#an animation, specify the a filename in `render_scene` for each frame and use the `av` package
@@ -159,16 +187,16 @@
 #'}
 render_scene = function(scene, width = 400, height = 400, fov = 20, 
                         samples = 100, min_variance = 0.00005, min_adaptive_size = 8,
-                        sample_method = "random",
+                        sample_method = "sobol_blue",
                         max_depth = 50, roulette_active_depth = 10,
                         ambient_light = FALSE, 
                         lookfrom = c(0,1,10), lookat = c(0,0,0), camera_up = c(0,1,0), 
                         aperture = 0.1, clamp_value = Inf,
                         filename = NULL, backgroundhigh = "#80b4ff",backgroundlow = "#ffffff",
                         shutteropen = 0.0, shutterclose = 1.0, focal_distance=NULL, ortho_dimensions = c(1,1),
-                        tonemap ="gamma", bloom = TRUE, parallel=TRUE, 
+                        tonemap ="gamma", bloom = TRUE, parallel=TRUE, bvh_type = "sah",
                         environment_light = NULL, rotate_env = 0, intensity_env = 1,
-                        debug_channel = "none",
+                        debug_channel = "none", return_raw_array = FALSE,
                         progress = interactive(), verbose = FALSE) { 
   if(verbose) {
     currenttime = proc.time()
@@ -219,9 +247,12 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   shapevec = unlist(lapply(tolower(scene$shape),switch,
                           "sphere" = 1,"xy_rect" = 2, "xz_rect" = 3,"yz_rect" = 4,"box" = 5, "triangle" = 6, 
                           "obj" = 7, "objcolor" = 8, "disk" = 9, "cylinder" = 10, "ellipsoid" = 11,
-                          "objvertexcolor" = 12, "cone" = 13))
+                          "objvertexcolor" = 12, "cone" = 13, "curve" = 14, "csg_object" = 15, "ply" = 16,
+                          "mesh3d" = 17))
   typevec = unlist(lapply(tolower(scene$type),switch,
-                          "diffuse" = 1,"metal" = 2,"dielectric" = 3, "oren-nayar" = 4, "light" = 5, "microfacet" = 6, "glossy" = 7))
+                          "diffuse" = 1,"metal" = 2,"dielectric" = 3, 
+                          "oren-nayar" = 4, "light" = 5, "microfacet" = 6, 
+                          "glossy" = 7, "spotlight" = 8, "hair" = 9))
   sigmavec = unlist(scene$sigma)
   
   assertthat::assert_that(tonemap %in% c("gamma","reinhold","uncharted", "hbd", "raw"))
@@ -265,7 +296,7 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   #light handler
   light_prop_vec =  scene$lightintensity
   
-  if(!any(typevec == 5) && missing(ambient_light) && missing(environment_light)) {
+  if(!any(typevec == 5) && !any(typevec == 8) && missing(ambient_light) && missing(environment_light)) {
     ambient_light = TRUE
   }
   
@@ -397,7 +428,7 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   fileinfovec[is.na(fileinfovec)] = ""
   objfilenamevec = purrr::map_chr(fileinfovec, path.expand)
   if(any(!file.exists(objfilenamevec) & nchar(objfilenamevec) > 0)) {
-    stop(paste0("Cannot find the following .obj files:\n",
+    stop(paste0("Cannot find the following obj/ply files:\n",
                  paste(objfilenamevec[!file.exists(objfilenamevec) & nchar(objfilenamevec) > 0], 
                        collapse="\n")
                  ))
@@ -438,10 +469,16 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   if(!parallel) {
     numbercores = 1
   }
-
-  debug_channel = unlist(lapply(tolower(debug_channel),switch,
-                          "none" = 0,"depth" = 1,"normals" = 2, "uv" = 3, "bvh" = 4,
-                          "variance" = 5))
+  if(!is.numeric(debug_channel)) {
+    debug_channel = unlist(lapply(tolower(debug_channel),switch,
+                            "none" = 0,"depth" = 1,"normals" = 2, "uv" = 3, "bvh" = 4,
+                            "variance" = 5, "normal" = 2, "dpdu" = 6, "dpdv" = 7, "color" = 8, 
+                            0))
+    light_direction = c(0,1,0)
+  } else {
+    light_direction = debug_channel
+    debug_channel = 9
+  }
   if(debug_channel == 4) {
     message("rayrender must be compiled with option DEBUGBVH for this debug option to work")
   }
@@ -454,7 +491,7 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     cat(sprintf("%0.3f seconds \n",buildingtime[3]))
   }
   sample_method = unlist(lapply(tolower(sample_method),switch,
-                                "random" = 0,"stratified" = 1, 0))
+                                "random" = 0,"stratified" = 1, "sobol" = 2,"sobol_blue" = 3, 0))
   
   camera_info = list()
   strat_dim = c()
@@ -481,9 +518,23 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   camera_info$roulette_active_depth = roulette_active_depth
   camera_info$sample_method = sample_method
   camera_info$stratified_dim = strat_dim
+  camera_info$light_direction = light_direction
+  camera_info$bvh = switch(bvh_type,"sah" = 1, "equal" = 2, 1)
   
   assertthat::assert_that(max_depth > 0)
   assertthat::assert_that(roulette_active_depth > 0)
+  
+  #Spotlight handler
+  if(any(typevec == 8)) {
+    if(any(shapevec[typevec == 8] > 4)) {
+      stop("spotlights are only supported for spheres and rects")
+    }
+    for(i in 1:length(proplist)) {
+      if(typevec[i] == 8) {
+        proplist[[i]][4:6] = proplist[[i]][4:6] - c(position_list$xvec[i],position_list$yvec[i],position_list$zvec[i]) 
+      }
+    }
+  }
   
   
   #Material ID handler; these must show up in increasing order.  Note, this will
@@ -502,49 +553,103 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     stop("min_variance cannot be less than zero")
   }
   
-  rgb_mat = render_scene_rcpp(camera_info = camera_info, ambient_light = ambient_light,
-                             type = typevec, shape = shapevec, radius = rvec, 
-                             position_list = position_list,
-                             properties = proplist, velocity = vel_list, moving = movingvec,
-                             n = length(typevec), 
-                             bghigh = backgroundhigh, bglow = backgroundlow,
-                             ischeckered = checkeredbool, checkercolors = checkeredlist,
-                             gradient_info = gradient_info, 
-                             noise=noisevec,isnoise=noisebool,noisephase=noisephasevec, 
-                             noiseintensity=noiseintvec, noisecolorlist = noisecolorlist,
-                             angle = rot_angle_list, isimage = image_tex_bool, filelocation = temp_file_names,
-                             alphalist = alphalist,
-                             lightintensity = light_prop_vec,isflipped = flip_vec,
-                             isvolume=fog_bool, voldensity = fog_vec, 
-                             implicit_sample = implicit_vec, order_rotation_list = order_rotation_list, clampval = clamp_value,
-                             isgrouped = group_bool, group_pivot=group_pivot, group_translate = group_translate,
-                             group_angle = group_angle, group_order_rotation = group_order_rotation, group_scale = group_scale,
-                             tri_normal_bools = tri_normal_bools, is_tri_color = is_tri_color, tri_color_vert= tri_color_vert,
-                             fileinfo = objfilenamevec, filebasedir = objbasedirvec,
-                             progress_bar = progress, numbercores = numbercores, 
-                             hasbackground = hasbackground, background = backgroundstring, scale_list = scale_factor,
-                             sigmavec = sigmavec, rotate_env = rotate_env, intensity_env = intensity_env,
-                             verbose = verbose, debug_channel = debug_channel,
-                             shared_id_mat=material_id, is_shared_mat=material_id_bool, 
-                             min_variance = min_variance, min_adaptive_size = min_adaptive_size, 
-                             glossyinfo = glossyinfo, image_repeat = image_repeat) 
+  #CSG handler
+  csg_list = scene$csg_object
+  csg_info = list()
+  csg_info$csg = csg_list
+  
+  #mesh3d handler
+  mesh_list = scene$mesh_info
+  
+  
+  scene_info = list()
+  scene_info$ambient_light = ambient_light
+  scene_info$type = typevec
+  scene_info$shape = shapevec
+  scene_info$radius = rvec
+  scene_info$position_list = position_list
+  scene_info$properties = proplist
+  scene_info$velocity = vel_list
+  scene_info$moving = movingvec
+  scene_info$n = length(typevec)
+  scene_info$bghigh = backgroundhigh
+  scene_info$bglow = backgroundlow
+  scene_info$ischeckered = checkeredbool
+  scene_info$checkercolors = checkeredlist
+  scene_info$gradient_info = gradient_info
+  scene_info$noise=noisevec
+  scene_info$isnoise=noisebool
+  scene_info$noisephase=noisephasevec
+  scene_info$noiseintensity=noiseintvec
+  scene_info$noisecolorlist = noisecolorlist
+  scene_info$angle = rot_angle_list
+  scene_info$isimage = image_tex_bool
+  scene_info$filelocation = temp_file_names
+  scene_info$alphalist = alphalist
+  scene_info$lightintensity = light_prop_vec
+  scene_info$isflipped = flip_vec
+  scene_info$isvolume=fog_bool
+  scene_info$voldensity = fog_vec
+  scene_info$implicit_sample = implicit_vec
+  scene_info$order_rotation_list = order_rotation_list
+  scene_info$clampval = clamp_value
+  scene_info$isgrouped = group_bool
+  scene_info$group_pivot=group_pivot
+  scene_info$group_translate = group_translate
+  scene_info$group_angle = group_angle
+  scene_info$group_order_rotation = group_order_rotation
+  scene_info$group_scale = group_scale
+  scene_info$tri_normal_bools = tri_normal_bools
+  scene_info$is_tri_color = is_tri_color
+  scene_info$tri_color_vert= tri_color_vert
+  scene_info$fileinfo = objfilenamevec
+  scene_info$filebasedir = objbasedirvec
+  scene_info$progress_bar = progress
+  scene_info$numbercores = numbercores
+  scene_info$hasbackground = hasbackground
+  scene_info$background = backgroundstring
+  scene_info$scale_list = scale_factor
+  scene_info$sigmavec = sigmavec
+  scene_info$rotate_env = rotate_env
+  scene_info$intensity_env = intensity_env
+  scene_info$verbose = verbose
+  scene_info$debug_channel = debug_channel
+  scene_info$shared_id_mat=material_id
+  scene_info$is_shared_mat=material_id_bool
+  scene_info$min_variance = min_variance
+  scene_info$min_adaptive_size = min_adaptive_size
+  scene_info$glossyinfo = glossyinfo
+  scene_info$image_repeat = image_repeat
+  scene_info$csg_info = csg_info
+  scene_info$mesh_list=mesh_list
+
+  #Pathrace Scene
+  rgb_mat = render_scene_rcpp(camera_info = camera_info, scene_info = scene_info) 
+  
   full_array = array(0,c(ncol(rgb_mat$r),nrow(rgb_mat$r),3))
   full_array[,,1] = flipud(t(rgb_mat$r))
   full_array[,,2] = flipud(t(rgb_mat$g))
   full_array[,,3] = flipud(t(rgb_mat$b))
   if(debug_channel == 1) {
-    returnmat = full_array[,,1]
+    returnmat = fliplr(t(full_array[,,1]))
     returnmat[is.infinite(returnmat)] = NA
     if(is.null(filename)) {
-      plot_map(full_array)
-      return(invisible(full_array))
+      plot_map((returnmat-min(returnmat,na.rm=TRUE))/(max(returnmat,na.rm=TRUE) - min(returnmat,na.rm=TRUE)))
+      return(invisible(returnmat))
     } else {
-      save_png(full_array,filename)
-      return(invisible(full_array))
+      save_png((returnmat-min(returnmat,na.rm=TRUE))/(max(returnmat,na.rm=TRUE) - min(returnmat,na.rm=TRUE)),
+               filename)
+      return(invisible(returnmat))
     }
   } else if (debug_channel %in% c(2,3,4,5)) {
     if(is.null(filename)) {
-      plot_map(full_array)
+      if(!return_raw_array) {
+        if(debug_channel == 4) {
+          plot_map(full_array/(max(full_array,na.rm=TRUE)))
+        } else {
+          plot_map(full_array)
+        }
+      }
       return(invisible(full_array))
     } else {
       save_png(full_array,filename)
@@ -575,7 +680,7 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     }
     full_array = rayimage::render_convolution(image = full_array, kernel = kernel,  min_value = 1, preview=FALSE)
   }
-  tonemapped_channels = tonemap_image(height,width,full_array[,,1],full_array[,,2],full_array[,,3],toneval)
+  tonemapped_channels = tonemap_image(full_array[,,1],full_array[,,2],full_array[,,3],toneval)
   full_array = array(0,c(nrow(tonemapped_channels$r),ncol(tonemapped_channels$r),3))
   full_array[,,1] = tonemapped_channels$r
   full_array[,,2] = tonemapped_channels$g
@@ -593,7 +698,9 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     array_from_mat[array_from_mat < 0] = 0
   }
   if(is.null(filename)) {
-    plot_map(array_from_mat)
+    if(!return_raw_array) {
+      plot_map(array_from_mat)
+    }
   } else {
     save_png(array_from_mat,filename)
   }

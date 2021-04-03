@@ -2,45 +2,36 @@
 #define BOXH
 
 #include "hitablelist.h"
-#include "xyrect.h"
+#include "rectangle.h"
+#include <memory>
 
 class box : public hitable {
 public:
   box() {}
-  box(const vec3& p0, const vec3& p1, material *ptr, alpha_texture *alpha_mask, bump_texture *bump_tex);
+  box(const vec3& p0, const vec3& p1, std::shared_ptr<material> ptr, 
+      std::shared_ptr<alpha_texture> alpha_mask, std::shared_ptr<bump_texture> bump_tex);
   virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng);
+  virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler);
+  
   virtual bool bounding_box(Float t0, Float t1, aabb& box) const {
     box = aabb(pmin, pmax);
     return(true);
   }
-  virtual Float pdf_value(const vec3& o, const vec3& v, random_gen& rng) {
-    return(list_ptr.pdf_value(o,v, rng));
+  virtual Float pdf_value(const vec3& o, const vec3& v, random_gen& rng, Float time = 0) {
+    return(list.pdf_value(o,v, rng, time));
   }
-  virtual vec3 random(const vec3& o, random_gen& rng) {
-    return(list_ptr.random(o, rng));
+  virtual Float pdf_value(const vec3& o, const vec3& v, Sampler* sampler, Float time = 0) {
+    return(list.pdf_value(o,v, sampler, time));
   }
-  virtual vec3 random(const vec3& o, Sampler* sampler) {
-    return(list_ptr.random(o, sampler));
+  virtual vec3 random(const vec3& o, random_gen& rng, Float time = 0) {
+    return(list.random(o, rng, time));
+  }
+  virtual vec3 random(const vec3& o, Sampler* sampler, Float time = 0) {
+    return(list.random(o, sampler, time));
   }
   vec3 pmin, pmax;
-  hitable_list list_ptr;
+  hitable_list list;
 };
 
-box::box(const vec3& p0, const vec3& p1, material *ptr, alpha_texture *alpha_mask, bump_texture *bump_tex) {
-  pmin = p0;
-  pmax = p1;
-  hitable **list = new hitable*[6];
-  list[0] = new xy_rect(p0.x(), p1.x(), p0.y(), p1.y(), p1.z(),ptr, alpha_mask, bump_tex, false);
-  list[1] = new xy_rect(p0.x(), p1.x(), p0.y(), p1.y(), p0.z(), ptr, alpha_mask, bump_tex, true);
-  list[2] = new xz_rect(p0.x(), p1.x(), p0.z(), p1.z(), p1.y(), ptr, alpha_mask, bump_tex, false);
-  list[3] = new xz_rect(p0.x(), p1.x(), p0.z(), p1.z(), p0.y(), ptr, alpha_mask, bump_tex, true);
-  list[4] = new yz_rect(p0.y(), p1.y(), p0.z(), p1.z(), p1.x(), ptr, alpha_mask, bump_tex, false);
-  list[5] = new yz_rect(p0.y(), p1.y(), p0.z(), p1.z(), p0.x(), ptr, alpha_mask, bump_tex, true);
-  list_ptr = hitable_list(list,6);
-}
-
-bool box::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
-  return(list_ptr.hit(r,t_min,t_max,rec, rng));
-}
 
 #endif

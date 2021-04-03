@@ -409,7 +409,7 @@ metal = function(color = "#ffffff",
 #'                     material = dielectric(priority=0,attenuation = c(10,3,10) ))) %>%
 #'   add_object(sphere(radius=0.25,x=-0.5,z=0.5,y=0.5,
 #'                     material = dielectric(priority=0,attenuation = c(10,3,10)))) %>%
-#'   render_scene(parallel=TRUE, samples = 400,lookfrom=c(5,1,5))
+#'   render_scene(parallel=TRUE, samples = 400,lookfrom=c(5,1,5)) 
 #' }
 #' 
 #' # We can also use this as a basic Constructive Solid Geometry interface by setting 
@@ -655,8 +655,27 @@ microfacet = function(color="white", roughness = 0.0001,
 #' algorithm, in most cases. If the object is particularly important in contributing to the light paths
 #' in the image (e.g. light sources, refracting glass ball with caustics, metal objects concentrating light),
 #' this will help with the convergence of the image.
-#'
-#' @return Single row of a tibble describing the diffuse material.
+#' @param spotlight_focus Default `NA`, no spotlight. Otherwise, a length-3 numeric vector specifying
+#' the x/y/z coordinates that the spotlight should be focused on. Only works for spheres and rectangles.
+#' @param spotlight_width Default `30`. Angular width of the spotlight.
+#' @param spotlight_start_falloff Default `15`. Angle at which the light starts fading in intensity.
+#' @param invisible Default `FALSE`. If `TRUE`, the light itself will be invisible.
+#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
+#' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
+#' @param gradient_color Default `NA`. If not `NA`, creates a secondary color for a linear gradient 
+#' between the this color and color specified in `color`. Direction is determined by `gradient_transpose`.
+#' @param gradient_transpose Default `FALSE`. If `TRUE`, this will use the `v` coordinate texture instead
+#' of the `u` coordinate texture to map the gradient.
+#' @param gradient_point_start Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+#' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
+#' begins with value `color`.
+#' @param gradient_point_end Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+#' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
+#' begins with value `gradient_color`.
+#' @param gradient_type Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.
+#' 
+#' @return Single row of a tibble describing the light material.
 #' @export
 #' @importFrom  grDevices col2rgb
 #'
@@ -664,6 +683,15 @@ microfacet = function(color="white", roughness = 0.0001,
 #' #Generate the cornell box without a light and add a single white sphere to the center
 #' scene = generate_cornell(light=FALSE) %>%
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=light()))
+#' \donttest{
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
+#'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
+#' }
+#' 
+#' #Remove the light for direct camera rays, but keep the lighting
+#' scene = generate_cornell(light=FALSE) %>%
+#'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
+#'              material=light(intensity=15,invisible=TRUE)))
 #' \donttest{
 #' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
@@ -677,19 +705,70 @@ microfacet = function(color="white", roughness = 0.0001,
 #' \donttest{
 #' render_scene(scene, samples=500, parallel=TRUE, clamp_value=10)
 #' }
-light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE) {
+light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE, 
+                 spotlight_focus = NA, spotlight_width = 30, spotlight_start_falloff = 15,
+                 invisible = FALSE, image_texture = NA, image_repeat = 1, 
+                 gradient_color = NA, gradient_transpose = FALSE,
+                 gradient_point_start = NA, gradient_point_end = NA, gradient_type = "hsv") {
   info = convert_color(color)
-  new_tibble_row(list(type = "light", 
-                 properties = list(info), checkercolor=list(NA), 
-                 gradient_color = list(NA), gradient_transpose = FALSE,
-                 world_gradient = FALSE,gradient_point_info = list(NA),
-                 gradient_type = NA,
-                 noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
-                 image = list(NA), image_repeat = list(c(1,1)),
-                 alphaimage = list(NA), lightintensity = intensity,
-                 fog=FALSE, fogdensity=0.01, implicit_sample = importance_sample, 
-                 sigma = 0, glossyinfo = list(NA), bump_texture = list(NA),
-                 bump_intensity = 1))
+  if(!is.array(image_texture) && !is.na(image_texture) && !is.character(image_texture)) {
+    image_texture = NA
+    warning("Texture not in recognized format (array, matrix, or filename), ignoring.")
+  }
+  if(length(image_repeat) == 1) {
+    image_repeat = c(image_repeat,image_repeat)
+  }
+  if(all(!is.na(gradient_color))) {
+    gradient_color = convert_color(gradient_color)
+  } else {
+    gradient_color = NA
+  }
+  if(!is.na(gradient_point_start) && !is.na(gradient_point_end) && !is.na(gradient_color)) {
+    assertthat::assert_that(length(gradient_point_start) == 3)
+    assertthat::assert_that(length(gradient_point_end) == 3)
+    assertthat::assert_that(is.numeric(gradient_point_start))
+    assertthat::assert_that(is.numeric(gradient_point_end))
+    gradient_point_info = c(gradient_point_start,gradient_point_end)
+    is_world_gradient = TRUE
+  } else {
+    is_world_gradient = FALSE
+    gradient_point_info = NA
+  }
+  if(invisible) {
+    invisible = 1
+  } else {
+    invisible = 0
+  }
+  if(all(!is.na(spotlight_focus))) {
+    stopifnot(length(spotlight_focus) == 3)
+    spotlight_width = min(c(spotlight_width,180))
+    spotlight_start_falloff = min(c(spotlight_start_falloff,90))
+    info = c(info, spotlight_focus, cospi(spotlight_width/180), cospi(spotlight_start_falloff/180), invisible)
+    new_tibble_row(list(type = "spotlight", 
+                        properties = list(info), checkercolor=list(NA), 
+                        gradient_color = list(NA), gradient_transpose = FALSE,
+                        world_gradient = FALSE,gradient_point_info = list(NA),
+                        gradient_type = NA,
+                        noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
+                        image = list(image_texture), image_repeat = list(image_repeat),
+                        alphaimage = list(NA), lightintensity = intensity,
+                        fog=FALSE, fogdensity=0.01, implicit_sample = importance_sample, 
+                        sigma = 0, glossyinfo = list(NA), bump_texture = list(NA),
+                        bump_intensity = 1))
+  } else {
+    info = c(info, invisible)
+    new_tibble_row(list(type = "light", 
+                        properties = list(info), checkercolor=list(NA), 
+                        gradient_color = list(gradient_color), gradient_transpose = gradient_transpose,
+                        world_gradient = is_world_gradient, gradient_point_info = list(gradient_point_info),
+                        gradient_type = gradient_type,
+                        noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
+                        image = list(image_texture), image_repeat = list(image_repeat),
+                        alphaimage = list(NA), lightintensity = intensity,
+                        fog=FALSE, fogdensity=0.01, implicit_sample = importance_sample, 
+                        sigma = 0, glossyinfo = list(NA), bump_texture = list(NA),
+                        bump_intensity = 1))
+  }
 }
 
 #' Glossy Material
@@ -848,6 +927,117 @@ glossy = function(color="white", gloss = 1, reflectance = 0.05, microfacet = "tb
                       fog=FALSE, fogdensity=NA, implicit_sample = importance_sample, 
                       sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
                       bump_intensity = bump_intensity))
+}
+
+
+SigmaAFromConcentration = function(ce, cp) {
+  eumelaninSigmaA = c(0.419, 0.697, 1.37);
+  pheomelaninSigmaA = c(0.187, 0.4, 1.05);
+  sigma_a = ce * eumelaninSigmaA + cp * pheomelaninSigmaA
+  return(sigma_a);
+}
+
+SigmaAFromReflectance = function(c, beta_n) {
+  sigma_a = (log(c) / (5.969 - 0.215 * beta_n + 2.532 * (beta_n)^2 -
+             10.73 * (beta_n)^3 + 5.574 * (beta_n)^4 +
+             0.245 * (beta_n)^5))^2;
+  return(sigma_a);
+}
+
+#' Hair Material
+#'
+#' @param pigment Default `1.3`. Concentration of the eumelanin pigment in the hair. Blonde hair has concentrations around 0.3, brown around 1.3, and black around 8.
+#' @param red_pigment Default `0`.Concentration of the pheomelanin pigment in the hair. Pheomelanin makes red hair red.
+#' @param color Default `NA`. Approximate color. Overrides `pigment`/`redness` arguments.
+#' @param sigma_a Default `NA`. Attenuation. Overrides `color` and `pigment`/`redness` arguments.
+#' @param eta Default `1.55`. Index of refraction of the hair medium.
+#' @param beta_m Default `0.3`. Longitudinal roughness of the hair. Should be between 0 and 1. This roughness controls the size and shape of the hair highlight.
+#' @param beta_n Default `0.3`. Azimuthal roughness of the hair. Should be between 0 and 1.
+#' @param alpha Default `2`. Angle of scales on the hair surface, in degrees.
+#'
+#' @return Single row of a tibble describing the hair material.
+#' @export
+#' @importFrom  grDevices col2rgb
+#'
+#' @examples
+#' #Create a hairball
+#' \donttest{
+#' #Generate rendom points on a sphere
+#' lengthval = 0.5
+#' theta = acos(2*runif(10000)-1.0);
+#' phi = 2*pi*(runif(10000))
+#' bezier_list = list()
+#' 
+#' #Grow the hairs
+#' for(i in 1:length(phi)) {
+#'   pointval = c(sin(theta[i]) * sin(phi[i]),
+#'                cos(theta[i]),
+#'                sin(theta[i]) * cos(phi[i]))
+#'   bezier_list[[i]] = bezier_curve(width=0.01, width_end=0.008,
+#'                                   p1 = pointval,
+#'                                   p2 = (1+(lengthval*0.33))*pointval, 
+#'                                   p3 = (1+(lengthval*0.66))*pointval,
+#'                                   p4 = (1+(lengthval)) * pointval,
+#'                                   material=hair(pigment = 0.3, red_pigment = 1.3,
+#'                                                 beta_m = 0.3, beta_n= 0.3),
+#'                                   type="flat")
+#' }
+#' hairball = dplyr::bind_rows(bezier_list)
+#' 
+#' generate_ground(depth=-2,material=diffuse(color="grey20")) %>%
+#'   add_object(sphere()) %>%
+#'   add_object(hairball) %>%
+#'   add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) %>%
+#'   render_scene(samples=64, lookfrom=c(0,3,10),clamp_value = 10,
+#'                fov=20)
+#'                
+#'                
+#' #Specify the color directly and increase hair roughness
+#' for(i in 1:length(phi)) {
+#'   pointval = c(sin(theta[i]) * sin(phi[i]),
+#'                cos(theta[i]),
+#'                sin(theta[i]) * cos(phi[i]))
+#'   bezier_list[[i]] = bezier_curve(width=0.01, width_end=0.008,
+#'                                   p1 = pointval,
+#'                                   p2 = (1+(lengthval*0.33))*pointval, 
+#'                                   p3 = (1+(lengthval*0.66))*pointval,
+#'                                   p4 = (1+(lengthval)) * pointval,
+#'                                   material=hair(color="purple",
+#'                                                 beta_m = 0.5, beta_n= 0.5),
+#'                                   type="flat")
+#' }
+#' hairball = dplyr::bind_rows(bezier_list)
+#' generate_ground(depth=-2,material=diffuse(color="grey20")) %>%
+#'   add_object(sphere()) %>%
+#'   add_object(hairball) %>%
+#'   add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) %>%
+#'   render_scene(samples=64, lookfrom=c(0,3,10),clamp_value = 10,
+#'                fov=20)
+#' }
+hair = function(pigment = 1.3, red_pigment = 0, color = NA, sigma_a = NA, 
+                eta = 1.55, beta_m = 0.3, beta_n = 0.3, alpha = 2) {
+  if(!is.na(sigma_a)) {
+    sigma_a = sigma_a
+  } else if(!is.na(color)) {
+    sigma_a = SigmaAFromReflectance(convert_color(color), beta_n)
+  } else {
+    stopifnot(pigment >= 0)
+    stopifnot(red_pigment >= 0)
+    sigma_a = SigmaAFromConcentration(pigment, red_pigment)
+  }
+  
+  info = c(sigma_a, eta, beta_m, beta_n, alpha)
+  new_tibble_row(list(type = "hair", 
+                      properties = list(info), checkercolor=list(NA), 
+                      gradient_color = list(NA), gradient_transpose = NA,
+                      world_gradient = FALSE, gradient_point_info = list(NA),
+                      gradient_type = NA,
+                      noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
+                      image = list(NA), image_repeat = list(NA),
+                      alphaimage = list(NA), lightintensity = NA,
+                      fog=FALSE, fogdensity=NA, implicit_sample = FALSE, 
+                      sigma = NA, glossyinfo = list(NA), bump_texture = list(NA),
+                      bump_intensity = NA))
 }
 
 #' Lambertian Material (deprecated)

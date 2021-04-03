@@ -12,7 +12,7 @@ render_scene(
   samples = 100,
   min_variance = 5e-05,
   min_adaptive_size = 8,
-  sample_method = "random",
+  sample_method = "sobol_blue",
   max_depth = 50,
   roulette_active_depth = 10,
   ambient_light = FALSE,
@@ -31,10 +31,12 @@ render_scene(
   tonemap = "gamma",
   bloom = TRUE,
   parallel = TRUE,
+  bvh_type = "sah",
   environment_light = NULL,
   rotate_env = 0,
   intensity_env = 1,
   debug_channel = "none",
+  return_raw_array = FALSE,
   progress = interactive(),
   verbose = FALSE
 )
@@ -46,8 +48,9 @@ render_scene(
 
 \item{height}{Default `400`. Height of the render, in pixels.}
 
-\item{fov}{Default `20`. Field of view, in degrees. If this is zero, the camera will use an orthographic projection. The size of the plane
-used to create the orthographic projection is given in argument `ortho_dimensions`.}
+\item{fov}{Default `20`. Field of view, in degrees. If this is `0`, the camera will use an orthographic projection. The size of the plane
+used to create the orthographic projection is given in argument `ortho_dimensions`. From `0` to `180`, this uses a perspective
+projections. If this value is `360`, a 360 degree environment image will be rendered.}
 
 \item{samples}{Default `100`. The maximum number of samples for each pixel. If this is a length-2
 vector and the `sample_method` is `stratified`, this will control the number of strata in each dimension.
@@ -60,9 +63,11 @@ will use the maximum number of samples everywhere.}
 
 \item{min_adaptive_size}{Default `8`. Width of the minimum block size in the adaptive sampler.}
 
-\item{sample_method}{Default `random`. The type of sampling method used to generate
-random numbers. The other option is `stratified`, which can improve the render quality (at the cost
-of increased time allocating the random samples).}
+\item{sample_method}{Default `sobol_blue`. The type of sampling method used to generate
+random numbers. The other options are `random` (worst quality but simple), 
+`stratified` (only implemented for completion), 
+and `sobol_blue` (best option for sample counts below 256), and `sobol` (better than `sobol_blue` for 
+sample counts greater than 256).}
 
 \item{max_depth}{Default `50`. Maximum number of bounces a ray can make in a scene.}
 
@@ -122,6 +127,10 @@ to control the intensity of the bloom (higher number = more bloom).}
 \item{parallel}{Default `FALSE`. If `TRUE`, it will use all available cores to render the image
 (or the number specified in `options("cores")` if that option is not `NULL`).}
 
+\item{bvh_type}{Default `"sah"`, "surface area heuristic". Method of building the bounding volume
+hierarchy structure used when rendering. Other option is "equal", which splits tree into groups
+of equal size.}
+
 \item{environment_light}{Default `NULL`. An image to be used for the background for rays that escape
 the scene. Supports both HDR (`.hdr`) and low-dynamic range (`.png`, `.jpg`) images.}
 
@@ -133,7 +142,12 @@ if using a LDR (JPEG or PNG) image as an environment map.}
 \item{debug_channel}{Default `none`. If `depth`, function will return a depth map of rays into the scene 
 instead of an image. If `normals`, function will return an image of scene normals, mapped from 0 to 1.
 If `uv`, function will return an image of the uv coords. If `variance`, function will return an image 
-showing the number of samples needed to take for each block to converge (when the}
+showing the number of samples needed to take for each block to converge. If `dpdu` or `dpdv`, function will return
+an image showing the differential `u` and `u` coordinates. If `color`, function will return the raw albedo
+values (with white for `metal` and `dielectric` materials).}
+
+\item{return_raw_array}{Default `FALSE`. If `TRUE`, function will return raw array with RGB intensity
+information.}
 
 \item{progress}{Default `TRUE` if interactive session, `FALSE` otherwise.}
 
@@ -150,7 +164,7 @@ Takes the scene description and renders an image, either to the device or to a f
 #Generate a large checkered sphere as the ground
 \donttest{
 scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
-render_scene(scene,parallel=TRUE,samples=500)
+render_scene(scene,parallel=TRUE,samples=500,sample_method="sobol")
 }
 
 #Add a sphere to the center
@@ -171,7 +185,7 @@ render_scene(scene,fov=20,parallel=TRUE,samples=500)
 \donttest{
 scene = scene \%>\%
   add_object(sphere(x=-1.1,y=0,z=0,radius=0.5,material = metal(color="gold",fuzz=0.1)))
-render_scene(scene,fov=20,parallel=TRUE,samples=500, sample_method = "stratified")
+render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
 #Lower the number of samples to render more quickly (here, we also use only one core).
@@ -190,7 +204,7 @@ dev.off()
 image_array = aperm(png::readPNG(tempfileplot),c(2,1,3))
 scene = scene \%>\%
   add_object(xy_rect(x=0,y=1.1,z=0,xwidth=2,angle = c(0,180,0),
-                     material = diffuse(image = image_array)))
+                     material = diffuse(image_texture = image_array)))
 render_scene(scene,fov=20,parallel=TRUE,samples=500)
 }
 
@@ -210,6 +224,24 @@ render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
 \donttest{
 render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
              aperture = 0.5,parallel=TRUE,samples=500)
+}
+
+#We can also capture a 360 environment image by setting `fov = 360` (can be used for VR)
+\donttest{
+generate_cornell() \%>\%
+  add_object(ellipsoid(x=555/2,y=100,z=555/2,a=50,b=100,c=50, 
+             material = metal(color="lightblue"))) \%>\%
+  add_object(cube(x=100,y=130/2,z=200,xwidth = 130,ywidth=130,zwidth = 130,
+                  material=diffuse(checkercolor="purple", 
+                                   checkerperiod = 30),angle=c(0,10,0))) \%>\%
+  add_object(pig(x=100,y=190,z=200,scale=40,angle=c(0,30,0))) \%>\%
+  add_object(sphere(x=420,y=555/8,z=100,radius=555/8,
+                    material = dielectric(color="orange"))) \%>\%
+  add_object(xz_rect(x=555/2,z=555/2, y=1,xwidth=555,zwidth=555,
+                     material = glossy(checkercolor = "white",
+                                       checkerperiod=10,color="dodgerblue"))) \%>\%
+  render_scene(lookfrom=c(278,278,30), lookat=c(278,278,500), clamp_value=10,
+               fov = 360,  samples = 500, width=800, height=400)
 }
                  
 #Spin the camera around the scene, decreasing the number of samples to render faster. To make 
