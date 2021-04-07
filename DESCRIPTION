@@ -1,7 +1,7 @@
 Package: rayrender
 Type: Package
 Title: Build and Raytrace 3D Scenes
-Version: 0.21.1
+Version: 0.21.2
 Date: 2021-04-01
 Authors@R: c(person("Tyler", "Morgan-Wall", email = "tylermw@gmail.com", 
     role = c("aut", "cph", "cre"), comment = c(ORCID = "0000-0002-3131-3814")),
@@ -21,11 +21,11 @@ URL: https://www.rayrender.net,
 RoxygenNote: 7.1.1
 SystemRequirements: C++11
 NeedsCompilation: yes
-Packaged: 2021-04-03 17:40:09 UTC; tyler
+Packaged: 2021-04-04 18:48:29 UTC; tyler
 Author: Tyler Morgan-Wall [aut, cph, cre]
     (<https://orcid.org/0000-0002-3131-3814>),
   Syoyo Fujita [ctb, cph],
   Melissa O'Neill [ctb, cph],
   Vilya Harvey [ctb, cph]
 Repository: CRAN
-Date/Publication: 2021-04-03 19:00:02 UTC
+Date/Publication: 2021-04-07 10:20:03 UTC

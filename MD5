@@ -1,4 +1,4 @@
-3df6153b11d6f4b7601f3eeed70573ee *DESCRIPTION
+094d0078d9a6a8d3dc28b28e15bf462c *DESCRIPTION
 0032a49cb62b1c061f90e803429d0df6 *NAMESPACE
 bd14a2afb06de1a3e99d778d5b85f7cf *R/RcppExports.R
 f86cd5b0a4599d774736615ac130a0eb *R/add_object.R
@@ -158,7 +158,7 @@ d6de006185672d054e1177e00aa1e06b *src/infinite_area_light.cpp
 2619f40f3900ee85f07dc9f10fe57b93 *src/mesh3d.h
 152f61ccbe45f8a3152a8e51922a4aca *src/microfacetdist.cpp
 9a7dbb4c1d7fed594b3fb27a806a9dbc *src/microfacetdist.h
-4282e969dc21c7b63b39c79adfce4221 *src/miniply.cpp
+148a9bd812a4ea22e4075d4b90f5526b *src/miniply.cpp
 d9a11a0c35519499cb3b05b10776ae62 *src/miniply.h
 d8ae0e2871d916bf3d1a10b45622d1fb *src/onbh.h
 b34a779e852f7894c608a48f1940e684 *src/pcg/pcg_extras.hpp
