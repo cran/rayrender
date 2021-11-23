@@ -38,8 +38,8 @@ bool aabb::hit(const ray &r, Float tmin, Float tmax, Sampler* sampler) {
   return(tmin <= tmax);
 }
 
-const vec3 aabb::offset(const vec3 p) {
-  vec3 o = p - min();
+const point3f aabb::offset(const point3f p) {
+  point3f o = p + -min();
   if (max().x() > min().x()) {
     o.e[0] /= (max().x() - min().x());
   }
@@ -50,5 +50,25 @@ const vec3 aabb::offset(const vec3 p) {
     o.e[2] /= (max().z() - min().z());
   }
   return(o);
+}
+
+const point3f aabb::offset(const vec3f p) {
+  point3f o = point3f(p.x(),p.y(),p.z()) + -min();
+  if (max().x() > min().x()) {
+    o.e[0] /= (max().x() - min().x());
+  }
+  if (max().y() > min().y()) {
+    o.e[1] /= (max().y() - min().y());
+  }
+  if (max().z() > min().z()) {
+    o.e[2] /= (max().z() - min().z());
+  }
+  return(o);
+}
+
+const point3f aabb::Corner(int corner) const {
+  return point3f((*this).bounds[(corner & 1)].x(),
+                 (*this).bounds[(corner & 2) ? 1 : 0].y(),
+                 (*this).bounds[(corner & 4) ? 1 : 0].z());
 }
 

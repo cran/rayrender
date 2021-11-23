@@ -113,7 +113,9 @@ static TriMesh* parse_file_with_miniply(const char* filename, bool assumeTriangl
 
 
 plymesh::plymesh(std::string inputfile, std::string basedir, std::shared_ptr<material> mat, 
-            Float scale, Float shutteropen, Float shutterclose, int bvh_type, random_gen rng) {
+            Float scale, Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
+            std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) :
+  hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
   TriMesh* tri = parse_file_with_miniply(inputfile.c_str(), false);
   mat_ptr = mat;
   
@@ -132,29 +134,29 @@ plymesh::plymesh(std::string inputfile, std::string basedir, std::shared_ptr<mat
   }
   int number_faces = tri->numIndices / 3;
   
-  vec3 tris[3];
-  vec3 normals[3];
+  vec3f tris[3];
+  vec3f normals[3];
   for (int i = 0; i < number_faces; i++) {
     bool tempnormal = false;
     int idx = 3*i;
-    tris[0] = vec3(tri->pos[3*tri->indices[idx  ]+0],
+    tris[0] = vec3f(tri->pos[3*tri->indices[idx  ]+0],
                    tri->pos[3*tri->indices[idx  ]+1],
                            tri->pos[3*tri->indices[idx  ]+2])*scale;
-    tris[1] = vec3(tri->pos[3*tri->indices[idx+1]+0],
+    tris[1] = vec3f(tri->pos[3*tri->indices[idx+1]+0],
                    tri->pos[3*tri->indices[idx+1]+1],
                            tri->pos[3*tri->indices[idx+1]+2])*scale;
-    tris[2] = vec3(tri->pos[3*tri->indices[idx+2]+0],
+    tris[2] = vec3f(tri->pos[3*tri->indices[idx+2]+0],
                    tri->pos[3*tri->indices[idx+2]+1],
                            tri->pos[3*tri->indices[idx+2]+2])*scale;
     if(has_normals) {
       tempnormal = true;
-      normals[0] = vec3(tri->normal[3*tri->indices[idx  ]+0],
+      normals[0] = vec3f(tri->normal[3*tri->indices[idx  ]+0],
                         tri->normal[3*tri->indices[idx  ]+1],
                                    tri->normal[3*tri->indices[idx  ]+2]);
-      normals[1] = vec3(tri->normal[3*tri->indices[idx+1]+0],
+      normals[1] = vec3f(tri->normal[3*tri->indices[idx+1]+0],
                         tri->normal[3*tri->indices[idx+1]+1],
                                    tri->normal[3*tri->indices[idx+1]+2]);
-      normals[2] = vec3(tri->normal[3*tri->indices[idx+2]+0],
+      normals[2] = vec3f(tri->normal[3*tri->indices[idx+2]+0],
                         tri->normal[3*tri->indices[idx+2]+1],
                                    tri->normal[3*tri->indices[idx+2]+2]);
     }
@@ -168,9 +170,11 @@ plymesh::plymesh(std::string inputfile, std::string basedir, std::shared_ptr<mat
       triangles.add(std::make_shared<triangle>(tris[0],tris[1],tris[2],
                                        normals[0],normals[1],normals[2],
                                                                     false,
-                                                                    mat_ptr, nullptr,  nullptr));
+                                                                    mat_ptr, nullptr,  nullptr, 
+                                                                    ObjectToWorld, WorldToObject, reverseOrientation));
     } else {
-      triangles.add(std::make_shared<triangle>(tris[0],tris[1],tris[2], false, mat_ptr, nullptr, nullptr));
+      triangles.add(std::make_shared<triangle>(tris[0],tris[1],tris[2], false, mat_ptr, nullptr, nullptr, 
+                                               ObjectToWorld, WorldToObject, reverseOrientation));
     }
   }
   ply_mesh_bvh = std::make_shared<bvh_node>(triangles, shutteropen, shutterclose, bvh_type, rng);

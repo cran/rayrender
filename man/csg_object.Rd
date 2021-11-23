@@ -9,11 +9,9 @@ csg_object(
   x = 0,
   y = 0,
   z = 0,
-  radius = 1,
   material = diffuse(),
   angle = c(0, 0, 0),
   order_rotation = c(1, 2, 3),
-  velocity = c(0, 0, 0),
   flipped = FALSE,
   scale = c(1, 1, 1)
 )
@@ -27,16 +25,12 @@ csg_object(
 
 \item{z}{Default `0`. z-offset of the center of the object.}
 
-\item{radius}{Default `1`. Radius of the sphere..}
-
 \item{material}{Default  \code{\link{diffuse}}. The material, called from one of the material 
 functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.}
 
 \item{angle}{Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.}
 
 \item{order_rotation}{Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".}
-
-\item{velocity}{Default `c(0, 0, 0)`. Velocity of the sphere, used for motion blur.}
 
 \item{flipped}{Default `FALSE`. Whether to flip the normals.}
 
@@ -66,7 +60,8 @@ generate_ground(material=diffuse(checkercolor="grey20")) \%>\%
                    csg_cylinder(start=c(0,0,-1), end=c(0,0,1), radius=0.4))),
                    material=glossy(color="blue"))) \%>\% 
   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) \%>\%
-  render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10))
+  render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10), 
+               samples=256, sample_method="sobol_blue")
 
 #Standard CSG sphere + box - crossed cylinder combination:
 generate_ground(material=diffuse(checkercolor="grey20")) \%>\%
@@ -81,7 +76,8 @@ generate_ground(material=diffuse(checkercolor="grey20")) \%>\%
     operation="subtract"),
     material=glossy(color="red"))) \%>\%
   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) \%>\%
-  render_scene(clamp_value=10, fov=10,lookfrom=c(5,5,10))
+  render_scene(clamp_value=10, fov=10,lookfrom=c(5,5,10),
+               samples=256, sample_method="sobol_blue")
   
 #Blend them all instead:
 generate_ground(material=diffuse(checkercolor="grey20")) \%>\%
@@ -96,6 +92,7 @@ generate_ground(material=diffuse(checkercolor="grey20")) \%>\%
     operation="blend"),
     material=glossy(color="purple"))) \%>\%
   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) \%>\%
-  render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10))
+  render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10), 
+               samples=256, sample_method="sobol_blue")
 }
 }

@@ -16,13 +16,13 @@
 #' If this is set to zero, the adaptive sampler will be turned off and the renderer
 #' will use the maximum number of samples everywhere.
 #' @param min_adaptive_size Default `8`. Width of the minimum block size in the adaptive sampler.
-#' @param sample_method Default `sobol_blue`. The type of sampling method used to generate
-#' random numbers. The other options are `random` (worst quality but simple), 
-#' `stratified` (only implemented for completion), 
-#' and `sobol_blue` (best option for sample counts below 256), and `sobol` (better than `sobol_blue` for 
-#' sample counts greater than 256).
-#' @param max_depth Default `50`. Maximum number of bounces a ray can make in a scene.
-#' @param roulette_active_depth Default `10`. Number of ray bounces until a ray can stop bouncing via
+#' @param sample_method Default `sobol`. The type of sampling method used to generate
+#' random numbers. The other options are `random` (worst quality but fastest), 
+#' `stratified` (only implemented for completion), `sobol_blue` (best option for sample counts below 256), 
+#' and `sobol` (slowest but best quality, better than `sobol_blue` for sample counts greater than 256).
+#' @param max_depth Default `NA`, automatically sets to 50. Maximum number of bounces a ray can make in a scene. Alternatively,
+#' if a debugging option is chosen, this sets the bounce to query the debugging parameter (only for some options).
+#' @param roulette_active_depth Default `100`. Number of ray bounces until a ray can stop bouncing via
 #' Russian roulette.
 #' @param ambient_light Default `FALSE`, unless there are no emitting objects in the scene. 
 #' If `TRUE`, the background will be a gradient varying from `backgroundhigh` directly up (+y) to 
@@ -187,8 +187,8 @@
 #'}
 render_scene = function(scene, width = 400, height = 400, fov = 20, 
                         samples = 100, min_variance = 0.00005, min_adaptive_size = 8,
-                        sample_method = "sobol_blue",
-                        max_depth = 50, roulette_active_depth = 10,
+                        sample_method = "sobol",
+                        max_depth = NA, roulette_active_depth = 100,
                         ambient_light = FALSE, 
                         lookfrom = c(0,1,10), lookat = c(0,0,0), camera_up = c(0,1,0), 
                         aperture = 0.1, clamp_value = Inf,
@@ -201,6 +201,12 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   if(verbose) {
     currenttime = proc.time()
     cat("Building Scene: ")
+  }
+  if(debug_channel == "none" && is.na(max_depth)) {
+    max_depth = 50
+  }
+  if(debug_channel != "none" && is.na(max_depth)) {
+    max_depth = 1
   }
   #Check if Cornell Box scene and set camera if user did not:
   if(!is.null(attr(scene,"cornell"))) {
@@ -252,15 +258,15 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   typevec = unlist(lapply(tolower(scene$type),switch,
                           "diffuse" = 1,"metal" = 2,"dielectric" = 3, 
                           "oren-nayar" = 4, "light" = 5, "microfacet" = 6, 
-                          "glossy" = 7, "spotlight" = 8, "hair" = 9))
+                          "glossy" = 7, "spotlight" = 8, "hair" = 9, "microfacet_transmission" = 10))
   sigmavec = unlist(scene$sigma)
   
-  assertthat::assert_that(tonemap %in% c("gamma","reinhold","uncharted", "hbd", "raw"))
+  if(!tonemap %in% c("gamma","reinhold","uncharted", "hbd", "raw")) {
+    stop("tonemap value ", tonemap, " not recognized")
+  }
   toneval = switch(tonemap, "gamma" = 1,"reinhold" = 2,"uncharted" = 3,"hbd" = 4, "raw" = 5)
-  movingvec = purrr::map_lgl(scene$velocity,.f = ~any(.x != 0))
   proplist = scene$properties
-  vel_list = scene$velocity
-  
+
   checkeredlist = scene$checkercolor
   checkeredbool = purrr::map_lgl(checkeredlist,.f = ~all(!is.na(.x)))
   
@@ -300,29 +306,6 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     ambient_light = TRUE
   }
   
-  #texture handler
-  image_array_list = scene$image
-  image_tex_bool = purrr::map_lgl(image_array_list,.f = ~is.array(.x))
-  image_filename_bool = purrr::map_lgl(image_array_list,.f = ~is.character(.x))
-  temp_file_names = purrr::map_chr(image_tex_bool,.f = ~ifelse(.x, tempfile(fileext = ".png"),""))
-  for(i in 1:length(image_array_list)) {
-    if(image_tex_bool[i]) {
-      if(dim(image_array_list[[i]])[3] == 4) {
-        png::writePNG(fliplr(aperm(image_array_list[[i]][,,1:3],c(2,1,3))),temp_file_names[i])
-      } else if(dim(image_array_list[[i]])[3] == 3){
-        png::writePNG(fliplr(aperm(image_array_list[[i]],c(2,1,3))),temp_file_names[i])
-      }
-    }
-    if(image_filename_bool[i]) {
-      if(any(!file.exists(path.expand(image_array_list[[i]])) & nchar(image_array_list[[i]]) > 0)) {
-        stop(paste0("Cannot find the following texture file:\n",
-                    paste(image_array_list[[i]], collapse="\n")))
-      }
-      temp_file_names[i] = path.expand(image_array_list[[i]])
-    }
-  }
-  image_tex_bool = image_tex_bool | image_filename_bool
-  image_repeat = scene$image_repeat
   #alpha texture handler
   alpha_array_list = scene$alphaimage
   alpha_tex_bool = purrr::map_lgl(alpha_array_list,.f = ~is.array(.x[[1]]))
@@ -362,6 +345,38 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   alphalist$alpha_temp_file_names = alpha_temp_file_names
   alphalist$alpha_tex_bool = alpha_tex_bool
   
+  #texture handler
+  image_array_list = scene$image
+  image_tex_bool = purrr::map_lgl(image_array_list,.f = ~is.array(.x))
+  image_filename_bool = purrr::map_lgl(image_array_list,.f = ~is.character(.x))
+  temp_file_names = purrr::map_chr(image_tex_bool,.f = ~ifelse(.x, tempfile(fileext = ".png"),""))
+  for(i in 1:length(image_array_list)) {
+    if(image_tex_bool[i]) {
+      if(dim(image_array_list[[i]])[3] == 4) {
+        png::writePNG(fliplr(aperm(image_array_list[[i]][,,1:3],c(2,1,3))),temp_file_names[i])
+        #Handle PNG with alpha
+        if(!alpha_tex_bool[i] && any(image_array_list[[i]][,,4] != 1)) {
+          image_array_list[[i]][,,1] = image_array_list[[i]][,,4]
+          image_array_list[[i]][,,2] = image_array_list[[i]][,,4]
+          image_array_list[[i]][,,3] = image_array_list[[i]][,,4]
+          png::writePNG(fliplr(aperm(image_array_list[[i]][,,1:3],c(2,1,3))), alpha_temp_file_names[i])
+          alphalist$alpha_tex_bool[i] = TRUE
+        }
+      } else if(dim(image_array_list[[i]])[3] == 3){
+        png::writePNG(fliplr(aperm(image_array_list[[i]],c(2,1,3))),temp_file_names[i])
+      }
+    }
+    if(image_filename_bool[i]) {
+      if(any(!file.exists(path.expand(image_array_list[[i]])) & nchar(image_array_list[[i]]) > 0)) {
+        stop(paste0("Cannot find the following texture file:\n",
+                    paste(image_array_list[[i]], collapse="\n")))
+      }
+      temp_file_names[i] = path.expand(image_array_list[[i]])
+    }
+  }
+  image_tex_bool = image_tex_bool | image_filename_bool
+  image_repeat = scene$image_repeat
+  
   #bump texture handler
   bump_array_list = scene$bump_texture
   bump_tex_bool = purrr::map_lgl(bump_array_list,.f = ~is.array(.x[[1]]))
@@ -399,10 +414,35 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   alphalist$bump_tex_bool = bump_tex_bool
   alphalist$bump_intensity = bump_intensity
   
-  #movement handler
-  if(shutteropen == shutterclose) {
-    movingvec = rep(FALSE,length(movingvec))
+  #roughness texture handler
+  roughness_array_list = scene$roughness_texture
+  rough_tex_bool = purrr::map_lgl(roughness_array_list,.f = ~is.array(.x[[1]]))
+  rough_filename_bool = purrr::map_lgl(roughness_array_list,.f = ~is.character(.x[[1]]))
+  rough_temp_file_names = purrr::map_chr(rough_tex_bool, .f = (function(.x) tempfile(fileext = ".png")))
+  for(i in 1:length(roughness_array_list)) {
+    if(rough_tex_bool[i]) {
+      tempgloss = glossyinfo[[i]]
+      if(length(dim(roughness_array_list[[i]][[1]])) == 2) {
+        png::writePNG(fliplr(t(roughness_array_list[[i]][[1]])), rough_temp_file_names[i])
+      } else if(dim(roughness_array_list[[i]][[1]])[3] == 3) {
+        png::writePNG(fliplr(aperm(roughness_array_list[[i]][[1]],c(2,1,3))), rough_temp_file_names[i])
+      } else {
+        stop("alpha texture dims: c(", paste(dim(roughness_array_list[[i]][[1]]),collapse=", "), ") not valid for texture.")
+      }
+    }
+    if(rough_filename_bool[i]) {
+      if(any(!file.exists(path.expand(roughness_array_list[[i]][[1]])) & nchar(roughness_array_list[[i]][[1]]) > 0)) {
+        stop(paste0("Cannot find the following texture file:\n",
+                    paste(roughness_array_list[[i]][[1]], collapse="\n")))
+      }
+      rough_temp_file_names[i] = path.expand(roughness_array_list[[i]][[1]])
+    }
   }
+  rough_tex_bool = rough_tex_bool | rough_filename_bool
+  roughness_list = list()
+  roughness_list$rough_temp_file_names = rough_temp_file_names
+  roughness_list$rough_tex_bool = rough_tex_bool
+  
   
   #implicit sampling handler
   implicit_vec = scene$implicit_sample
@@ -411,12 +451,17 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   order_rotation_list = scene$order_rotation
   
   #group handler
-  group_bool = purrr::map_lgl(scene$pivot_point,.f = ~all(!is.na(.x)))
-  group_pivot = scene$pivot_point 
-  group_angle = scene$group_angle 
-  group_order_rotation = scene$group_order_rotation 
-  group_translate = scene$group_translate 
-  group_scale = scene$group_scale
+  group_bool = purrr::map_lgl(scene$group_transform,.f = ~all(!is.na(.x)))
+  group_transform = scene$group_transform
+  
+  
+  #animation handler
+  animation_bool = purrr::map_lgl(scene$start_transform_animation,.f = ~all(!is.na(.x))) & 
+    purrr::map_lgl(scene$end_transform_animation,.f = ~all(!is.na(.x)))
+  start_transform_animation = scene$start_transform_animation
+  end_transform_animation = scene$end_transform_animation
+  animation_start_time = scene$start_time
+  animation_end_time = scene$end_time
   
   #triangle normal handler
   tri_normal_bools = purrr::map2_lgl(shapevec,proplist,.f = ~.x == 6 && all(!is.na(.y)))
@@ -433,8 +478,16 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
                        collapse="\n")
                  ))
   }
-  objbasedirvec = purrr::map_chr(objfilenamevec, dirname)
-
+  base_dir = function(x) {
+    dirname_processed = dirname(x)
+    if(dirname_processed == ".") {
+      return("")
+    } else {
+      return(dirname_processed)
+    }
+  }
+  objbasedirvec = purrr::map_chr(objfilenamevec, base_dir)
+  
   #bg image handler
   if(!is.null(environment_light)) {
     hasbackground = TRUE
@@ -454,10 +507,12 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   #scale handler
   scale_factor = scene$scale_factor
   
-  assertthat::assert_that(all(c(length(position_list$xvec),length(position_list$yvec),length(position_list$zvec),length(rvec),length(typevec),length(proplist)) == length(position_list$xvec)))
-  assertthat::assert_that(all(!is.null(typevec)))
-  assertthat::assert_that(length(lookfrom) == 3)
-  assertthat::assert_that(length(lookat) == 3)
+  if(length(lookfrom) != 3) {
+    stop("lookfrom must be length-3 numeric vector")
+  }
+  if(length(lookat) != 3) {
+    stop("lookat must be length-3 numeric vector")
+  }
   if(is.null(focal_distance)) {
     focal_distance = sqrt(sum((lookfrom-lookat)^2))
   }
@@ -473,6 +528,8 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
     debug_channel = unlist(lapply(tolower(debug_channel),switch,
                             "none" = 0,"depth" = 1,"normals" = 2, "uv" = 3, "bvh" = 4,
                             "variance" = 5, "normal" = 2, "dpdu" = 6, "dpdv" = 7, "color" = 8, 
+                            "position" = 10, "direction" = 11, "time" = 12, "shape" = 13,
+                            "pdf" = 14, "error" = 15, "bounces" = 16,
                             0))
     light_direction = c(0,1,0)
   } else {
@@ -484,7 +541,9 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   }
   
   if(fov == 0) {
-    assertthat::assert_that(length(ortho_dimensions) == 2)
+    if(length(ortho_dimensions) != 2) {
+      stop("ortho_dimensions must be length-2 numeric vector")
+    }
   }
   if(verbose) {
     buildingtime = proc.time() - currenttime
@@ -521,8 +580,19 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   camera_info$light_direction = light_direction
   camera_info$bvh = switch(bvh_type,"sah" = 1, "equal" = 2, 1)
   
-  assertthat::assert_that(max_depth > 0)
-  assertthat::assert_that(roulette_active_depth > 0)
+  animation_info = list()
+  animation_info$animation_bool            = animation_bool            
+  animation_info$start_transform_animation = start_transform_animation 
+  animation_info$end_transform_animation   = end_transform_animation   
+  animation_info$animation_start_time      = animation_start_time      
+  animation_info$animation_end_time        = animation_end_time        
+  
+  if(max_depth <= 0) {
+    stop("max_depth must be greater than zero")
+  }
+  if(roulette_active_depth <= 0) {
+    stop("roulette_active_depth must be greater than zero")
+  }
   
   #Spotlight handler
   if(any(typevec == 8)) {
@@ -569,8 +639,6 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   scene_info$radius = rvec
   scene_info$position_list = position_list
   scene_info$properties = proplist
-  scene_info$velocity = vel_list
-  scene_info$moving = movingvec
   scene_info$n = length(typevec)
   scene_info$bghigh = backgroundhigh
   scene_info$bglow = backgroundlow
@@ -593,12 +661,8 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   scene_info$implicit_sample = implicit_vec
   scene_info$order_rotation_list = order_rotation_list
   scene_info$clampval = clamp_value
-  scene_info$isgrouped = group_bool
-  scene_info$group_pivot=group_pivot
-  scene_info$group_translate = group_translate
-  scene_info$group_angle = group_angle
-  scene_info$group_order_rotation = group_order_rotation
-  scene_info$group_scale = group_scale
+  scene_info$isgrouped = group_bool  
+  scene_info$group_transform= group_transform
   scene_info$tri_normal_bools = tri_normal_bools
   scene_info$is_tri_color = is_tri_color
   scene_info$tri_color_vert= tri_color_vert
@@ -622,7 +686,8 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   scene_info$image_repeat = image_repeat
   scene_info$csg_info = csg_info
   scene_info$mesh_list=mesh_list
-
+  scene_info$roughness_list = roughness_list
+  scene_info$animation_info = animation_info
   #Pathrace Scene
   rgb_mat = render_scene_rcpp(camera_info = camera_info, scene_info = scene_info) 
   
@@ -655,7 +720,45 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
       save_png(full_array,filename)
       return(invisible(full_array))
     }
-  } 
+  } else if (debug_channel %in% c(10,13)) {
+    full_array_ret = full_array
+    full_array[,,1][is.infinite(full_array[,,1])] = max(full_array[,,1][!is.infinite(full_array[,,1])])
+    full_array[,,2][is.infinite(full_array[,,2])] = max(full_array[,,2][!is.infinite(full_array[,,2])])
+    full_array[,,3][is.infinite(full_array[,,3])] = max(full_array[,,3][!is.infinite(full_array[,,3])])
+    
+    full_array[,,1] = (full_array[,,1] - min(full_array[,,1]))/(max(full_array[,,1]) - min(full_array[,,1]))
+    full_array[,,2] = (full_array[,,2] - min(full_array[,,2]))/(max(full_array[,,2]) - min(full_array[,,2]))
+    full_array[,,3] = (full_array[,,3] - min(full_array[,,3]))/(max(full_array[,,3]) - min(full_array[,,3]))
+    if(is.null(filename)) {
+      plot_map(full_array)
+    } else {
+      save_png(full_array,filename)
+    }
+    return(invisible(full_array_ret))
+  } else if (debug_channel == 11) {
+    full_array_ret = full_array
+    
+    full_array[,,1] = (full_array[,,1]+1)/2
+    full_array[,,2] = (full_array[,,2]+1)/2
+    full_array[,,3] = (full_array[,,3]+1)/2
+    if(is.null(filename)) {
+      plot_map(full_array)
+    } else {
+      save_png(full_array,filename)
+    }
+    return(invisible(full_array_ret))
+  } else if (debug_channel %in% c(12,14,15,16)) {
+    full_array_ret = full_array
+    full_array[is.infinite(full_array)] = max(full_array[!is.infinite(full_array)])
+    
+    full_array = (full_array - min(full_array))/(max(full_array) - min(full_array))
+    if(is.null(filename)) {
+      plot_map(full_array)
+    } else {
+      save_png(full_array,filename)
+    }
+    return(invisible(full_array_ret))
+  }
   if(!is.matrix(bloom)) {
     if(is.numeric(bloom) && length(bloom) == 1) {
       kernel = rayimage::generate_2d_exponential(0.1,11,3*1/bloom)

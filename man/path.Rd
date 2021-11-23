@@ -22,7 +22,6 @@ path(
   material = diffuse(),
   angle = c(0, 0, 0),
   order_rotation = c(1, 2, 3),
-  velocity = c(0, 0, 0),
   flipped = FALSE,
   scale = c(1, 1, 1)
 )
@@ -68,8 +67,6 @@ functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}
 \item{angle}{Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.}
 
 \item{order_rotation}{Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".}
-
-\item{velocity}{Default `c(0, 0, 0)`. Velocity of the cube.}
 
 \item{flipped}{Default `FALSE`. Whether to flip the normals.}
 
@@ -126,25 +123,25 @@ pretzel = list(c(-0.8,-0.5,0.1),c(0,-0.2,-0.1),c(0,0.3,0.1),c(-0.5,0.5,0.1), c(-
                c(0.6,-0.5,-0.1),c(0.5,0.5,-0.1), c(0,0.3,-0.1),c(-0,-0.2,0.1), c(0.8,-0.5,0.1))
                
 #Render the full pretzel:
-generate_studio() \%>\% 
+generate_studio(depth = -1.1) \%>\% 
   add_object(path(pretzel, width=0.17,  material = glossy(color="#db5b00"))) \%>\% 
   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) \%>\% 
   render_scene(samples=500, clamp_value=10)
   
 #Here, we'll render only the first third of the pretzel by setting `u_max = 0.33`
-generate_studio() \%>\% 
+generate_studio(depth = -1.1) \%>\% 
   add_object(path(pretzel, width=0.17, u_max=0.33, material = glossy(color="#db5b00"))) \%>\% 
   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) \%>\% 
   render_scene(samples=500, clamp_value=10)
   
 #Here's the last third, by setting `u_min = 0.66`
-generate_studio() \%>\% 
+generate_studio(depth = -1.1) \%>\% 
   add_object(path(pretzel, width=0.17, u_min=0.66, material = glossy(color="#db5b00"))) \%>\% 
   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) \%>\% 
   render_scene(samples=500, clamp_value=10)
   
 #Here's the full pretzel, decomposed into thirds using the u_min and u_max coordinates
-generate_studio() \%>\% 
+generate_studio(depth = -1.1) \%>\% 
   add_object(path(pretzel, width=0.17, u_max=0.33, x = -0.8, y =0.6,
                   material = glossy(color="#db5b00"))) \%>\% 
   add_object(path(pretzel, width=0.17, u_min=0.66, x = 0.8, y =0.6,

@@ -24,7 +24,10 @@ glossy(
   image_repeat = 1,
   alpha_texture = NA,
   bump_texture = NA,
+  roughness_texture = NA,
   bump_intensity = 1,
+  roughness_range = c(1e-04, 0.2),
+  roughness_flip = FALSE,
   importance_sample = FALSE
 )
 }
@@ -81,7 +84,16 @@ begins with value `gradient_color`.}
 \item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
 be used to specify a bump map for the surface.}
 
+\item{roughness_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+be used to specify a roughness map for the surface.}
+
 \item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
+
+\item{roughness_range}{Default ` c(0.0001, 0.2)`. This is a length-2 vector that specifies the range of roughness values 
+that the `roughness_texture` can take.}
+
+\item{roughness_flip}{Default `FALSE`. Setting this to `TRUE` flips the roughness values specified in the `roughness_texture`
+so high values are now low values and vice versa.}
 
 \item{importance_sample}{Default `FALSE`. If `TRUE`, the object will be sampled explicitly during 
 the rendering process. If the object is particularly important in contributing to the light paths
@@ -100,7 +112,7 @@ Glossy Material
 generate_ground(material=diffuse(sigma=90)) \%>\%
   add_object(sphere(y=0.2,material=glossy(color="#2b6eff"))) \%>\% 
   add_object(sphere(y=2.8,material=light())) \%>\%
-  render_scene(parallel=TRUE,clamp_value=10,samples=500)
+  render_scene(parallel=TRUE,clamp_value=10,samples=256,sample_method="sobol_blue")
  
 #Change the color of the underlying diffuse layer
 generate_ground(material=diffuse(sigma=90)) \%>\%
@@ -108,7 +120,7 @@ generate_ground(material=diffuse(sigma=90)) \%>\%
   add_object(sphere(y=0.2,material=glossy(color="#2b6eff"))) \%>\% 
   add_object(sphere(y=0.2,x=2.1,material=glossy(color="#2fed4f"))) \%>\% 
   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) \%>\%
-  render_scene(parallel=TRUE,clamp_value=10,samples=500,fov=40)
+  render_scene(parallel=TRUE,clamp_value=10,samples=256,fov=40,sample_method="sobol_blue")
  
 #Change the amount of gloss 
 generate_ground(material=diffuse(sigma=90)) \%>\%
@@ -116,7 +128,7 @@ generate_ground(material=diffuse(sigma=90)) \%>\%
   add_object(sphere(y=0.2,material=glossy(gloss=0.5,color="#2b6eff"))) \%>\% 
   add_object(sphere(y=0.2,x=2.1,material=glossy(gloss=0,color="#2fed4f"))) \%>\% 
   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) \%>\%
-  render_scene(parallel=TRUE,clamp_value=10,samples=500,fov=40)
+  render_scene(parallel=TRUE,clamp_value=10,samples=256,fov=40,sample_method="sobol_blue")
  
 #Add gloss to a pattern 
 generate_ground(material=diffuse(sigma=90)) \%>\%
@@ -124,7 +136,7 @@ generate_ground(material=diffuse(sigma=90)) \%>\%
   add_object(sphere(y=0.2,material=glossy(color="#ff365a",checkercolor="#2b6eff"))) \%>\% 
   add_object(sphere(y=0.2,x=2.1,material=glossy(color="blue",gradient_color="#2fed4f"))) \%>\% 
   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) \%>\%
-  render_scene(parallel=TRUE,clamp_value=10,samples=500,fov=40)
+  render_scene(parallel=TRUE,clamp_value=10,samples=256,fov=40,sample_method="sobol_blue")
  
 #Add an R and a fill light (this may look familiar)
 generate_ground(material=diffuse()) \%>\%
@@ -132,6 +144,6 @@ generate_ground(material=diffuse()) \%>\%
   add_object(obj_model(r_obj(),z=1,y=-0.05,scale_obj=0.45,material=diffuse())) \%>\%
   add_object(sphere(y=6,z=1,radius=4,material=light(intensity=3))) \%>\%
   add_object(sphere(z=15,material=light(intensity=50))) \%>\%
-  render_scene(parallel=TRUE,clamp_value=10,samples=500)
+  render_scene(parallel=TRUE,clamp_value=10,samples=256,sample_method="sobol_blue")
 }
 }

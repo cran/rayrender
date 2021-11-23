@@ -15,9 +15,9 @@ cylinder(
   material = diffuse(),
   angle = c(0, 0, 0),
   order_rotation = c(1, 2, 3),
-  velocity = c(0, 0, 0),
   flipped = FALSE,
-  scale = c(1, 1, 1)
+  scale = c(1, 1, 1),
+  capped = TRUE
 )
 }
 \arguments{
@@ -42,12 +42,12 @@ functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}
 
 \item{order_rotation}{Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".}
 
-\item{velocity}{Default `c(0, 0, 0)`. Velocity of the cylinder.}
-
 \item{flipped}{Default `FALSE`. Whether to flip the normals.}
 
 \item{scale}{Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
-number, the object will be scaled uniformly.
+number, the object will be scaled uniformly.}
+
+\item{capped}{Default `TRUE`. Whether to add caps to the segment. Turned off when using the `light()` material.
 Note: emissive objects may not currently function correctly when scaled.}
 }
 \value{
@@ -79,7 +79,7 @@ generate_cornell() \%>\%
 # Only render a subtended arc of the cylinder,
 \donttest{
 generate_cornell(lightintensity=3) \%>\%
-  add_object(cylinder(x = 555/2, y = 250, z = 555/2, 
+  add_object(cylinder(x = 555/2, y = 250, z = 555/2, capped = FALSE,
                       length = 300, radius = 100, angle = c(45, 0, 0), phi_min = 0, phi_max = 180,
                       material = diffuse())) \%>\%
   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 

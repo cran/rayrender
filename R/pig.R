@@ -19,7 +19,8 @@
 #' 
 #' \donttest{
 #' generate_cornell() %>%
-#'   add_object(pig(x=555/2,z=555/2,y=120,scale=c(80,80,80), angle = c(0,135,0))) %>%
+#'   add_object(pig(x=555/2,z=555/2,y=120,
+#'   scale=c(80,80,80), angle = c(0,135,0))) %>%
 #'   render_scene(parallel=TRUE, samples=400,clamp_value=10)
 #' 
 #' # Show the pig staring into a mirror, worried 
@@ -40,11 +41,10 @@
 #' 
 #' many_pigs_scene = do.call(rbind, lots_of_pigs) %>%
 #'  add_object(generate_cornell(lightintensity=30, lightwidth=100)) %>%
-#'  add_object(pig(z=500,x=555/2,y=400, emotion = "angry",
-#'             scale=c(100,100,100),angle=c(30,90,0), order_rotation=c(2,1,3)))
+#'  add_object(pig(z=500,x=555/2,y=350, emotion = "angry",
+#'             scale=c(100,100,100),angle=c(-30,90,0), order_rotation=c(3,2,1)))
 #'             
-#' render_scene(many_pigs_scene,parallel=TRUE,clamp_value=10, samples=500, 
-#'              sample_method="stratified")
+#' render_scene(many_pigs_scene,parallel=TRUE,clamp_value=10, samples=500)
 #' 
 #' #Render spiderpig
 #' generate_studio() %>%  
@@ -62,7 +62,7 @@ pig = function(x = 0, y = 0, z = 0, emotion = "neutral", spider = FALSE,
   tail_angles = seq(0,500,length.out = 33)
   if(spider) {
     eyemat = glossy(color="red")
-    bodymat = glossy(color="grey10")
+    bodymat = diffuse(color="grey10")
   } else {
     eyemat = glossy(color="white")
     bodymat = diffuse(color="#f09089")
@@ -82,7 +82,7 @@ pig = function(x = 0, y = 0, z = 0, emotion = "neutral", spider = FALSE,
                           radius=0.05,
                           material = bodymat)
   }
-  if("dplyr" %in% rownames(utils::installed.packages())) {
+  if(length(find.package("dplyr",quiet=TRUE)) > 0) {
     spiralscene = dplyr::bind_rows(spiral)
   } else {
     spiralscene = do.call(rbind,spiral)
@@ -147,11 +147,11 @@ pig = function(x = 0, y = 0, z = 0, emotion = "neutral", spider = FALSE,
     add_object(ellipsoid(x = 1.98+0.02, y = 1.6, z = 0, a= 0.2, b= 0.2, c= 0.3,material = diffuse(color="black"))) %>%
     add_object(ellipsoid(x = 2.5, y = 2, z = 0.1, a= 0.05, b= 0.1, c= 0.05,material = diffuse(color="black"))) %>%
     add_object(ellipsoid(x = 2.5, y = 2, z = -0.1, a= 0.05, b= 0.1, c= 0.05,material = diffuse(color="black"))) %>%
-    add_object(disk(x = 2.5, y = 2, z = 0, radius=0.3, angle = c(0,0,90),material = bodymat)) %>%
+    add_object(disk(x = 2.5, y = 2, z = 0, radius=0.3, angle = c(0,0,-90),material = bodymat)) %>%
     add_object(segment(start = c(2,2.8 + eyebrow_offset_left[2],-0.5), end = c(2,2.8+ eyebrow_offset_left[1],-0.1),
                        radius=0.05,material = diffuse(color="black"))) %>%
     add_object(segment(start = c(2,2.8 + eyebrow_offset_right[1],0.5), end = c(2,2.8+eyebrow_offset_right[2],0.1),
-                       radius=0.05,material = diffuse(color="black"))), group_scale = scale,
-    group_translate = c(x,y,z), group_angle = angle, group_order_rotation = order_rotation, pivot_point = c(0,1,0))
+                       radius=0.05,material = diffuse(color="black"))), scale = scale,
+    translate = c(x,y,z), angle = angle, order_rotation = order_rotation, pivot_point = c(0,1,0))
   return(pig)
 }

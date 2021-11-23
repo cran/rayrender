@@ -137,7 +137,7 @@
 #'   add_object(obj_model(r_obj(),x=10,y=-10,scale_obj=3, angle=c(0,-45,0),
 #'                        material=dielectric(attenuation=c(1,1,0.3)))) %>% 
 #'   add_object(pig(x=-7,y=10,z=-5,scale=1,angle=c(0,-45,80),emotion="angry")) %>% 
-#'   add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(0,225,-20), order_rotation=c(3,2,1),
+#'   add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(0,225,-20),
 #'                  emotion="angry", spider=TRUE)) %>% 
 #'   add_object(path(camera_pos, y=-0.2,material=diffuse(color="red"))) %>% 
 #'   render_animation(filename = NA, camera_motion = camera_motion, samples=100,
@@ -184,12 +184,12 @@ render_animation = function(scene, camera_motion, start_frame = 1,
                           "glossy" = 7, "spotlight" = 8, "hair" = 9))
   sigmavec = unlist(scene$sigma)
   
-  assertthat::assert_that(tonemap %in% c("gamma","reinhold","uncharted", "hbd", "raw"))
+  if(!tonemap %in% c("gamma","reinhold","uncharted", "hbd", "raw")) {
+    stop("tonemap value ", tonemap, " not recognized")
+  }
   toneval = switch(tonemap, "gamma" = 1,"reinhold" = 2,"uncharted" = 3,"hbd" = 4, "raw" = 5)
-  movingvec = purrr::map_lgl(scene$velocity,.f = ~any(.x != 0))
   proplist = scene$properties
-  vel_list = scene$velocity
-  
+
   checkeredlist = scene$checkercolor
   checkeredbool = purrr::map_lgl(checkeredlist,.f = ~all(!is.na(.x)))
   
@@ -328,10 +328,36 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   alphalist$bump_tex_bool = bump_tex_bool
   alphalist$bump_intensity = bump_intensity
   
-  #movement handler
-  if(shutteropen == shutterclose) {
-    movingvec = rep(FALSE,length(movingvec))
+  
+  #roughness texture handler
+  roughness_array_list = scene$roughness_texture
+  rough_tex_bool = purrr::map_lgl(roughness_array_list,.f = ~is.array(.x[[1]]))
+  rough_filename_bool = purrr::map_lgl(roughness_array_list,.f = ~is.character(.x[[1]]))
+  rough_temp_file_names = purrr::map_chr(rough_tex_bool, .f = (function(.x) tempfile(fileext = ".png")))
+  for(i in 1:length(roughness_array_list)) {
+    if(rough_tex_bool[i]) {
+      tempgloss = glossyinfo[[i]]
+      if(length(dim(roughness_array_list[[i]][[1]])) == 2) {
+        png::writePNG(fliplr(t(roughness_array_list[[i]][[1]])), rough_temp_file_names[i])
+      } else if(dim(roughness_array_list[[i]][[1]])[3] == 3) {
+        png::writePNG(fliplr(aperm(roughness_array_list[[i]][[1]],c(2,1,3))), rough_temp_file_names[i])
+      } else {
+        stop("alpha texture dims: c(", paste(dim(roughness_array_list[[i]][[1]]),collapse=", "), ") not valid for texture.")
+      }
+    }
+    if(rough_filename_bool[i]) {
+      if(any(!file.exists(path.expand(roughness_array_list[[i]][[1]])) & nchar(roughness_array_list[[i]][[1]]) > 0)) {
+        stop(paste0("Cannot find the following texture file:\n",
+                    paste(roughness_array_list[[i]][[1]], collapse="\n")))
+      }
+      rough_temp_file_names[i] = path.expand(roughness_array_list[[i]][[1]])
+    }
   }
+  rough_tex_bool = rough_tex_bool | rough_filename_bool
+  roughness_list = list()
+  roughness_list$rough_temp_file_names = rough_temp_file_names
+  roughness_list$rough_tex_bool = rough_tex_bool
+  
   
   #implicit sampling handler
   implicit_vec = scene$implicit_sample
@@ -340,12 +366,17 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   order_rotation_list = scene$order_rotation
   
   #group handler
-  group_bool = purrr::map_lgl(scene$pivot_point,.f = ~all(!is.na(.x)))
-  group_pivot = scene$pivot_point 
-  group_angle = scene$group_angle 
-  group_order_rotation = scene$group_order_rotation 
-  group_translate = scene$group_translate 
-  group_scale = scene$group_scale
+  group_bool = purrr::map_lgl(scene$group_transform,.f = ~all(!is.na(.x)))
+  group_transform = scene$group_transform
+  
+  
+  #animation handler
+  animation_bool = purrr::map_lgl(scene$start_transform_animation,.f = ~all(!is.na(.x))) & 
+    purrr::map_lgl(scene$end_transform_animation,.f = ~all(!is.na(.x)))
+  start_transform_animation = scene$start_transform_animation
+  end_transform_animation = scene$end_transform_animation
+  animation_start_time = scene$start_time
+  animation_end_time = scene$end_time
   
   #triangle normal handler
   tri_normal_bools = purrr::map2_lgl(shapevec,proplist,.f = ~.x == 6 && all(!is.na(.y)))
@@ -383,8 +414,6 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   #scale handler
   scale_factor = scene$scale_factor
   
-  assertthat::assert_that(all(c(length(position_list$xvec),length(position_list$yvec),length(position_list$zvec),length(rvec),length(typevec),length(proplist)) == length(position_list$xvec)))
-  assertthat::assert_that(all(!is.null(typevec)))
   if(!is.null(options("cores")[[1]])) {
     numbercores = options("cores")[[1]]
   } else {
@@ -435,9 +464,20 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   camera_info$light_direction = light_direction
   camera_info$bvh = switch(bvh_type,"sah" = 1, "equal" = 2, 1)
   
-  assertthat::assert_that(max_depth > 0)
-  assertthat::assert_that(roulette_active_depth > 0)
+  animation_info = list()
+  animation_info$animation_bool            = animation_bool            
+  animation_info$start_transform_animation = start_transform_animation 
+  animation_info$end_transform_animation   = end_transform_animation   
+  animation_info$animation_start_time      = animation_start_time      
+  animation_info$animation_end_time        = animation_end_time     
   
+  if(max_depth <= 0) {
+    stop("max_depth must be greater than zero")
+  }
+  if(roulette_active_depth <= 0) {
+    stop("roulette_active_depth must be greater than zero")
+  }
+
   #Spotlight handler
   if(any(typevec == 8)) {
     if(any(shapevec[typevec == 8] > 4)) {
@@ -483,8 +523,6 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   scene_info$radius = rvec
   scene_info$position_list = position_list
   scene_info$properties = proplist
-  scene_info$velocity = vel_list
-  scene_info$moving = movingvec
   scene_info$n = length(typevec)
   scene_info$bghigh = backgroundhigh
   scene_info$bglow = backgroundlow
@@ -508,11 +546,7 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   scene_info$order_rotation_list = order_rotation_list
   scene_info$clampval = clamp_value
   scene_info$isgrouped = group_bool
-  scene_info$group_pivot=group_pivot
-  scene_info$group_translate = group_translate
-  scene_info$group_angle = group_angle
-  scene_info$group_order_rotation = group_order_rotation
-  scene_info$group_scale = group_scale
+  scene_info$group_transform= group_transform
   scene_info$tri_normal_bools = tri_normal_bools
   scene_info$is_tri_color = is_tri_color
   scene_info$tri_color_vert= tri_color_vert
@@ -536,6 +570,8 @@ render_animation = function(scene, camera_motion, start_frame = 1,
   scene_info$image_repeat = image_repeat
   scene_info$csg_info = csg_info
   scene_info$mesh_list=mesh_list
+  scene_info$roughness_list = roughness_list
+  scene_info$animation_info = animation_info
   
   #Camera Movement Info
   if(filename != "") {

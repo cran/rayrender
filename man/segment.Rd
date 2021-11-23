@@ -7,13 +7,13 @@
 segment(
   start = c(0, -1, 0),
   end = c(0, 1, 0),
-  radius = 1,
+  radius = 0.1,
   phi_min = 0,
   phi_max = 360,
   from_center = TRUE,
   direction = NA,
   material = diffuse(),
-  velocity = c(0, 0, 0),
+  capped = TRUE,
   flipped = FALSE,
   scale = c(1, 1, 1)
 )
@@ -39,7 +39,7 @@ determined by the magnitude of the direction vector.}
 \item{material}{Default  \code{\link{diffuse}}.The material, called from one of the material 
 functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.}
 
-\item{velocity}{Default `c(0, 0, 0)`. Velocity of the segment.}
+\item{capped}{Default `TRUE`. Whether to add caps to the segment. Turned off when using the `light()` material.}
 
 \item{flipped}{Default `FALSE`. Whether to flip the normals.}
 
@@ -107,7 +107,7 @@ generate_cornell() \%>\%
 \donttest{
 generate_cornell() \%>\%
   add_object(group_objects(cube_outline, pivot_point = c(555/2, 555/2, 555/2),
-                           group_angle = c(45,45,45), group_scale = c(0.5,0.5,0.5))) \%>\%
+                           angle = c(45,45,45), scale = c(0.5,0.5,0.5))) \%>\%
   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 }

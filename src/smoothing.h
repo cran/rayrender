@@ -5,9 +5,9 @@
 #include "vec3.h"
 #include "mathinline.h"
 
-static void CalcNormal(vec3& N, vec3& v0, vec3& v1, vec3& v2) {
-  vec3 v10 = v1 - v0;
-  vec3 v20 = v2 - v0;
+static void CalcNormal(vec3f& N, vec3f& v0, vec3f& v1, vec3f& v2) {
+  vec3f v10 = v1 - v0;
+  vec3f v20 = v2 - v0;
   N = cross(v10,v20);
   N.make_unit_vector();
 }

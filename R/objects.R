@@ -8,7 +8,6 @@
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the sphere, used for motion blur.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -35,23 +34,14 @@
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, clamp_value = 5)
 #' }
-#'   
-#' #Add motion blur and show the sphere moving
-#' \donttest{
-#' generate_cornell() %>%
-#'   add_object(sphere(x = 555/2, y = 100, z = 555/2, radius = 100,
-#'              material = microfacet(color = "gold"), velocity = c(50, 0, 0))) %>%
-#'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 400, clamp_value = 5)
-#' }
 sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(), 
-                  angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
+                  angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                   flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "sphere",
-                 properties = material$properties, velocity = list(velocity), 
+                 properties = material$properties, 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -60,14 +50,16 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample, sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Cube Object
@@ -83,7 +75,6 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the cube.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -116,13 +107,13 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #' \donttest{
 #' generate_cornell() %>%
 #'   add_object(cube(x = 555/2, y = 200, z = 555/2, 
-#'                   xwidth = 200, ywidth = 100, zwidth = 200, angle = c(30, 30, 30),
+#'                   xwidth = 200, ywidth = 100, zwidth = 200, angle = c(-30, 30, -30),
 #'                   material = dielectric())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40,  
 #'                ambient_light = FALSE, samples = 500, parallel = TRUE, clamp_value = 5) 
 #' }
 cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth = 1, 
-                material = diffuse(), angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0),
+                material = diffuse(), angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                 flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
@@ -132,7 +123,7 @@ cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth =
   zwidth = ifelse(missing(zwidth), width, zwidth)
   boxinfo = c(unlist(material$properties), xwidth, ywidth, zwidth)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "box",
-                 properties = list(boxinfo), velocity = list(velocity), 
+                 properties = list(boxinfo), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -141,14 +132,16 @@ cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth =
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation), 
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Rectangular XY Plane Object 
@@ -197,7 +190,7 @@ xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,
   }
   rectinfo = c(unlist(material$properties), x, xwidth, y, ywidth, z)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "xy_rect",
-                 properties = list(rectinfo), velocity = list(c(0, 0, 0)),
+                 properties = list(rectinfo), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -206,14 +199,16 @@ xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Rectangular YZ Plane Object
@@ -261,7 +256,7 @@ yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffu
   }
   rectinfo = c(unlist(material$properties), y, ywidth, z, zwidth, x)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "yz_rect",
-                 properties = list(rectinfo), velocity = list(c(0, 0, 0)),
+                 properties = list(rectinfo), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -270,14 +265,16 @@ yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffu
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Rectangular XZ Plane Object
@@ -327,7 +324,7 @@ xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffu
   rectinfo = c(unlist(material$properties), x, xwidth, z, zwidth, y)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                  type = material$type, shape = "xz_rect",
-                 properties = list(rectinfo), velocity = list(c(0, 0, 0)),
+                 properties = list(rectinfo), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -336,14 +333,16 @@ xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffu
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Triangle Object
@@ -429,7 +428,7 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
   colorvec = c(color1, color2, color3)
   new_tibble_row(list(x = 0, y = 0, z = 0, radius = NA, 
                  type = material$type, shape = "triangle",
-                 properties = list(info), velocity = list(c(0, 0, 0)),
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -438,14 +437,16 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(colorvec), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(colorvec), fileinfo = NA, scale_factor = list(scale),
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Disk Object
@@ -459,7 +460,6 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the disk.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -482,7 +482,7 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #' #Rotate the disk.
 #' \donttest{
 #' generate_cornell() %>%
-#'   add_object(disk(x = 555/2, y = 555/2, z = 555/2, radius = 150, angle = c(45, 0, 0), 
+#'   add_object(disk(x = 555/2, y = 555/2, z = 555/2, radius = 150, angle = c(-45, 0, 0), 
 #'                   material = diffuse(color = "orange"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) , lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
@@ -491,20 +491,20 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #' \donttest{
 #' generate_cornell() %>% 
 #'   add_object(disk(x = 555/2, y = 555/2, z = 555/2, 
-#'                   radius = 150, inner_radius = 75, angle = c(45, 0, 0), 
+#'                   radius = 150, inner_radius = 75, angle = c(-45, 0, 0), 
 #'                   material = diffuse(color = "orange"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 #' }
 disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = diffuse(), 
-                angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
+                angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                 flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
   info = c(unlist(material$properties), inner_radius)
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "disk",
-                 properties = list(info), velocity = list(velocity), 
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -513,14 +513,16 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' `obj` File Object
@@ -558,15 +560,16 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
 #' \donttest{
 #' generate_ground(material = diffuse(checkercolor = "grey50")) %>%
 #'   add_object(obj_model(y = -0.8, filename = r_obj(),
-#'                        material = metal(color = "gold", fuzz = 0.025))) %>%
+#'                        material = microfacet(color = "gold", roughness = 0.05))) %>%
 #'   add_object(obj_model(x = 1.8, y = -0.8, filename = r_obj(), 
-#'                        material = diffuse(color = "lightblue"))) %>%
+#'                        material = diffuse(color = "dodgerblue"))) %>%
 #'   add_object(obj_model(x = -1.8, y = -0.8, filename = r_obj() , 
-#'                        material = dielectric(color = "pink"))) %>%
+#'                        material = dielectric(attenuation = c(1,0.3,1)*2))) %>%
 #'   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
-#'                     material = light(intensity = 20))) %>%
-#'   render_scene(parallel = TRUE, samples = 500, 
-#'                tonemap = "reinhold", aperture = 0.05, fov = 32, lookfrom = c(0, 2, 10))
+#'                     material = light(intensity = 10))) %>%
+#'   render_scene(parallel = TRUE, samples = 500, aperture = 0.05, 
+#'                fov = 32, lookfrom = c(0, 2, 10))
+#' 
 #' }
 #' 
 #' #Use scale_obj to make objects bigger--this is more robust than the generic scale argument.
@@ -600,7 +603,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
   }
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                  type = material$type, shape = shape,
-                 properties = list(info), velocity = list(c(0, 0, 0)),
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -609,14 +612,16 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = filename, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = filename, scale_factor = list(scale),
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Cylinder Object
@@ -632,10 +637,10 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the cylinder.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
+#' @param capped Default `TRUE`. Whether to add caps to the segment. Turned off when using the `light()` material.
 #' Note: emissive objects may not currently function correctly when scaled.
 #' 
 #' @importFrom  grDevices col2rgb
@@ -666,7 +671,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #' # Only render a subtended arc of the cylinder,
 #' \donttest{
 #' generate_cornell(lightintensity=3) %>%
-#'   add_object(cylinder(x = 555/2, y = 250, z = 555/2, 
+#'   add_object(cylinder(x = 555/2, y = 250, z = 555/2, capped = FALSE,
 #'                       length = 300, radius = 100, angle = c(45, 0, 0), phi_min = 0, phi_max = 180,
 #'                       material = diffuse())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
@@ -674,15 +679,16 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #' }
 cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1, 
                     phi_min = 0, phi_max = 360, material = diffuse(), 
-                    angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
-                    flipped = FALSE, scale = c(1,1,1)) {
+                    angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
+                    flipped = FALSE, scale = c(1,1,1), capped = TRUE) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
-  assertthat::assert_that(phi_max > phi_min)
-  info = c(unlist(material$properties), length, phi_min * pi / 180, phi_max * pi / 180)
+  stopifnot(phi_max > phi_min)
+  cap_int = ifelse(capped, 1, 0)
+  info = c(unlist(material$properties), length, phi_min * pi / 180, phi_max * pi / 180, cap_int)
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
-                 properties = list(info), velocity = list(velocity), 
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -691,14 +697,16 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Segment Object
@@ -717,11 +725,11 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' to `FALSE` will make `start` specify the bottom of the segment, instead of the middle.
 #' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly. Notes: this will change the stated start/end position of the segment. 
 #' Emissive objects may not currently function correctly when scaled.
+#' @param capped Default `TRUE`. Whether to add caps to the segment. Turned off when using the `light()` material.
 #' 
 #' @importFrom  grDevices col2rgb
 #'
@@ -782,18 +790,18 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' \donttest{
 #' generate_cornell() %>%
 #'   add_object(group_objects(cube_outline, pivot_point = c(555/2, 555/2, 555/2),
-#'                            group_angle = c(45,45,45), group_scale = c(0.5,0.5,0.5))) %>%
+#'                            angle = c(45,45,45), scale = c(0.5,0.5,0.5))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
 #'                ambient_light = FALSE, samples = 400, parallel = TRUE, clamp_value = 5)
 #' }
-segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1, 
+segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1, 
                    phi_min = 0, phi_max = 360, from_center = TRUE, direction = NA,
-                   material = diffuse(), 
-                   velocity = c(0, 0, 0), flipped = FALSE, scale = c(1,1,1)) {
+                   material = diffuse(), capped = TRUE, 
+                   flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
-  assertthat::assert_that(phi_max > phi_min)
+  stopifnot(phi_max > phi_min)
   if(all(!is.na(direction)) && length(direction) == 3) {
     if(from_center) {
       new_start = start - direction/2
@@ -811,17 +819,18 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1,
   order_rotation = c(3, 2, 1)
   phi =  atan2( as.numeric(end[1]-start[1]), as.numeric(end[3]-start[3]))/pi*180 + 90
   
+  cap_int = ifelse(capped, 1, 0)
   length_xy = sqrt((end[1]-start[1])^2 + (end[3]-start[3])^2)
   if(end[1] == start[1] && end[3] == start[3]) {
     theta = 0
   } else {
-    theta = atan2(-length_xy, (end[2]-start[2]))/pi*180
+    theta = atan2(length_xy, (end[2]-start[2]))/pi*180
   }
   fulllength = sqrt(sum((end-start)^2))
   angle = c(0, phi, theta)
-  info = c(unlist(material$properties), fulllength, phi_min * pi / 180, phi_max * pi / 180)
+  info = c(unlist(material$properties), fulllength, phi_min * pi / 180, phi_max * pi / 180, cap_int)
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cylinder",
-                 properties = list(info), velocity = list(velocity), 
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -830,14 +839,16 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1,
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale),
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Ellipsoid Object
@@ -855,7 +866,6 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1,
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly. Note: emissive objects may not currently function correctly when scaled.
@@ -895,14 +905,14 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 1,
 ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
                   material = diffuse(), 
                   angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
-                  velocity = c(0, 0, 0), flipped = FALSE, scale = c(1,1,1)) {
+                  flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
   radius = 1
   info = c(unlist(material$properties), a, b, c)
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "ellipsoid",
-                 properties = list(info), velocity = list(velocity), 
+                 properties = list(info), 
                  checkercolor = material$checkercolor, 
                  gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                  world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -911,14 +921,16 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
                  noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                  angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                  alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                 roughness_texture = list(material$rough_texture),
                  bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                  flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                  implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                  order_rotation = list(order_rotation),
-                 pivot_point = list(NA), group_translate = list(NA),
-                 group_angle = list(NA), group_order_rotation = list(NA),
-                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                 material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                 group_transform = list(NA),
+                 tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                 material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                 start_transform_animation = list(NA), end_transform_animation = list(NA),
+                 start_time = 0, end_time = 1))
 }
 
 #' Extruded Polygon Object
@@ -1025,7 +1037,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #' }
 #' 
 #' #We can also directly pass in sf polygons:
-#' if("spData" %in% rownames(utils::installed.packages())) {
+#' if(length(find.package("spData",quiet=TRUE)) > 0) {
 #'   us_states = spData::us_states
 #'   texas = us_states[us_states$NAME == "Texas",]
 #'   #Fix no sfc class in us_states geometry data
@@ -1153,7 +1165,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
   base_poly = FALSE
   counter = 1
   if(inherits(polygon,"sf")) {
-    if(!"sf" %in% rownames(utils::installed.packages())) {
+    if(length(find.package("sf",quiet=TRUE)) == 0) {
       stop("sf package required when handling sf objects")
     }
     poly_info = sf::st_drop_geometry(polygon)
@@ -1383,7 +1395,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
       }
     }
   }
-  if("dplyr" %in% rownames(utils::installed.packages())) {
+  if(length(find.package("dplyr",quiet=TRUE)) > 0) {
     scenefull = dplyr::bind_rows(scenelist)
   } else {
     scenefull = do.call(rbind, scenelist)
@@ -1465,7 +1477,6 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 #' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Rotation angle. Note: This will change the `start` and `end` coordinates.
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly. Notes: this will change the stated start/end position of the cone. 
@@ -1533,7 +1544,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5, 
                 direction = NA, from_center = TRUE,
                 material = diffuse(), angle = c(0,0,0),
-                velocity = c(0, 0, 0), flipped = FALSE, scale = c(1,1,1)) {
+                flipped = FALSE, scale = c(1,1,1)) {
   if(length(scale) == 1) {
     scale = c(scale, scale, scale)
   }
@@ -1570,13 +1581,13 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
       theta = 0
     }
   } else {
-    theta = atan2(-length_xy, (end[2]-start[2]))/pi*180
+    theta = atan2(length_xy, (end[2]-start[2]))/pi*180
   }
   fulllength = sqrt(sum((end-start)^2))
   angle = c(0, phi, theta) + angle
   info = c(unlist(material$properties), fulllength)
   new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "cone",
-                      properties = list(info), velocity = list(velocity), 
+                      properties = list(info), 
                       checkercolor = material$checkercolor, 
                       gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                       world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -1585,14 +1596,16 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
                       noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                       angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                       alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      roughness_texture = list(material$rough_texture),
                       bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                       flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                       implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                       order_rotation = list(order_rotation),
-                      pivot_point = list(NA), group_translate = list(NA),
-                      group_angle = list(NA), group_order_rotation = list(NA),
-                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                      material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                      group_transform = list(NA),
+                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                      material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                      start_transform_animation = list(NA), end_transform_animation = list(NA),
+                      start_time = 0, end_time = 1))
 }
 
 #' Arrow Object
@@ -1611,7 +1624,6 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #' to `FALSE` will make `start` specify the bottom of the cone, instead of the middle.
 #' @param material Default  \code{\link{diffuse}}.The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the segment.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly. Notes: this will change the stated start/end position of the cone. 
@@ -1696,7 +1708,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 arrow = function(start = c(0,0,0), end = c(0,1,0), 
                  radius_top = 0.2, radius_tail = 0.1, tail_proportion = 0.5,
                  direction = NA,  from_center = TRUE, 
-                 material = diffuse(), velocity = c(0,0,0),
+                 material = diffuse(), 
                  flipped = FALSE, scale = c(1,1,1)) {
   stopifnot(tail_proportion > 0 && tail_proportion < 1)
   head_proportion = 1 - tail_proportion
@@ -1716,12 +1728,12 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
           end = end_segment,
           radius = radius_tail, 
           material = material, 
-          flipped = flipped, scale = scale, velocity = velocity) %>%
+          flipped = flipped, scale = scale) %>%
     add_object(cone(start = start_tip, 
                     end = end_tip,
                     radius = radius_top, 
                     material = material, 
-                    flipped = flipped, scale = scale, velocity = velocity))
+                    flipped = flipped, scale = scale))
 }
 
 #' Bezier Curve Object
@@ -1748,7 +1760,6 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the cube.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -1761,7 +1772,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #' @examples
 #' #Generate the default curve:
 #' \donttest{
-#' generate_studio(depth=-0.1) %>%
+#' generate_studio(depth=-0.2) %>%
 #'   add_object(bezier_curve(material=diffuse(color="red"))) %>%
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
@@ -1770,7 +1781,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #' 
 #' #Change the control points to change the direction of the curve. Here, we place spheres
 #' #at the control point locations.
-#' generate_studio(depth=-0.1) %>%
+#' generate_studio(depth=-0.2) %>%
 #'   add_object(bezier_curve(material=diffuse(color="red"))) %>%
 #'   add_object(sphere(radius=0.075,material=glossy(color="green"))) %>% 
 #'   add_object(sphere(radius=0.075,x=-1,y=0.33,material=glossy(color="green"))) %>% 
@@ -1782,7 +1793,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #'                samples=500)
 #'                
 #' #We can make the curve flat (always facing the camera) by setting the type to `flat`
-#' generate_studio(depth=-0.1) %>%
+#' generate_studio(depth=-0.2) %>%
 #'   add_object(bezier_curve(type="flat", material=glossy(color="red"))) %>%
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
@@ -1792,7 +1803,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #' 
 #' #We can also plot a ribbon, which is further specified by a start and end orientation with
 #' #two surface normals.
-#' generate_studio(depth=-0.1) %>%
+#' generate_studio(depth=-0.2) %>%
 #'   add_object(bezier_curve(type="ribbon", width=0.2,
 #'                    p1 = c(0,0,0), p2 = c(0,0.33,0), p3 = c(0,0.66,0), p4 = c(0.3,1,0),
 #'                    normal_end = c(0,0,1),
@@ -1824,7 +1835,7 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
                         width = 0.1, width_end = NA, u_min = 0, u_max = 1, type = "cylinder",
                         normal = c(0,0,-1), normal_end = NA, 
                         material = diffuse(), angle = c(0, 0, 0),
-                        order_rotation = c(1, 2, 3), velocity = c(0, 0, 0),
+                        order_rotation = c(1, 2, 3), 
                         flipped = FALSE, scale = c(1,1,1)) {
   if(inherits(p1,"list")) {
     stopifnot(length(p1) == 4 && all(lapply(p1, (function(x) length(x) == 3))))
@@ -1867,7 +1878,7 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
   curve_info = c(unlist(material$properties), p1, p2, p3, p4, width, width_end, 
                  u_min, u_max, curvetype, normal, normal_end)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, type = material$type, shape = "curve",
-                      properties = list(curve_info), velocity = list(velocity), 
+                      properties = list(curve_info), 
                       checkercolor = material$checkercolor, 
                       gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                       world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -1876,14 +1887,16 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
                       noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                       angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
                       alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      roughness_texture = list(material$rough_texture),
                       bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                       flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                       implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                       order_rotation = list(order_rotation), 
-                      pivot_point = list(NA), group_translate = list(NA),
-                      group_angle = list(NA), group_order_rotation = list(NA),
-                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                      material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                      group_transform = list(NA),
+                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                      material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                      start_transform_animation = list(NA), end_transform_animation = list(NA),
+                      start_time = 0, end_time = 1))
 }
 
 #' Path Object
@@ -1915,7 +1928,6 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the cube.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -1967,25 +1979,25 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #'                c(0.6,-0.5,-0.1),c(0.5,0.5,-0.1), c(0,0.3,-0.1),c(-0,-0.2,0.1), c(0.8,-0.5,0.1))
 #'                
 #' #Render the full pretzel:
-#' generate_studio() %>% 
+#' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17,  material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
 #'   render_scene(samples=500, clamp_value=10)
 #'   
 #' #Here, we'll render only the first third of the pretzel by setting `u_max = 0.33`
-#' generate_studio() %>% 
+#' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17, u_max=0.33, material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
 #'   render_scene(samples=500, clamp_value=10)
 #'   
 #' #Here's the last third, by setting `u_min = 0.66`
-#' generate_studio() %>% 
+#' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17, u_min=0.66, material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
 #'   render_scene(samples=500, clamp_value=10)
 #'   
 #' #Here's the full pretzel, decomposed into thirds using the u_min and u_max coordinates
-#' generate_studio() %>% 
+#' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17, u_max=0.33, x = -0.8, y =0.6,
 #'                   material = glossy(color="#db5b00"))) %>% 
 #'   add_object(path(pretzel, width=0.17, u_min=0.66, x = 0.8, y =0.6,
@@ -2000,7 +2012,7 @@ path = function(points,
                 width = 0.1, width_end = NA, u_min = 0, u_max = 1, type = "cylinder",
                 normal = c(0,0,-1), normal_end = NA, 
                 material = diffuse(), angle = c(0, 0, 0),
-                order_rotation = c(1, 2, 3), velocity = c(0, 0, 0),
+                order_rotation = c(1, 2, 3),
                 flipped = FALSE, scale = c(1,1,1)) {
   if(is.na(width_end)) {
     width_end = width
@@ -2106,11 +2118,11 @@ path = function(points,
                                      width = temp_width_start, width_end = temp_width_end,
                                      normal = temp_normal_start, normal_end = temp_normal_end,
                                      material = material, angle = angle,
-                                     order_rotation = order_rotation, velocity = velocity,
+                                     order_rotation = order_rotation, 
                                      flipped = flipped, scale = scale)
     }
   }
-  if("dplyr" %in% rownames(utils::installed.packages())) {
+  if(length(find.package("dplyr",quiet=TRUE)) > 0) {
     return(dplyr::bind_rows(curve_list))
   } else {
     return(do.call(rbind, curve_list))
@@ -2129,7 +2141,6 @@ path = function(points,
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the sphere, used for motion blur.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -2187,7 +2198,7 @@ path = function(points,
 #' }
 text3d = function(label, x = 0, y = 0, z = 0, text_height = 1, orientation = "xy",
                   material = diffuse(), 
-                  angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
+                  angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                   flipped = FALSE, scale = c(1,1,1)) {
   labelfile = tempfile(fileext = ".png")
   rayimage::add_title(matrix(0,ncol = nchar(label)*60, nrow=60*1.2), 
@@ -2270,7 +2281,7 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1,
   info = c(unlist(material$properties), scale_ply)
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                       type = material$type, shape = "ply",
-                      properties = list(info), velocity = list(c(0, 0, 0)),
+                      properties = list(info), 
                       checkercolor = material$checkercolor, 
                       gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                       world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -2279,14 +2290,16 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1,
                       noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                       angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                       alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      roughness_texture = list(material$rough_texture),
                       bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                       flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                       implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                       order_rotation = list(order_rotation),
-                      pivot_point = list(NA), group_translate = list(NA),
-                      group_angle = list(NA), group_order_rotation = list(NA),
-                      tricolorinfo = list(NA), fileinfo = filename, scale_factor = list(scale), group_scale = list(NA),
-                      material_id = NA, csg_object = list(NA), mesh_info = list(NA)))
+                      group_transform = list(NA),
+                      tricolorinfo = list(NA), fileinfo = filename, scale_factor = list(scale), 
+                      material_id = NA, csg_object = list(NA), mesh_info = list(NA),
+                      start_transform_animation = list(NA), end_transform_animation = list(NA),
+                      start_time = 0, end_time = 1))
 }
 
 #' `mesh3d` model
@@ -2320,7 +2333,7 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1,
 #'
 #' @examples
 #' #Load a mesh3d object (from the Rvcg) and render it:
-#' if("Rcvg" %in% rownames(utils::installed.packages())) {
+#' if(length(find.package("Rcvg", quiet=TRUE)) > 0) {
 #'   library(Rvcg)
 #'   data(humface)
 #'   
@@ -2360,7 +2373,11 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
   if(swap_yz) {
     vertices = vertices[,c(1,3,2)]
   }
-  indices = t(mesh$it)-1
+  ## there might be triangles, quads, or both
+  indices = NULL
+  if (!is.null(mesh$it)) {
+    indices = t(mesh$it)-1
+  }
   if(!is.null(mesh$ib)) {
     quads = mesh$ib
     tri_ind = t(matrix(rbind(quads[c(1L, 2L, 4L),], 
@@ -2428,7 +2445,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
   }
   new_tibble_row(list(x = x, y = y, z = z, radius = NA, 
                       type = material$type, shape = "mesh3d",
-                      properties = list(info), velocity = list(c(0, 0, 0)),
+                      properties = list(info), 
                       checkercolor = material$checkercolor, 
                       gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                       world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -2437,13 +2454,15 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
                       noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                       angle = list(angle), image = material$image, image_repeat = material$image_repeat,
                       alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      roughness_texture = list(material$rough_texture),
                       bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                       flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                       implicit_sample = material$implicit_sample,  sigma = material$sigma, glossyinfo = material$glossyinfo,
                       order_rotation = list(order_rotation),
-                      pivot_point = list(NA), group_translate = list(NA),
-                      group_angle = list(NA), group_order_rotation = list(NA),
-                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                      material_id = NA, csg_object = list(NA), mesh_info = list(mesh_info)))
+                      group_transform = list(NA),
+                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale),
+                      material_id = NA, csg_object = list(NA), mesh_info = list(mesh_info),
+                      start_transform_animation = list(NA), end_transform_animation = list(NA),
+                      start_time = 0, end_time = 1))
 }
 

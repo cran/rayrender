@@ -10,12 +10,10 @@
 #' @param x Default `0`. x-offset of the center of the object.
 #' @param y Default `0`. y-offset of the center of the object.
 #' @param z Default `0`. z-offset of the center of the object.
-#' @param radius Default `1`. Radius of the sphere..
 #' @param material Default  \code{\link{diffuse}}. The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
 #' @param angle Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.
 #' @param order_rotation Default `c(1, 2, 3)`. The order to apply the rotations, referring to "x", "y", and "z".
-#' @param velocity Default `c(0, 0, 0)`. Velocity of the sphere, used for motion blur.
 #' @param flipped Default `FALSE`. Whether to flip the normals.
 #' @param scale Default `c(1, 1, 1)`. Scale transformation in the x, y, and z directions. If this is a single value,
 #' number, the object will be scaled uniformly.
@@ -36,7 +34,8 @@
 #'                    csg_cylinder(start=c(0,0,-1), end=c(0,0,1), radius=0.4))),
 #'                    material=glossy(color="blue"))) %>% 
 #'   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) %>%
-#'   render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10))
+#'   render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10), 
+#'                samples=256, sample_method="sobol_blue")
 #' 
 #' #Standard CSG sphere + box - crossed cylinder combination:
 #' generate_ground(material=diffuse(checkercolor="grey20")) %>%
@@ -51,7 +50,8 @@
 #'     operation="subtract"),
 #'     material=glossy(color="red"))) %>%
 #'   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) %>%
-#'   render_scene(clamp_value=10, fov=10,lookfrom=c(5,5,10))
+#'   render_scene(clamp_value=10, fov=10,lookfrom=c(5,5,10),
+#'                samples=256, sample_method="sobol_blue")
 #'   
 #' #Blend them all instead:
 #' generate_ground(material=diffuse(checkercolor="grey20")) %>%
@@ -66,16 +66,17 @@
 #'     operation="blend"),
 #'     material=glossy(color="purple"))) %>%
 #'   add_object(sphere(y=5,x=3,radius=1,material=light(intensity=30))) %>%
-#'   render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10))
+#'   render_scene(clamp_value=10, fov=15,lookfrom=c(5,5,10), 
+#'                samples=256, sample_method="sobol_blue")
 #' }
-csg_object = function(object, x = 0, y = 0, z = 0, radius = 1, material = diffuse(), 
-                      angle = c(0, 0, 0), order_rotation = c(1, 2, 3), velocity = c(0, 0, 0), 
+csg_object = function(object, x = 0, y = 0, z = 0, material = diffuse(), 
+                      angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                       flipped = FALSE, scale = c(1,1,1)) {
   if(!inherits(object,"ray_csg")) {
     stop("`object` must be constructed with rayrender csg_* functions")
   }
-  new_tibble_row(list(x = x, y = y, z = z, radius = radius, type = material$type, shape = "csg_object",
-                      properties = material$properties, velocity = list(velocity), 
+  new_tibble_row(list(x = x, y = y, z = z, radius = 1, type = material$type, shape = "csg_object",
+                      properties = material$properties, 
                       checkercolor = material$checkercolor, 
                       gradient_color = material$gradient_color, gradient_transpose = material$gradient_transpose, 
                       world_gradient = material$world_gradient, gradient_point_info = material$gradient_point_info,
@@ -84,14 +85,16 @@ csg_object = function(object, x = 0, y = 0, z = 0, radius = 1, material = diffus
                       noiseintensity = material$noiseintensity, noisecolor = material$noisecolor,
                       angle = list(angle), image = material$image,  image_repeat = material$image_repeat,
                       alphaimage = list(material$alphaimage), bump_texture = list(material$bump_texture),
+                      roughness_texture = list(material$rough_texture),
                       bump_intensity = material$bump_intensity, lightintensity = material$lightintensity,
                       flipped = flipped, fog = material$fog, fogdensity = material$fogdensity,
                       implicit_sample = material$implicit_sample, sigma = material$sigma, glossyinfo = material$glossyinfo,
                       order_rotation = list(order_rotation),
-                      pivot_point = list(NA), group_translate = list(NA),
-                      group_angle = list(NA), group_order_rotation = list(NA),
-                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), group_scale = list(NA),
-                      material_id = NA, csg_object = list(object), mesh_info = list(NA)))
+                      group_transform = list(NA),
+                      tricolorinfo = list(NA), fileinfo = NA, scale_factor = list(scale), 
+                      material_id = NA, csg_object = list(object), mesh_info = list(NA),
+                      start_transform_animation = list(NA), end_transform_animation = list(NA),
+                      start_time = 0, end_time = 1))
 }
 
 #' CSG Sphere

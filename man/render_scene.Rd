@@ -12,9 +12,9 @@ render_scene(
   samples = 100,
   min_variance = 5e-05,
   min_adaptive_size = 8,
-  sample_method = "sobol_blue",
-  max_depth = 50,
-  roulette_active_depth = 10,
+  sample_method = "sobol",
+  max_depth = NA,
+  roulette_active_depth = 100,
   ambient_light = FALSE,
   lookfrom = c(0, 1, 10),
   lookat = c(0, 0, 0),
@@ -63,15 +63,15 @@ will use the maximum number of samples everywhere.}
 
 \item{min_adaptive_size}{Default `8`. Width of the minimum block size in the adaptive sampler.}
 
-\item{sample_method}{Default `sobol_blue`. The type of sampling method used to generate
-random numbers. The other options are `random` (worst quality but simple), 
-`stratified` (only implemented for completion), 
-and `sobol_blue` (best option for sample counts below 256), and `sobol` (better than `sobol_blue` for 
-sample counts greater than 256).}
+\item{sample_method}{Default `sobol`. The type of sampling method used to generate
+random numbers. The other options are `random` (worst quality but fastest), 
+`stratified` (only implemented for completion), `sobol_blue` (best option for sample counts below 256), 
+and `sobol` (slowest but best quality, better than `sobol_blue` for sample counts greater than 256).}
 
-\item{max_depth}{Default `50`. Maximum number of bounces a ray can make in a scene.}
+\item{max_depth}{Default `NA`, automatically sets to 50. Maximum number of bounces a ray can make in a scene. Alternatively,
+if a debugging option is chosen, this sets the bounce to query the debugging parameter (only for some options).}
 
-\item{roulette_active_depth}{Default `10`. Number of ray bounces until a ray can stop bouncing via
+\item{roulette_active_depth}{Default `100`. Number of ray bounces until a ray can stop bouncing via
 Russian roulette.}
 
 \item{ambient_light}{Default `FALSE`, unless there are no emitting objects in the scene. 

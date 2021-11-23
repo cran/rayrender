@@ -21,6 +21,8 @@
 #include "csg.h"
 #include "plymesh.h"
 #include "mesh3d.h"
+#include "transform.h"
+#include "transformcache.h"
 #include <Rcpp.h>
 #include <memory>
 using namespace Rcpp;
@@ -32,7 +34,7 @@ std::shared_ptr<hitable> rotation_order(std::shared_ptr<hitable> entry, NumericV
 std::shared_ptr<hitable> build_scene(IntegerVector& type, 
                                      NumericVector& radius, IntegerVector& shape,
                                      List& position_list,
-                                     List& properties, List& velocity, LogicalVector& moving,
+                                     List& properties,
                                      int n, Float shutteropen, Float shutterclose,
                                      LogicalVector& ischeckered, List& checkercolors, 
                                      List gradient_info,
@@ -45,30 +47,33 @@ std::shared_ptr<hitable> build_scene(IntegerVector& type,
                                      LogicalVector has_bump,
                                      std::vector<Float* >& bump_textures, std::vector<int* >& nvecb,
                                      NumericVector& bump_intensity,
+                                     std::vector<Float* >& roughness_textures,  std::vector<int* >& nvecr,
+                                     LogicalVector has_roughness,
                                      NumericVector& lightintensity,
                                      LogicalVector& isflipped,
                                      LogicalVector& isvolume, NumericVector& voldensity,
                                      List& order_rotation_list, 
-                                     LogicalVector& isgrouped, List& group_pivot, List& group_translate,
-                                     List& group_angle, List& group_order_rotation, List& group_scale,
+                                     LogicalVector& isgrouped, List& group_transform, 
                                      LogicalVector& tri_normal_bools, LogicalVector& is_tri_color, List& tri_color_vert, 
                                      CharacterVector& fileinfo, CharacterVector& filebasedir,
                                      List& scale_list, NumericVector& sigma,  List &glossyinfo,
                                      IntegerVector& shared_id_mat, LogicalVector& is_shared_mat,
                                      std::vector<std::shared_ptr<material> >* shared_materials, List& image_repeat_list,
                                      List& csg_info, List& mesh_list, int bvh_type,
+                                     TransformCache &transformCache, List& animation_info,
                                      random_gen& rng);
 
 std::shared_ptr<hitable> build_imp_sample(IntegerVector& type, 
                                           NumericVector& radius, IntegerVector& shape,
                                           List& position_list,
-                                          List& properties, List& velocity, 
+                                          List& properties, 
                                           int n, Float shutteropen, Float shutterclose, 
                                           List& angle, int i, List& order_rotation_list,
                                           LogicalVector& isgrouped, 
-                                          List& group_pivot, List& group_translate,
-                                          List& group_angle, List& group_order_rotation, List& group_scale,
+                                          List& group_transform,
                                           CharacterVector& fileinfo, CharacterVector& filebasedir,
-                                          List& scale_list, List& mesh_list, int bvh_type, LogicalVector& moving,random_gen& rng);
+                                          TransformCache& transformCache,
+                                          List& scale_list, List& mesh_list, int bvh_type, 
+                                          List& animation_info, random_gen& rng);
 
 #endif

@@ -7,6 +7,7 @@
 microfacet(
   color = "white",
   roughness = 1e-04,
+  transmission = FALSE,
   eta = 0,
   kappa = 0,
   microfacet = "tbr",
@@ -26,6 +27,9 @@ microfacet(
   alpha_texture = NA,
   bump_texture = NA,
   bump_intensity = 1,
+  roughness_texture = NA,
+  roughness_range = c(1e-04, 0.2),
+  roughness_flip = FALSE,
   importance_sample = FALSE
 )
 }
@@ -41,11 +45,15 @@ above that is a rough satin-like material).
 Two numbers will specify the x and y roughness separately (e.g. `roughness = c(0.01, 0.001)` gives an 
 etched metal effect). If `0`, this defaults to the `metal()` material for faster evaluation.}
 
+\item{transmission}{Default `FALSE`. If `TRUE`, this material will be a rough dielectric instead of a rough metallic surface.}
+
 \item{eta}{Default `0`. Wavelength dependent refractivity of the material (red, green, and blue channels).
-If single number, will be repeated across all three channels.}
+If single number, will be repeated across all three channels. If `transmission = TRUE`, this is a single value representing the
+index of refraction of the material.}
 
 \item{kappa}{Default `0`. Wavelength dependent absorption of the material (red, green, and blue channels).
-If single number, will be repeated across all three channels.}
+If single number, will be repeated across all three channels. If `transmission = TRUE`, this length-3 vector specifies 
+the attenuation of the dielectric (analogous to the dielectric `attenuation` argument).}
 
 \item{microfacet}{Default `tbr`.  Type of microfacet distribution. Alternative option `beckmann`.}
 
@@ -92,6 +100,15 @@ begins with value `gradient_color`.}
 be used to specify a bump map for the surface.}
 
 \item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
+
+\item{roughness_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+be used to specify a roughness map for the surface.}
+
+\item{roughness_range}{Default ` c(0.0001, 0.2)`. This is a length-2 vector that specifies the range of roughness values 
+that the `roughness_texture` can take.}
+
+\item{roughness_flip}{Default `FALSE`. Setting this to `TRUE` flips the roughness values specified in the `roughness_texture`
+so high values are now low values and vice versa.}
 
 \item{importance_sample}{Default `FALSE`. If `TRUE`, the object will be sampled explicitly during 
 the rendering process. If the object is particularly important in contributing to the light paths
@@ -150,5 +167,15 @@ generate_cornell() \%>\%
                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) \%>\% 
  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
+             
+ #Use transmission for a rough dielectric
+ 
+generate_cornell() \%>\%
+  add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+             material=microfacet(roughness=0.3, transmission=T, eta=1.6))) \%>\% 
+ add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
+             material=microfacet(roughness=0.3, transmission=T, eta=1.6))) \%>\% 
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
+             aperture=0, fov=40, parallel=TRUE,clamp_value=10, min_variance=1e-6)
 }
 }

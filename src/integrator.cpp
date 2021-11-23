@@ -1,5 +1,7 @@
 #include "integrator.h"
 
+// #define DEBUG
+
 void pathtracer(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_channel,
                 Float min_variance, size_t min_adaptive_size, 
                 Rcpp::NumericMatrix& routput, Rcpp::NumericMatrix& goutput, Rcpp::NumericMatrix& boutput,
@@ -16,6 +18,9 @@ void pathtracer(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_c
     pb_sampler.set_total(ny);
     pb.set_total(ns);
   }
+#ifdef DEBUG
+  std::remove("rays.txt");
+#endif
   Rcpp::NumericMatrix routput2(nx,ny);
   Rcpp::NumericMatrix goutput2(nx,ny);
   Rcpp::NumericMatrix boutput2(nx,ny);
@@ -74,6 +79,7 @@ void pathtracer(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_c
                    &rngs, fov, &samplers,
                    &cam, &ocam, &ecam, &world, &hlist,
                    clampval, max_depth, roulette_active] (int k) {
+                     // MitchellFilter fil(vec2f(1.0),1./3.,1./3.);
                      int nx_begin = adaptive_pixel_sampler.pixel_chunks[k].startx;
                      int ny_begin = adaptive_pixel_sampler.pixel_chunks[k].starty;
                      int nx_end = adaptive_pixel_sampler.pixel_chunks[k].endx;
@@ -83,7 +89,7 @@ void pathtracer(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_c
                      for(int i = nx_begin; i < nx_end; i++) {
                        for(int j = ny_begin; j < ny_end; j++) {
                          int index = j + ny * i;
-                         vec2 u2 = samplers[index]->Get2D();
+                         vec2f u2 = samplers[index]->Get2D();
                          Float u = (Float(i) + u2.x()) / Float(nx);
                          Float v = (Float(j) + u2.y()) / Float(ny);
                          ray r; 
@@ -98,9 +104,10 @@ void pathtracer(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_c
                          }
                          r.pri_stack = mat_stack;
                          
-                         vec3 col = clamp(de_nan(color(r, &world, &hlist, max_depth, 
+                         point3f col = clamp_point(de_nan(color(r, &world, &hlist, max_depth, 
                                                        roulette_active, rngs[index], samplers[index].get())),
-                                                       0, clampval);
+                                             0, clampval);
+                         // col = col * fil.Evaluate(u2);
                          mat_stack->clear();
                          adaptive_pixel_sampler.add_color_main(i, j, col);
                          if(s % 2 == 0) {
