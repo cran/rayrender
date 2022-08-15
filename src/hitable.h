@@ -69,9 +69,9 @@ struct hit_record {
   const hitable* shape = nullptr; //PBRT: In SurfaceInteraction, const Shape *shape
   material* mat_ptr; //PBRT: In SurfaceInteraction as bsdf or bssrdf
   bool alpha_miss;
-  //Missing from PBRT: 
-  //mutable Float dudx, dvdx, dudy, dvdy (for texture sampling)
-  //mutable vec3 dpdx, dpdy
+  mutable Float dudx, dvdx, dudy, dvdy;
+  mutable vec3f dpdx, dpdy;
+  mutable normal3f dndu, dndv;
   //const Shape *shape (recording the shape)
   //const Primitive *primitive (recording the primitive)
   //int faceIndex (for ptex lookups)

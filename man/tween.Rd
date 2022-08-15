@@ -2,7 +2,7 @@
 % Please edit documentation in R/util-functions.R
 \name{tween}
 \alias{tween}
-\title{Cubic-in-out}
+\title{Tween}
 \usage{
 tween(vals, n, ease = "cubic")
 }
@@ -17,6 +17,6 @@ tween(vals, n, ease = "cubic")
 number
 }
 \description{
-Cubic-in-out
+Tween
 }
 \keyword{internal}

@@ -13,10 +13,13 @@
 #'                   material=diffuse(noise=5,noisecolor="purple",color="black",noisephase=45),
 #'                   angle=c(0,-30,0))) %>%
 #'   add_object(sphere(x=-0.7,radius=0.5,material=metal(color="gold")))
-#' \donttest{
+#' if(rayrender:::run_documentation()) {
 #' render_scene(scene,parallel=TRUE)
 #' }
-add_object = function(scene, objects) {
+add_object = function(scene, objects = NULL) {
+  if(is.null(objects)) {
+    return(scene)
+  }
   newscene = rbind(scene,objects)
   if(!is.null(attr(objects,"cornell")) || !is.null(attr(scene,"cornell"))) {
     attr(newscene,"cornell") = TRUE

@@ -27,12 +27,13 @@ Note: This shape isn't closed, so there may be odd lighting issues if it's orien
 way.
 }
 \examples{
-\donttest{
+if(rayrender:::run_documentation()) {
 #Generate a plane
 csg_object(csg_plane(width_x=4, width_z=4), material=diffuse(checkercolor="purple")) \%>\% 
   add_object(sphere(y=5,x=5,material=light(intensity=40))) \%>\% 
   render_scene(clamp_value=10)
- 
+ }
+if(rayrender:::run_documentation()) {
 #Combine the plane with a sphere
 csg_object(csg_combine(
     csg_sphere(radius=0.5),
@@ -40,7 +41,8 @@ csg_object(csg_combine(
     operation="blend"),material=diffuse(checkercolor="purple")) \%>\% 
   add_object(sphere(y=5,x=5,material=light(intensity=40))) \%>\% 
   render_scene(clamp_value=10)
-  
+  }
+if(rayrender:::run_documentation()) {
 #Re-orient the plane using the normal and 
 csg_object(csg_combine(
     csg_sphere(radius=0.5),

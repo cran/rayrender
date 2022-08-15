@@ -17,13 +17,14 @@
 #' @export
 #' @examples
 #' #Generate the ground and add some objects
+#' if(rayrender:::run_documentation()) {
 #' scene = generate_cornell() %>%
 #'         add_object(cube(x=555/2,y=555/8,z=555/2,width=555/4)) %>%
 #'         add_object(cube(x=555/2,y=555/4+555/16,z=555/2,width=555/8))
-#' \donttest{
 #' render_scene(scene,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=500, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
 #' }
+#' if(rayrender:::run_documentation()) {
 #' 
 #' #Group the entire room and rotate around its center, but keep the cubes in the same place.
 #' scene2 = group_objects(generate_cornell(), 
@@ -32,34 +33,32 @@
 #'          add_object(cube(x=555/2,y=555/8,z=555/2,width=555/4)) %>%
 #'         add_object(cube(x=555/2,y=555/4+555/16,z=555/2,width=555/8))
 #'                        
-#' \donttest{
 #' render_scene(scene2,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=500, fov=50, parallel=TRUE, clamp_value=5)
-#' }.
-#' 
+#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
+#' }
+#' if(rayrender:::run_documentation()) {
 #' #Now group the cubes instead of the Cornell box, and rotate/translate them together
 #' twocubes = cube(x=555/2,y=555/8,z=555/2,width=555/4) %>%
 #'            add_object(cube(x=555/2, y=555/4 + 555/16, z=555/2, width=555/8))
 #' scene3 = generate_cornell() %>%
 #'          add_object(group_objects(twocubes, translate = c(0,50,0),angle = c(0,45,0), 
 #'          pivot_point = c(555/2,0,555/2)))
-#' \donttest{
+#'          
 #' render_scene(scene3,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=500, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
 #' }
-#' 
+#' if(rayrender:::run_documentation()) {
 #' #Flatten and stretch the cubes together on two axes
 #' scene4 = generate_cornell() %>%
 #'          add_object(group_objects(twocubes, translate = c(0,-40,0), 
 #'                                   angle = c(0,45,0), scale = c(2,0.5,1), 
 #'                                   pivot_point = c(555/2,0,555/2)))
-#' \donttest{
+#'                                   
 #' render_scene(scene4,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=500, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
 #' }
-#' 
+#' if(rayrender:::run_documentation()) {
 #' #Add another layer of grouping, including the Cornell box
-#' \donttest{
 #' scene4 %>% 
 #'   group_objects(pivot_point = c(555/2,555/2,555/2),scale=c(1.5,0.5,0.3), angle=c(-20,0,20)) %>% 
 #'   render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
@@ -88,20 +87,16 @@ group_objects = function(scene, pivot_point=c(0,0,0), translate = c(0,0,0),
     stopifnot(sum(axis_rotation*axis_rotation) > 0)
     Rotation = RotateAxis(angle,axis_rotation)
   }
-  for(i in seq_len(nrow(scene))) {
-    if(is.na(scene$group_transform[i])) {
-      scene$group_transform[i] = list(Translation %*% 
-                                      PivotTranslateEnd %*% 
-                                      Rotation %*% 
-                                      Scale %*% 
-                                      PivotTranslateStart)
-    } else {
-      scene$group_transform[i] = list(Translation %*% 
-                                      PivotTranslateEnd %*% 
-                                      Rotation %*% 
-                                      Scale %*% 
-                                      PivotTranslateStart %*% scene$group_transform[[i]])
-    }
-  }
+
+  na_ts = is.na(scene$group_transform)
+  scene$group_transform[na_ts] = lapply(scene$group_transform[na_ts], function(x) {
+      Translation %*% PivotTranslateEnd %*% 
+          Rotation %*% Scale %*% PivotTranslateStart
+  })
+  scene$group_transform[!na_ts] = lapply(scene$group_transform[!na_ts], function(x) {
+      Translation %*% PivotTranslateEnd %*% 
+          Rotation %*% Scale %*% PivotTranslateStart %*% x
+  })
+
   return(scene)
 }

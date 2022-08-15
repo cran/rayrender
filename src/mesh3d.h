@@ -16,10 +16,15 @@ class mesh3d : public hitable {
       if(mesh_materials) {
         stbi_image_free(mesh_materials);
       }
+      if(bump) {
+        stbi_image_free(bump);
+      }
     }
     mesh3d(Rcpp::List mesh_info, std::shared_ptr<material>  mat, 
            Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
-           std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation);
+           std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation,
+           int prop_len, Rcpp::NumericVector tempvector, Rcpp::NumericVector temp_glossy, double sigma,
+           double lightintensity);
     virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng);
     virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler);
     
@@ -31,6 +36,7 @@ class mesh3d : public hitable {
     std::shared_ptr<material>  mat_ptr;
     hitable_list triangles;
     Float* mesh_materials;
+    Float* bump;
 };
 
 

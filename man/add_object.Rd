@@ -4,7 +4,7 @@
 \alias{add_object}
 \title{Add Object}
 \usage{
-add_object(scene, objects)
+add_object(scene, objects = NULL)
 }
 \arguments{
 \item{scene}{Tibble of pre-existing object locations and properties.}
@@ -24,7 +24,7 @@ scene = generate_ground(depth=-0.5,material = diffuse(checkercolor="blue")) \%>\
                   material=diffuse(noise=5,noisecolor="purple",color="black",noisephase=45),
                   angle=c(0,-30,0))) \%>\%
   add_object(sphere(x=-0.7,radius=0.5,material=metal(color="gold")))
-\donttest{
+if(rayrender:::run_documentation()) {
 render_scene(scene,parallel=TRUE)
 }
 }

@@ -3,6 +3,7 @@
 
 #include "vec3.h"
 #include "point3.h"
+#include "RayMatrix.h"
 
 using namespace Rcpp;
 
@@ -18,17 +19,19 @@ struct pixel_block {
 
 class adaptive_sampler {
 public:
-  adaptive_sampler(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_channel,
+  adaptive_sampler(size_t _numbercores, size_t nx, size_t ny, size_t ns, int debug_channel,
                    float min_variance, size_t min_adaptive_size, 
-                   NumericMatrix& r, NumericMatrix& g, NumericMatrix& b,
-                   NumericMatrix& r2, NumericMatrix& g2, NumericMatrix& b2) : 
-                   nx(nx), ny(ny), ns(ns), max_s(0), debug_channel(debug_channel), 
+                   RayMatrix& r, RayMatrix& g, RayMatrix& b,
+                   RayMatrix& r2, RayMatrix& g2, RayMatrix& b2) : 
+                   numbercores(_numbercores), nx(nx), ny(ny), ns(ns), max_s(0), debug_channel(debug_channel), 
                    min_variance(min_variance), min_adaptive_size(min_adaptive_size),
                    r(r), g(g), b(b), r2(r2), g2(g2), b2(b2) {
     size_t nx_chunk = nx / numbercores;
     size_t ny_chunk = ny / numbercores;
     size_t bonus_x = nx - nx_chunk * numbercores;
     size_t bonus_y = ny - ny_chunk * numbercores;
+    finalized.resize(nx*ny, false);
+    just_finalized.resize(nx*ny, true);
     for(size_t i = 0; i < numbercores; i++) {
       for(size_t j = 0; j < numbercores ; j++) {
         size_t extra_x = i == numbercores - 1 ? bonus_x : 0;
@@ -39,6 +42,34 @@ public:
         pixel_chunks.push_back(chunk);
       }
     }
+  }
+  void reset() {
+    pixel_chunks.clear();
+    size_t nx_chunk = nx / numbercores;
+    size_t ny_chunk = ny / numbercores;
+    size_t bonus_x = nx - nx_chunk * numbercores;
+    size_t bonus_y = ny - ny_chunk * numbercores;
+    finalized.resize(nx*ny, false);
+    just_finalized.resize(nx*ny, true);
+    
+    for(size_t i = 0; i < numbercores; i++) {
+      for(size_t j = 0; j < numbercores ; j++) {
+        size_t extra_x = i == numbercores - 1 ? bonus_x : 0;
+        size_t extra_y = j == numbercores - 1 ? bonus_y : 0;
+        pixel_block chunk = {i*nx_chunk, j*ny_chunk,
+                             (i+1)*nx_chunk + extra_x, (j+1)*ny_chunk  + extra_y,
+                             0, 0, false, false, 0};
+        pixel_chunks.push_back(chunk);
+      }
+    }
+    std::fill(finalized.begin(), finalized.end(), false);
+    std::fill(just_finalized.begin(), just_finalized.end(), true);
+    std::fill(r.begin(), r.end(), 0);
+    std::fill(g.begin(), g.end(), 0);
+    std::fill(b.begin(), b.end(), 0);
+    std::fill(r2.begin(), r2.end(), 0);
+    std::fill(g2.begin(), g2.end(), 0);
+    std::fill(b2.begin(), b2.end(), 0);
   }
   ~adaptive_sampler() {}
   void test_for_convergence(size_t k, size_t s,
@@ -110,6 +141,7 @@ public:
               g(i,j) = (float)(s+1)/(float)ns;
               b(i,j) = (float)(s+1)/(float)ns;
             }
+            finalized[i + nx*j] = true;
           }
         }
       } else if(it->split &&
@@ -170,15 +202,25 @@ public:
     g2(i,j) += color.g();
     b2(i,j) += color.b();
   }
+  //For use when s = 1 in small image preview
+  void set_color_main(size_t i, size_t j, point3f color) {
+    r(i,j) = color.r();
+    g(i,j) = color.g();
+    b(i,j) = color.b();
+  }
   size_t size() {return(pixel_chunks.size());}
 
+  size_t numbercores;
   size_t nx, ny, ns;
   size_t max_s;
   int debug_channel;
   float min_variance;
   size_t min_adaptive_size;
-  NumericMatrix &r, &g, &b, &r2, &g2, &b2;
+  RayMatrix &r, &g, &b, &r2, &g2, &b2;
   std::vector<pixel_block> pixel_chunks;
+  std::vector<bool> finalized;
+  std::vector<bool> just_finalized;
+  
 };
 
 #endif

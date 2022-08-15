@@ -10,7 +10,7 @@ void cylinder::get_cylinder_uv(const point3f& p, Float& u, Float& v) {
 bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
   ray r2 = (*WorldToObject)(r);
   
-  vec3f oc = r2.origin() - point3f(0.0);
+  vec3f oc = r2.origin();
   vec3f dir = r2.direction();
   dir.e[1] = 0;
   oc.e[1] = 0;
@@ -36,7 +36,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
       temppoint.e[0] *= radius / hitRad;
       temppoint.e[2] *= radius / hitRad;
       get_cylinder_uv(temppoint, u, v);
-      if(alpha_mask->value(u, v, rec.p).x() < rng.unif_rand()) {
+      if(alpha_mask->value(u, v, rec.p) < rng.unif_rand()) {
         is_hit = false;
       }
     }
@@ -49,7 +49,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
       temppoint.e[0] *= radius / hitRad;
       temppoint.e[2] *= radius / hitRad;
       get_cylinder_uv(temppoint, u, v);
-      if(alpha_mask->value(u, v, rec.p).x() < rng.unif_rand()) {
+      if(alpha_mask->value(u, v, rec.p) < rng.unif_rand()) {
         if(!is_hit) {
           alpha_miss = true;
         }
@@ -69,27 +69,26 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     rec.p = temppoint;
     
     temppoint.e[1] = 0;
-    rec.normal = dot(temppoint, dir) > 0 ? vec3f(-temppoint) / radius : vec3f(temppoint) / radius;
+    rec.normal = vec3f(temppoint) / radius;
     
     get_cylinder_uv(rec.p, rec.u, rec.v);
     
     //Interaction information
     rec.dpdu = vec3f(-temppoint.z(),0,  temppoint.x());
-    rec.dpdv = vec3f(0, length, 0);
+    rec.dpdv = vec3f(0, -length, 0);
     rec.has_bump = bump_tex ? true : false;
+    rec.normal *= reverseOrientation  ? -1 : 1;
     
     if(bump_tex) {
       point3f bvbu = bump_tex->value(rec.u, rec.v, rec.p);
-      rec.bump_normal = rec.normal + normal3f(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
+      rec.bump_normal = cross(rec.dpdu - bvbu.x() * rec.normal.convert_to_vec3() , 
+                              rec.dpdv + bvbu.y() * rec.normal.convert_to_vec3() );
       rec.bump_normal.make_unit_vector();
-      rec.bump_normal *= dot(temppoint, dir) > 0 ? -1 : 1;
-
+      rec.has_bump = true;
     }
     rec.pError = gamma(3) * Abs(vec3f(rec.p.x(), 0, rec.p.z()));
     
     rec = (*ObjectToWorld)(rec);
-    rec.normal *= reverseOrientation  ? -1 : 1;
-    rec.bump_normal *= reverseOrientation  ? -1 : 1;
     rec.normal.make_unit_vector();
     
     rec.shape = this;
@@ -115,7 +114,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     Float v = p.z() / (2.0 * radius) + 0.5;
     u = 1 - u;
     if(alpha_mask) {
-      if(alpha_mask->value(u, v, rec.p).x() < 1) {
+      if(alpha_mask->value(u, v, rec.p) < 1) {
         alpha_miss = true;
       }
     }
@@ -159,7 +158,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     Float v = p.z() / (2.0 * radius) + 0.5;
     u = 1 - u;
     if(alpha_mask) {
-      if(alpha_mask->value(u, v, rec.p).x() < 1) {
+      if(alpha_mask->value(u, v, rec.p) < 1) {
         alpha_miss = true;
       }
     }
@@ -201,24 +200,26 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rand
     rec.p = temppoint;
     
     temppoint.e[1] = 0;
-    rec.normal = dot(temppoint,dir) > 0 ? vec3f(-temppoint) / radius : vec3f(temppoint) / radius;
+    rec.normal = vec3f(temppoint) / radius;
+    
     get_cylinder_uv(rec.p, rec.u, rec.v);
     
     //Interaction information
     rec.dpdu = vec3f(-phi_max * temppoint.z(), 0,  phi_max * temppoint.x());
     rec.dpdv = vec3f(0, length, 0);
     rec.has_bump = bump_tex ? true : false;
+    rec.normal *= reverseOrientation  ? -1 : 1;
     
     if(bump_tex) {
-      point3f bvbu = bump_tex->value(rec.u,rec.v, rec.p);
-      rec.bump_normal = rec.normal + normal3f(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
+      point3f bvbu = bump_tex->value(rec.u, rec.v, rec.p);
+      rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
+                              rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
       rec.bump_normal.make_unit_vector();
+      rec.has_bump = true;
     }
     rec.pError = gamma(3) * Abs(vec3f(rec.p.x(), 0, rec.p.z()));
     
     rec = (*ObjectToWorld)(rec);
-    rec.normal *= reverseOrientation  ? -1 : 1;
-    rec.bump_normal *= reverseOrientation  ? -1 : 1;
     rec.normal.make_unit_vector();
     rec.alpha_miss = alpha_miss;
     
@@ -258,7 +259,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
       temppoint.e[0] *= radius / hitRad;
       temppoint.e[2] *= radius / hitRad;
       get_cylinder_uv(temppoint, u, v);
-      if(alpha_mask->value(u, v, rec.p).x() < sampler->Get1D()) {
+      if(alpha_mask->value(u, v, rec.p) < sampler->Get1D()) {
         is_hit = false;
       }
     }
@@ -271,7 +272,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
       temppoint.e[0] *= radius / hitRad;
       temppoint.e[2] *= radius / hitRad;
       get_cylinder_uv(temppoint, u, v);
-      if(alpha_mask->value(u, v, rec.p).x() < sampler->Get1D()) {
+      if(alpha_mask->value(u, v, rec.p) < sampler->Get1D()) {
         if(!is_hit) {
           return(false);
         }
@@ -291,7 +292,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
     rec.p = temppoint;
     
     temppoint.e[1] = 0;
-    rec.normal = dot(temppoint, dir) > 0 ? vec3f(-temppoint) / radius : vec3f(temppoint) / radius;
+    rec.normal = vec3f(temppoint) / radius;
     get_cylinder_uv(rec.p, rec.u, rec.v);
     
     //Interaction information
@@ -333,7 +334,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
     Float v = p.z() / (2.0 * radius) + 0.5;
     u = 1 - u;
     if(alpha_mask) {
-      if(alpha_mask->value(u, v, rec.p).x() < 1) {
+      if(alpha_mask->value(u, v, rec.p) < 1) {
         return(false);
       }
     }
@@ -377,7 +378,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
     Float v = p.z() / (2.0 * radius) + 0.5;
     u = 1 - u;
     if(alpha_mask) {
-      if(alpha_mask->value(u, v, rec.p).x() < 1) {
+      if(alpha_mask->value(u, v, rec.p) < 1) {
         return(false);
       }
     }
@@ -419,7 +420,7 @@ bool cylinder::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Samp
     rec.p = temppoint;
     
     temppoint.e[1] = 0;
-    rec.normal = dot(temppoint,dir) > 0 ? vec3f(-temppoint) / radius : vec3f(temppoint) / radius;
+    rec.normal = vec3f(temppoint) / radius;
     get_cylinder_uv(rec.p, rec.u, rec.v);
     
     //Interaction information

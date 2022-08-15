@@ -8,17 +8,26 @@ render_animation(
   scene,
   camera_motion,
   start_frame = 1,
+  end_frame = NA,
   width = 400,
   height = 400,
+  preview = interactive(),
+  camera_description_file = NA,
+  camera_scale = 1,
+  iso = 100,
+  film_size = 22,
   samples = 100,
   min_variance = 5e-05,
   min_adaptive_size = 8,
   sample_method = "sobol",
+  ambient_occlusion = FALSE,
+  keep_colors = FALSE,
+  sample_dist = 10,
   max_depth = 50,
   roulette_active_depth = 10,
   ambient_light = FALSE,
   clamp_value = Inf,
-  filename = "rayimage",
+  filename = NA,
   backgroundhigh = "#80b4ff",
   backgroundlow = "#ffffff",
   shutteropen = 0,
@@ -47,9 +56,24 @@ render_animation(
 
 \item{start_frame}{Default `1`. Frame to start the animation.}
 
+\item{end_frame}{Default `NA`. By default, this is set to `nrow(camera_motion)`, the full number of frames.}
+
 \item{width}{Default `400`. Width of the render, in pixels.}
 
 \item{height}{Default `400`. Height of the render, in pixels.}
+
+\item{preview}{Default `interactive()`. Whether to display a realtime progressive preview of the render. Press ESC to cancel the render.}
+
+\item{camera_description_file}{Default `NA`. Filename of a camera description file for rendering with
+a realistic camera. Several camera files are built-in: `"50mm"`,`"wide"`,`"fisheye"`, and `"telephoto"`.}
+
+\item{camera_scale}{Default `1`. Amount to scale the camera up or down in size. Use this rather than scaling a 
+scene.}
+
+\item{iso}{Default `100`. Camera exposure.}
+
+\item{film_size}{Default `22`, in `mm` (scene units in `m`. Size of the film if using a realistic camera, otherwise
+ignored.}
 
 \item{samples}{Default `100`. The maximum number of samples for each pixel. If this is a length-2
 vector and the `sample_method` is `stratified`, this will control the number of strata in each dimension.
@@ -67,6 +91,13 @@ random numbers. The other options are `random` (worst quality but simple),
 `stratified` (only implemented for completion), 
 and `sobol_blue` (best option for sample counts below 256).}
 
+\item{ambient_occlusion}{Default `FALSE`. If `TRUE`, the animation will be rendered with the ambient
+occlusion renderer. This uses the background color specified in `backgroundhigh`}
+
+\item{keep_colors}{Default `FALSE`. Whether to keep the diffuse material colors.}
+
+\item{sample_dist}{Default `10`. Sample distance if `debug_channel = "ao"`.}
+
 \item{max_depth}{Default `50`. Maximum number of bounces a ray can make in a scene.}
 
 \item{roulette_active_depth}{Default `10`. Number of ray bounces until a ray can stop bouncing via
@@ -83,7 +114,7 @@ can be removed (at the cost of slightly darkening the image) by setting this to 
 \item{filename}{Default `NULL`. If present, the renderer will write to the filename instead
 of the current device.}
 
-\item{backgroundhigh}{Default `#80b4ff`. The "high" color in the background gradient. Can be either
+\item{backgroundhigh}{Default `#ffffff`. The "high" color in the background gradient. Can be either
 a hexadecimal code, or a numeric rgb vector listing three intensities between `0` and `1`.}
 
 \item{backgroundlow}{Default `#ffffff`. The "low" color in the background gradient. Can be either
@@ -134,7 +165,7 @@ If `uv`, function will return an image of the uv coords. If `variance`, function
 showing the number of samples needed to take for each block to converge. If `dpdu` or `dpdv`, function will return
 an image showing the differential `u` and `u` coordinates. If `color`, function will return the raw albedo
 values (with white for `metal` and `dielectric` materials). If `preview`, an image rendered with `render_preview()` 
-will be returned.}
+will be returned. Can set to `ao` to render an animation with the ambient occlusion renderer.}
 
 \item{return_raw_array}{Default `FALSE`. If `TRUE`, function will return raw array with RGB intensity
 information.}
@@ -156,7 +187,7 @@ Takes the scene description and renders an image, either to the device or to a f
 }
 \examples{
 #Create and animate flying through a scene on a simulated roller coaster
-\donttest{
+if(rayrender:::run_documentation()) {
 set.seed(3)
 elliplist = list()
 ellip_colors = rainbow(8)
@@ -177,7 +208,8 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   render_scene(lookfrom=c(0,20,0), width=800,height=800,samples=32,
                camera_up = c(0,0,1),
                fov=80)
-            
+}
+if(rayrender:::run_documentation()) {
 #Side view     
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -185,7 +217,8 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   add_object(path(camera_pos, material=diffuse(color="red"))) \%>\% 
   render_scene(lookfrom=c(20,0,0),width=800,height=800,samples=32,
                  fov=80)
- 
+ }
+if(rayrender:::run_documentation()) {
 #View from the start        
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -193,12 +226,14 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   add_object(path(camera_pos, material=diffuse(color="red"))) \%>\% 
   render_scene(lookfrom=c(0,1.5,16),width=800,height=800,samples=32,
                  fov=80)
-                 
+ }
+if(rayrender:::run_documentation()) {             
 #Generate Camera movement, setting the lookat position to be same as camera position, but offset
 #slightly in front. We'll render 12 frames, but you'd likely want more in a real animation.
 
 camera_motion =  generate_camera_motion(positions = camera_pos, lookats = camera_pos, 
-                                        offset_lookat = 1, fovs=80, frames=12) 
+                                        offset_lookat = 1, fovs=80, frames=12,
+                                        type="bezier") 
                                         
 #This returns a data frame of individual camera positions, interpolated by cubic bezier curves.
 camera_motion
@@ -211,7 +246,7 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   add_object(obj_model(r_obj(),x=10,y=-10,scale_obj=3, angle=c(0,-45,0),
                        material=dielectric(attenuation=c(1,1,0.3)))) \%>\% 
   add_object(pig(x=-7,y=10,z=-5,scale=1,angle=c(0,-45,80),emotion="angry")) \%>\% 
-  add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(0,225,-20),
+  add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(30,225,30),
                  emotion="angry", spider=TRUE)) \%>\% 
   add_object(path(camera_pos, y=-0.2,material=diffuse(color="red"))) \%>\% 
   render_animation(filename = NA, camera_motion = camera_motion, samples=100,

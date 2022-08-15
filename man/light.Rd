@@ -25,7 +25,7 @@ light(
 \item{color}{Default `white`. The color of the light Can be either
 a hexadecimal code, R color string, or a numeric rgb vector listing three intensities between `0` and `1`.}
 
-\item{intensity}{Default `NA`. If a positive value, this will turn this object into a light emitting the value specified
+\item{intensity}{Default `10`. If a positive value, this will turn this object into a light emitting the value specified
 in `color` (ignoring other properties). Higher values will produce a brighter light.}
 
 \item{importance_sample}{Default `TRUE`. Keeping this on for lights improves the convergence of the rendering 
@@ -73,8 +73,8 @@ Light Material
 #Generate the cornell box without a light and add a single white sphere to the center
 scene = generate_cornell(light=FALSE) \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=light()))
-\donttest{
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
+if(rayrender:::run_documentation()) {
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -82,8 +82,8 @@ render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
 scene = generate_cornell(light=FALSE) \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
              material=light(intensity=15,invisible=TRUE)))
-\donttest{
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=500,
+if(rayrender:::run_documentation()) {
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -92,7 +92,7 @@ scene = generate_ground(material = diffuse(checkercolor="grey50")) \%>\%
   add_object(sphere(radius=0.5,material=light(intensity=5,color="red"))) \%>\%
   add_object(obj_model(r_obj(), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) \%>\%
   add_object(pig(scale=0.3, x=1.5,z=-2,y=-1.5,angle=c(0,-135,0)))
-\donttest{
-render_scene(scene, samples=500, parallel=TRUE, clamp_value=10)
+if(rayrender:::run_documentation()) {
+render_scene(scene, samples=128, parallel=TRUE, clamp_value=10)
 }
 }

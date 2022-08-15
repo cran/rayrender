@@ -28,12 +28,12 @@ bool Transform::operator!=(const Transform &t) const {
   return t.m != m || t.mInv != mInv;
 }
 bool Transform::operator<(const Transform &t2) const {
-  for (int i = 0; i < 4; ++i)
+  for (int i = 0; i < 4; ++i) {
     for (int j = 0; j < 4; ++j) {
-      if (m.m[i][j] < t2.m.m[i][j]) return true;
       if (m.m[i][j] > t2.m.m[i][j]) return false;
     }
-    return false;
+  }
+  return true;
 }
 
 Transform Translate(const vec3f &delta) {
@@ -223,7 +223,7 @@ Transform Transform::operator*(const Transform &t2) const {
 // }
 
 
- ray Transform::operator()(const ray &r) const {
+ray Transform::operator()(const ray &r) const {
   vec3f oError;
   point3f o = (*this)(r.origin(), &oError);
   vec3f d = (*this)(r.direction());
@@ -448,4 +448,20 @@ vec3<T> Transform::operator()(const vec3<T> &v,
   return vec3<T>(m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z,
                  m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z,
                  m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
+}
+
+vec3f Transform::w() {
+  return(vec3f(m.m[0][2],
+               m.m[1][2],
+               m.m[2][2]));
+}
+vec3f Transform::u() {
+  return(vec3f(m.m[0][0],
+               m.m[1][0],
+               m.m[2][0]));
+}
+vec3f Transform::v() {
+  return(vec3f(m.m[0][1],
+               m.m[1][1],
+               m.m[2][1]));
 }

@@ -12,7 +12,7 @@ generate_camera_motion(
   focal_distances = NULL,
   ortho_dims = NULL,
   camera_ups = NULL,
-  type = "bezier",
+  type = "cubic",
   frames = 30,
   closed = FALSE,
   aperture_linear = TRUE,
@@ -28,7 +28,8 @@ generate_camera_motion(
 }
 \arguments{
 \item{positions}{A list or 3-column XYZ matrix of camera positions. 
-These will serve as key frames for the camera position.}
+These will serve as key frames for the camera position. Alternatively, this can also be the a 
+dataframe of the keyframe output from an interactive rayrender session (`ray_keyframes`).}
 
 \item{lookats}{Default `NULL`, which sets the camera lookat to the origin `c(0,0,0)` 
 for the animation. A list or 3-column XYZ matrix
@@ -46,8 +47,8 @@ of orthographic dimensions.}
 
 \item{camera_ups}{Default `NULL`, which gives at up vector of `c(0,1,0)`. Camera up orientation.}
 
-\item{type}{Default `bezier`. Type of transition between keyframes. 
-Other options are `linear`, `quad`, `cubic`, `exp`, and `manual`. `manual` just returns the values 
+\item{type}{Default `cubic`. Type of transition between keyframes. 
+Other options are `linear`, `quad`, `bezier`, `exp`, and `manual`. `manual` just returns the values 
 passed in, properly formatted to be passed to `render_animation()`.}
 
 \item{frames}{Default `30`. Total number of frames.}
@@ -88,7 +89,7 @@ a data.frame that can be passed to `render_animation()`.
 }
 \examples{
 #Create and animate flying through a scene on a simulated roller coaster
-\donttest{
+if(rayrender:::run_documentation()) {
 set.seed(3)
 elliplist = list()
 ellip_colors = rainbow(8)
@@ -109,7 +110,8 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   render_scene(lookfrom=c(0,20,0), width=800,height=800,samples=32,
                camera_up = c(0,0,1),
                fov=80)
-            
+}
+if(rayrender:::run_documentation()) { 
 #Side view     
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -117,7 +119,8 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   add_object(path(camera_pos, material=diffuse(color="red"))) \%>\% 
   render_scene(lookfrom=c(20,0,0),width=800,height=800,samples=32,
                  fov=80)
- 
+ }
+if(rayrender:::run_documentation()) {
 #View from the start        
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -125,12 +128,14 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   add_object(path(camera_pos, material=diffuse(color="red"))) \%>\% 
   render_scene(lookfrom=c(0,1.5,16),width=800,height=800,samples=32,
                  fov=80)
-                 
+ }
+if(rayrender:::run_documentation()) {  
 #Generate Camera movement, setting the lookat position to be same as camera position, but offset
 #slightly in front. We'll render 12 frames, but you'd likely want more in a real animation.
 
 camera_motion =  generate_camera_motion(positions = camera_pos, lookats = camera_pos, 
-                                        offset_lookat = 1, fovs=80, frames=12) 
+                                        offset_lookat = 1, fovs=80, frames=12,
+                                        type="bezier") 
                                         
 #This returns a data frame of individual camera positions, interpolated by cubic bezier curves.
 camera_motion

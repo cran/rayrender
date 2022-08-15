@@ -4,7 +4,8 @@
 #' a data.frame that can be passed to `render_animation()`.
 #' 
 #' @param positions A list or 3-column XYZ matrix of camera positions. 
-#' These will serve as key frames for the camera position.
+#' These will serve as key frames for the camera position. Alternatively, this can also be the a 
+#' dataframe of the keyframe output from an interactive rayrender session (`ray_keyframes`).
 #' @param lookats Default `NULL`, which sets the camera lookat to the origin `c(0,0,0)` 
 #' for the animation. A list or 3-column XYZ matrix
 #' of `lookat` points. Must be the same number of points as `positions`.
@@ -15,8 +16,8 @@
 #' @param ortho_dims Default `NULL`, which results in `c(1,1)` orthographic dimensions.  A list or 2-column matrix
 #' of orthographic dimensions.
 #' @param camera_ups Default `NULL`, which gives at up vector of `c(0,1,0)`. Camera up orientation.
-#' @param type Default `bezier`. Type of transition between keyframes. 
-#' Other options are `linear`, `quad`, `cubic`, `exp`, and `manual`. `manual` just returns the values 
+#' @param type Default `cubic`. Type of transition between keyframes. 
+#' Other options are `linear`, `quad`, `bezier`, `exp`, and `manual`. `manual` just returns the values 
 #' passed in, properly formatted to be passed to `render_animation()`.
 #' @param frames Default `30`. Total number of frames.
 #' @param closed Default `FALSE`. Whether to close the camera curve so the first position matches the last. Set this to `TRUE` for perfect loops.
@@ -42,7 +43,7 @@
 #'
 #' @examples
 #' #Create and animate flying through a scene on a simulated roller coaster
-#' \donttest{
+#' if(rayrender:::run_documentation()) {
 #' set.seed(3)
 #' elliplist = list()
 #' ellip_colors = rainbow(8)
@@ -63,7 +64,8 @@
 #'   render_scene(lookfrom=c(0,20,0), width=800,height=800,samples=32,
 #'                camera_up = c(0,0,1),
 #'                fov=80)
-#'             
+#' }
+#' if(rayrender:::run_documentation()) { 
 #' #Side view     
 #' generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) %>% 
 #'   add_object(ellip_scene) %>% 
@@ -71,7 +73,8 @@
 #'   add_object(path(camera_pos, material=diffuse(color="red"))) %>% 
 #'   render_scene(lookfrom=c(20,0,0),width=800,height=800,samples=32,
 #'                  fov=80)
-#'  
+#'  }
+#' if(rayrender:::run_documentation()) {
 #' #View from the start        
 #' generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) %>% 
 #'   add_object(ellip_scene) %>% 
@@ -79,12 +82,14 @@
 #'   add_object(path(camera_pos, material=diffuse(color="red"))) %>% 
 #'   render_scene(lookfrom=c(0,1.5,16),width=800,height=800,samples=32,
 #'                  fov=80)
-#'                  
+#'  }
+#' if(rayrender:::run_documentation()) {  
 #' #Generate Camera movement, setting the lookat position to be same as camera position, but offset
 #' #slightly in front. We'll render 12 frames, but you'd likely want more in a real animation.
 #' 
 #' camera_motion =  generate_camera_motion(positions = camera_pos, lookats = camera_pos, 
-#'                                         offset_lookat = 1, fovs=80, frames=12) 
+#'                                         offset_lookat = 1, fovs=80, frames=12,
+#'                                         type="bezier") 
 #'                                         
 #' #This returns a data frame of individual camera positions, interpolated by cubic bezier curves.
 #' camera_motion
@@ -111,7 +116,7 @@ generate_camera_motion = function(positions,
                                   focal_distances = NULL, 
                                   ortho_dims = NULL, 
                                   camera_ups = NULL,
-                                  type = "bezier",
+                                  type = "cubic",
                                   frames = 30, 
                                   closed = FALSE, 
                                   aperture_linear = TRUE,  
@@ -127,7 +132,16 @@ generate_camera_motion = function(positions,
                                  "none" = 0,"position" = 1,"lookats" = 2, "both" = 3, 0))
   curvature_adjust_pos = curve_adj_type %in% c(1,3)
   curvature_adjust_look = curve_adj_type %in% c(2,3)
-  
+  if(!is.null(dim(positions)) && ncol(positions) == 14) {
+    temp = positions
+    positions = temp[,1:3]
+    lookats = temp[,4:6]
+    apertures = temp[,7]
+    fovs = temp[,8]
+    focal_distances = temp[,9]
+    ortho_dims = temp[,10:11]
+    camera_ups = temp[,12:14]
+  }
   if(type=="bezier") {
     position_control_points = process_point_series(positions,closed=closed,straight=FALSE)
     points_dist = calculate_distance_along_bezier_curve(position_control_points, breaks = 50)
@@ -195,7 +209,7 @@ generate_camera_motion = function(positions,
         if(length(focal_distances) == 1) {
           focal_final = rep(focal_distances,nrow(points_final))
         } else {
-          focal_final = focal_distances
+          focal_final = tween(focal_distances,n=frames,ease="linear")
         }
       } else {
         focal_control_lookats = process_point_series_1d(focal_distances,closed=closed,straight=focal_linear)
@@ -223,6 +237,7 @@ generate_camera_motion = function(positions,
     }
     return_values = as.data.frame(cbind(points_final,lookats_final,apertures_final,fovs_final,focal_final,ortho_final,
                                         up_final))
+    rownames(return_values) = NULL
     colnames(return_values) = c("x","y","z",
                                 "dx","dy","dz",
                                 "aperture","fov","focal","orthox","orthoy",
@@ -254,8 +269,8 @@ generate_camera_motion = function(positions,
     
     if(is.null(focal_distances)) {
       focal_distances = sqrt((positions$x - lookats$x)^2 + 
-                               (positions$y - lookats$y)^2 + 
-                               (positions$z - lookats$z)^2)
+                             (positions$y - lookats$y)^2 + 
+                             (positions$z - lookats$z)^2)
     } else if (length(focal_distances) == 1) {
       focal_distances = rep(focal_distances,length(positions$x))
     }
@@ -263,10 +278,16 @@ generate_camera_motion = function(positions,
       ortho_dims = matrix(c(1,1),ncol=2,nrow=length(positions$x),byrow=TRUE)
     }
     ortho = grDevices::xy.coords(ortho_dims)
+    if(length(apertures) == 1) {
+      apertures = rep(apertures,length(positions$x))
+    }
+    if(length(apertures) == 1) {
+      fovs = rep(fovs,length(positions$x))
+    }
     tween_df = data.frame(x=positions$x, y=positions$y, z=positions$z,
                           dx=lookats$x, dy=lookats$y, dz=lookats$z,
-                          aperture = rep(apertures,length(positions$x)),
-                          fov = rep(fovs,length(positions$x)),
+                          aperture = apertures,
+                          fov = fovs,
                           focal = focal_distances,
                           orthox = ortho$x, orthoy = ortho$y,
                           upx =camera_ups$x, upy = camera_ups$y ,upz = camera_ups$z)
@@ -277,6 +298,7 @@ generate_camera_motion = function(positions,
       focal_distances = c(focal_distances,focal_distances[1])
     }
     return_values = as.data.frame(apply(tween_df,2,tween, n = frames,ease=type))
+    rownames(return_values) = NULL
     if(aperture_linear) {
       return_values$aperture =tween(apertures,n=frames,ease="linear")
     }
@@ -372,9 +394,6 @@ process_point_series = function(points, closed=FALSE, straight=FALSE) {
     if(nrow(points) == 2 && closed) {
       closed=FALSE
     }
-    if(closed && all(points[1,] != points[nrow(points),])) {
-      points = rbind(points,points[1,])
-    }
   }
   if(inherits(points,"matrix")) {
     if(ncol(points) == 3) {
@@ -429,7 +448,7 @@ process_point_series_1d = function(values, closed=FALSE, straight=FALSE) {
 #' 
 #' @keywords internal
 process_point_series_2d = function(values, closed=FALSE, straight=FALSE) {
-  mat_values = matrix(0,ncol=3,nrow=length(values))
+  mat_values = matrix(0,ncol=3,nrow=nrow(values))
   mat_values[,1] = values[,1]
   mat_values[,2] = values[,2]
   if(!straight) {
@@ -488,7 +507,7 @@ eval_bezier_2nd_deriv = function(cp,t) {
 #' @keywords internal
 cross_prod = function(x,y) {
   return(c(x[2]*y[3]-x[3]*y[2],
-           x[1]*y[3]-x[3]*y[1],
+           -(x[1]*y[3]-x[3]*y[1]),
            x[1]*y[2]-x[2]*y[1]))
 }
 
@@ -504,7 +523,11 @@ calculate_distance_along_bezier_curve = function(cps,breaks=20) {
   prev_pos = eval_bezier(cps[[1]], 0)
   temp_deriv = eval_bezier_deriv(cps[[1]], 0)
   temp_second_deriv = eval_bezier_2nd_deriv(cps[[1]], 0)
-  curve = sqrt(sum(cross_prod(temp_deriv,temp_second_deriv)^2))/sum(temp_deriv^2)^(3/2)
+  if(any(temp_deriv != 0)) {
+    curve = sqrt(sum(cross_prod(temp_deriv,temp_second_deriv)^2))/sum(temp_deriv^2)^(3/2)
+  } else {
+    curve = Inf
+  }
   
   distance_list[[1]] = data.frame(dist=0,segment=1,t=0, x=prev_pos[1],y=prev_pos[2],z=prev_pos[3],
                                   curvature = curve,
@@ -515,11 +538,20 @@ calculate_distance_along_bezier_curve = function(cps,breaks=20) {
       temp_pos = eval_bezier(cps[[seg]], t)
       temp_deriv = eval_bezier_deriv(cps[[seg]], t)
       temp_second_deriv = eval_bezier_2nd_deriv(cps[[seg]], t)
-      curve = sqrt(sum(cross_prod(temp_deriv,temp_second_deriv)^2))/sum(temp_deriv^2)^(3/2)
-      distance_list[[counter]] = data.frame(dist=sqrt(sum((temp_pos-prev_pos)^2)),
-                                            segment=seg,t=(seg+t-1)/length(cps), x=temp_pos[1],y=temp_pos[2],z=temp_pos[3],
-                                            curvature = curve,
-                                            dx=temp_deriv[1],dy=temp_deriv[2],dz=temp_deriv[3])
+      if(any(temp_deriv != 0)) {
+        curve = sqrt(sum(cross_prod(temp_deriv,temp_second_deriv)^2))/sum(temp_deriv^2)^(3/2)
+        distance_list[[counter]] = data.frame(dist=sqrt(sum((temp_pos-prev_pos)^2)),
+                                              segment=seg,t=(seg+t-1)/length(cps), x=temp_pos[1],y=temp_pos[2],z=temp_pos[3],
+                                              curvature = curve,
+                                              dx=temp_deriv[1],dy=temp_deriv[2],dz=temp_deriv[3])
+      } else {
+        curve = Inf
+        distance_list[[counter]] = data.frame(dist=sqrt(sum((temp_pos-prev_pos)^2)),
+                                              segment=seg,t=(seg+t-1)/length(cps), x=temp_pos[1],y=temp_pos[2],z=temp_pos[3],
+                                              curvature = curve,
+                                              dx=temp_deriv[1],dy=temp_deriv[2],dz=temp_deriv[3])
+      }
+      
       prev_pos = temp_pos
       counter = counter + 1
     }
@@ -541,6 +573,12 @@ calculate_distance_along_bezier_curve = function(cps,breaks=20) {
 calculate_final_path = function(linearized_cp, steps, constant_step = TRUE, 
                                 curvature_adjust = FALSE, curvature_scale = 1, offset = 0,
                                 progress = FALSE, string = "") {
+  if(max(linearized_cp$total_dist) < 1e-7) {
+    single_row = linearized_cp[1,c("x","y","z")]
+    single_df = as.data.frame(matrix(as.numeric(single_row),nrow=steps,ncol=3, byrow=T))
+    colnames(single_df) = c("x","y","z")
+    return(single_df)
+  }
   if(constant_step) {
     stepsize = max(linearized_cp$total_dist)/steps
     final_points = list()
@@ -627,4 +665,22 @@ calculate_final_path = function(linearized_cp, steps, constant_step = TRUE,
     }
   }
   return(do.call(rbind,final_points))
+}
+
+#' Get Saved Keyframes
+#'
+#' @description Get a dataframe of the saved keyframes (using the interactive renderer) to pass to `generate_camera_motion()`
+#' @return Data frame of keyframes
+#' 
+#' @export
+#' @examples 
+#' #This will return an empty data frame if no keyframes have been set.
+#' get_saved_keyframes()
+get_saved_keyframes = function() {
+  keyframes = get("keyframes",  envir = ray_environment)
+  if(nrow(keyframes) == 0) {
+    message("No keyframes saved: press K when using interactive preview to save keyframe")
+    return(keyframes)
+  }
+  return(keyframes)
 }
