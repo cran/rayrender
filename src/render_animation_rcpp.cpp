@@ -155,13 +155,13 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
   std::vector<Float* > textures;
   std::vector<int* > nx_ny_nn;
 
-  std::vector<Float* > alpha_textures;
+  std::vector<unsigned char * > alpha_textures;
   std::vector<int* > nx_ny_nn_alpha;
 
-  std::vector<Float* > bump_textures;
+  std::vector<unsigned char * > bump_textures;
   std::vector<int* > nx_ny_nn_bump;
 
-  std::vector<Float* > roughness_textures;
+  std::vector<unsigned char * > roughness_textures;
   std::vector<int* > nx_ny_nn_roughness;
   //Shared material vector
   std::vector<std::shared_ptr<material> >* shared_materials = new std::vector<std::shared_ptr<material> >;
@@ -180,22 +180,20 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
       nx_ny_nn.push_back(nullptr);
     }
     if(has_alpha(i)) {
-      stbi_ldr_to_hdr_gamma(1.0f);
       int nxa, nya, nna;
-      Float* tex_data_alpha = stbi_loadf(alpha_files(i), &nxa, &nya, &nna, 0);
+      unsigned char * tex_data_alpha = stbi_load(alpha_files(i), &nxa, &nya, &nna, 0);
       alpha_textures.push_back(tex_data_alpha);
       nx_ny_nn_alpha.push_back(new int[3]);
       nx_ny_nn_alpha[i][0] = nxa;
       nx_ny_nn_alpha[i][1] = nya;
       nx_ny_nn_alpha[i][2] = nna;
-      stbi_ldr_to_hdr_gamma(2.2f);
     } else {
       alpha_textures.push_back(nullptr);
       nx_ny_nn_alpha.push_back(nullptr);
     }
     if(has_bump(i)) {
       int nxb, nyb, nnb;
-      Float* tex_data_bump = stbi_loadf(bump_files(i), &nxb, &nyb, &nnb, 0);
+      unsigned char * tex_data_bump = stbi_load(bump_files(i), &nxb, &nyb, &nnb, 0);
       bump_textures.push_back(tex_data_bump);
       nx_ny_nn_bump.push_back(new int[3]);
       nx_ny_nn_bump[i][0] = nxb;
@@ -207,7 +205,7 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
     }
     if(has_roughness(i)) {
       int nxr, nyr, nnr;
-      Float* tex_data_roughness = stbi_loadf(roughness_files(i), &nxr, &nyr, &nnr, 0);
+      unsigned char * tex_data_roughness = stbi_load(roughness_files(i), &nxr, &nyr, &nnr, 0);
       roughness_textures.push_back(tex_data_roughness);
       nx_ny_nn_roughness.push_back(new int[3]);
       nx_ny_nn_roughness[i][0] = nxr;
@@ -221,7 +219,8 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
 
   //Initialize transformation cache
   TransformCache transformCache;
-
+  hitable_list imp_sample_objects;
+  
   std::shared_ptr<hitable> worldbvh = build_scene(type, radius, shape, position_list,
                                                   properties,
                                                   n,shutteropen,shutterclose,
@@ -241,7 +240,8 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
                                                   scale_list, sigmavec, glossyinfo,
                                                   shared_id_mat, is_shared_mat, shared_materials,
                                                   image_repeat, csg_info, mesh_list, bvh_type, transformCache,
-                                                  animation_info, rng);
+                                                  animation_info, implicit_sample, imp_sample_objects,
+                                                  verbose, rng);
   auto finish = std::chrono::high_resolution_clock::now();
   if(verbose) {
     std::chrono::duration<double> elapsed = finish - start;
@@ -251,8 +251,8 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
   //Calculate world bounds
   aabb bounding_box_world;
   worldbvh->bounding_box(0,0,bounding_box_world);
-  Float world_radius = bounding_box_world.diag.length()/2 ;
-  vec3f world_center  = bounding_box_world.centroid;
+  Float world_radius = bounding_box_world.Diag().length()/2 ;
+  vec3f world_center  = bounding_box_world.Centroid();
   for(int i = 0; i < cam_x.length(); i++) {
     vec3f lf(cam_x(i),cam_y(i),cam_z(i));
     world_radius = world_radius > (lf - world_center).length() ? world_radius : (lf - world_center ).length();
@@ -279,7 +279,7 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
 
   if(hasbackground) {
     background_texture_data = stbi_loadf(background[0], &nx1, &ny1, &nn1, 0);
-    background_texture = std::make_shared<image_texture>(background_texture_data, nx1, ny1, nn1, 1, 1, intensity_env);
+    background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1, 1, 1, intensity_env);
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
     background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, world_center,
                                                             background_texture, background_material, BackgroundTransform,
@@ -328,31 +328,12 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
                    background_sphere->ObjectToWorld.get(),
                    background_sphere->WorldToObject.get());
   
-
-  hitable_list hlist;
-  if(verbose) {
-    Rcpp::Rcout << "Building Importance Sampling List: ";
-  }
-  start = std::chrono::high_resolution_clock::now();
-  for(int i = 0; i < n; i++)  {
-    if(implicit_sample(i)) {
-      hlist.add(build_imp_sample(type, radius, shape, position_list,
-                                 properties,
-                                 n, shutteropen, shutterclose,
-                                 angle, i, order_rotation_list,
-                                 isgrouped, group_transform,
-                                 fileinfo, filebasedir,transformCache, scale_list,
-                                 mesh_list,bvh_type,  animation_info,
-                                 rng));
-    }
-  }
-  finish = std::chrono::high_resolution_clock::now();
   if(verbose) {
     std::chrono::duration<double> elapsed = finish - start;
     Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
   }
   if(impl_only_bg || hasbackground) {
-    hlist.add(background_sphere);
+    imp_sample_objects.add(background_sphere);
   }
 
   if(verbose && !progress_bar) {
@@ -442,7 +423,7 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
                   routput, goutput,boutput,
                   progress_bar, sample_method, stratified_dim,
                   verbose, cam.get(), fov,
-                  world, hlist,
+                  world, imp_sample_objects,
                   clampval, max_depth, roulette_active,
                   light_direction, rng, sample_dist, keep_colors, backgroundhigh);
       List temp = List::create(_["r"] = routput.ConvertRcpp(), 
@@ -518,7 +499,7 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
                  routput, goutput,boutput,
                  progress_bar, sample_method, stratified_dim,
                  verbose, cam.get(),  fov,
-                 world, hlist,
+                 world, imp_sample_objects,
                  clampval, max_depth, roulette_active, d);
       if(d.terminate) {
         break;
@@ -541,15 +522,19 @@ void render_animation_rcpp(List camera_info, List scene_info, List camera_moveme
   for(int i = 0; i < n; i++) {
     if(isimage(i)) {
       stbi_image_free(textures[i]);
-      delete nx_ny_nn[i];
+      delete[] nx_ny_nn[i];
     }
     if(has_alpha(i)) {
       stbi_image_free(alpha_textures[i]);
-      delete nx_ny_nn_alpha[i];
+      delete[] nx_ny_nn_alpha[i];
     }
     if(has_bump(i)) {
       stbi_image_free(bump_textures[i]);
-      delete nx_ny_nn_bump[i];
+      delete[] nx_ny_nn_bump[i];
+    }
+    if(has_roughness(i)) {
+      stbi_image_free(roughness_textures[i]);
+      delete[] nx_ny_nn_roughness[i];
     }
   }
   delete shared_materials;

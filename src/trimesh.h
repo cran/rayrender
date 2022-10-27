@@ -1,6 +1,7 @@
 #ifndef TRIMESHH
 #define TRIMESHH
 
+#include "trianglemesh.h"
 #include "triangle.h"
 #include "bvh_node.h"
 #include "rng.h"
@@ -10,38 +11,17 @@
 #endif
 #include <Rcpp.h>
 
-inline char separator() {
-  #if defined _WIN32 || defined __CYGWIN__
-    return '\\';
-  #else
-    return '/';
-  #endif
-}
 
 class trimesh : public hitable {
 public:
   trimesh() {}
-  ~trimesh() {
-    for(auto mat : obj_materials) {
-      if(mat) stbi_image_free(mat);
-    }
-    for(auto bump : bump_materials) {
-      if(bump) stbi_image_free(bump);
-    }
-  }
-  trimesh(std::string inputfile, std::string basedir, Float scale, 
-          Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
-          std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation);
   trimesh(std::string inputfile, std::string basedir, Float scale, Float sigma,
-          Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
+          std::shared_ptr<material> default_material, bool load_materials, bool load_textures, bool load_vertex_colors,
+          bool importance_sample_lights, bool load_normals, bool calculate_consistent_normals,
+          hitable_list& imp_sample_objects,
+          Float shutteropen, Float shutterclose, int bvh_type, random_gen rng, bool verbose,
           std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation);
-  trimesh(std::string inputfile, std::string basedir, std::shared_ptr<material> mat, 
-          Float scale, Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
-          std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation);
-  trimesh(std::string inputfile, std::string basedir, float vertex_color_sigma,
-          Float scale, bool is_vertex_color, Float shutteropen, Float shutterclose, int bvh_type, 
-          random_gen rng,
-          std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation);
+  
   virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng);
   virtual bool hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler);
   
@@ -54,13 +34,16 @@ public:
   virtual std::string GetName() const {
     return(std::string("TriangleMesh"));
   }
-  std::shared_ptr<bvh_node> tri_mesh_bvh;
-  std::shared_ptr<material> mat_ptr;
-  std::vector<Float* > obj_materials;
-  std::vector<Float* > bump_materials;
-  std::vector<std::shared_ptr<bump_texture> > bump_textures;
-  std::vector<std::shared_ptr<alpha_texture> > alpha_materials;
+  size_t GetSize();
+  std::pair<size_t,size_t> CountNodeLeaf();
+  
+  //Data Members
+  std::unique_ptr<TriangleMesh> mesh;
   hitable_list triangles;
+
+  //Hitable extras
+  std::shared_ptr<material> mat_ptr;
+  std::shared_ptr<bvh_node> tri_mesh_bvh;
 };
 
 

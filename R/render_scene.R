@@ -108,6 +108,8 @@
 #' @param progress Default `TRUE` if interactive session, `FALSE` otherwise. 
 #' @param verbose Default `FALSE`. Prints information and timing information about scene
 #' construction and raytracing progress.
+#' @param new_page Default `TRUE`. Whether to call `grid::grid.newpage()` when plotting the image (if
+#' no filename specified). Set to `FALSE` for faster plotting (does not affect render time).
 #' @export
 #' @importFrom  grDevices col2rgb
 #' @return Raytraced plot to current device, or an image saved to a file. Invisibly returns the
@@ -185,7 +187,7 @@
 #'                      material = glossy(checkercolor = "white",
 #'                                        checkerperiod=10,color="dodgerblue"))) %>%
 #'   render_scene(lookfrom=c(278,278,30), lookat=c(278,278,500), clamp_value=10,
-#'                fov = 360,  samples = 128, width=800, height=400)
+#'                fov = 360,  samples = 128, width=800, height=800)
 #' }
 #' if(rayrender:::run_documentation()) {
 #'#We can also use a realistic camera by specifying a camera description file (several of which
@@ -203,6 +205,7 @@
 #'                      material = glossy(checkercolor = "white",
 #'                                        checkerperiod=10,color="dodgerblue"))) %>%
 #'   render_scene(lookfrom=c(278,278,-300), lookat=c(278,278,500), clamp_value=10,
+#'                aperture=1, iso = 100000,
 #'                camera_description_file = "fisheye", samples = 128, width=800, height=400)
 #' }
 #' if(rayrender:::run_documentation()) {            
@@ -237,7 +240,9 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
                         tonemap ="gamma", bloom = TRUE, parallel=TRUE, bvh_type = "sah",
                         environment_light = NULL, rotate_env = 0, intensity_env = 1,
                         debug_channel = "none", return_raw_array = FALSE,
-                        progress = interactive(), verbose = FALSE) { 
+                        progress = interactive(), verbose = FALSE, new_page = TRUE) { 
+  init_time()
+  
   #Check if Cornell Box scene and set camera if user did not:
   if(!is.null(attr(scene,"cornell"))) {
     corn_message = "Setting default values for Cornell box: "
@@ -270,7 +275,8 @@ render_scene = function(scene, width = 400, height = 400, fov = 20,
   if(width < 3 || height < 3) {
     stop("Must specify a minimum width/height of 3 or more pixels")
   }
-  if(preview && interactive && has_gui_capability() && debug_channel == "none") {
+  if(preview && interactive && has_gui_capability() &&
+     !is.numeric(debug_channel) && debug_channel ==  "none") {
     message(
 "--------------------------Interactive Mode Controls---------------------------
 W/A/S/D: Horizontal Movement: | Q/Z: Vertical Movement | Up/Down: Adjust FOV | ESC: Close
@@ -279,7 +285,7 @@ P: Print Camera Info | R: Reset Camera |  TAB: Toggle Orbit Mode |  E/C: Adjust 
 K: Save Keyframe | L: Reset Camera to Last Keyframe (if set) | F: Toggle Fast Travel Mode
 Left Mouse Click: Change Look At (new focal distance) | Right Mouse Click: Change Look At ")
   }
-  
+  print_time(verbose, "Pre-processing scene")
   scene_list = prepare_scene_list(scene = scene, width = width, height = height, fov = fov, 
                                   samples = samples,  camera_description_file = camera_description_file, 
                                   camera_scale = camera_scale, iso = iso, film_size = film_size,
@@ -297,13 +303,14 @@ Left Mouse Click: Change Look At (new focal distance) | Right Mouse Click: Chang
                                   intensity_env = intensity_env,
                                   debug_channel = debug_channel, return_raw_array = return_raw_array,
                                   progress = progress, verbose = verbose, sample_dist = Inf)
+  print_time(verbose, "Pre-processed  scene")
   
   camera_info = scene_list$camera_info
   scene_info = scene_list$scene_info
   
   camera_info$preview = preview
   camera_info$interactive = interactive
-
+  debug_channel = scene_info$debug_channel  # converted to numeric
   
   #Pathrace Scene
   rgb_mat = render_scene_rcpp(camera_info = camera_info, scene_info = scene_info) 
@@ -312,6 +319,9 @@ Left Mouse Click: Change Look At (new focal distance) | Right Mouse Click: Chang
     keyframes = do.call(rbind,lapply(attr(rgb_mat,"keyframes"),as.data.frame))
     assign("keyframes",keyframes, envir = ray_environment)
   }
-  return_array = post_process_scene(rgb_mat, iso, tonemap, debug_channel, filename, return_raw_array, bloom)
+  return_array = post_process_scene(rgb_mat, iso, tonemap, debug_channel, filename, return_raw_array, bloom,
+                                    new_page)
+  print_time(verbose, "Post-processed image" );
+  
   return(invisible(return_array))
 }

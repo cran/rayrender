@@ -13,6 +13,10 @@ render_scene_rcpp <- function(camera_info, scene_info) {
     .Call(`_rayrender_render_scene_rcpp`, camera_info, scene_info)
 }
 
+PrintClassSizes <- function() {
+    invisible(.Call(`_rayrender_PrintClassSizes`))
+}
+
 tonemap_image <- function(routput, goutput, boutput, toneval) {
     .Call(`_rayrender_tonemap_image`, routput, goutput, boutput, toneval)
 }

@@ -7,13 +7,13 @@
 #include "texture.h"
 #include "onbh.h"
 #include "vec3.h"
+#include "material.h"
 
 class InfiniteAreaLight: public hitable {
 public:
   InfiniteAreaLight() {}
   ~InfiniteAreaLight() {
     delete distribution;
-    // delete mat_ptr;
   }
   InfiniteAreaLight(int width, int height, Float r, vec3f center, 
                     std::shared_ptr<texture> image,  std::shared_ptr<material> mat,
@@ -30,6 +30,7 @@ public:
   virtual std::string GetName() const {
     return(std::string("EnvironmentLight"));
   }
+  size_t GetSize();
   int width, height;
   Float radius;
   point3f center;

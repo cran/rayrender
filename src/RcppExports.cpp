@@ -52,6 +52,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// PrintClassSizes
+void PrintClassSizes();
+RcppExport SEXP _rayrender_PrintClassSizes() {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    PrintClassSizes();
+    return R_NilValue;
+END_RCPP
+}
 // tonemap_image
 Rcpp::List tonemap_image(Rcpp::NumericMatrix routput, Rcpp::NumericMatrix goutput, Rcpp::NumericMatrix boutput, int toneval);
 RcppExport SEXP _rayrender_tonemap_image(SEXP routputSEXP, SEXP goutputSEXP, SEXP boutputSEXP, SEXP tonevalSEXP) {
@@ -71,6 +80,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rayrender_has_gui_capability", (DL_FUNC) &_rayrender_has_gui_capability, 0},
     {"_rayrender_render_animation_rcpp", (DL_FUNC) &_rayrender_render_animation_rcpp, 10},
     {"_rayrender_render_scene_rcpp", (DL_FUNC) &_rayrender_render_scene_rcpp, 2},
+    {"_rayrender_PrintClassSizes", (DL_FUNC) &_rayrender_PrintClassSizes, 0},
     {"_rayrender_tonemap_image", (DL_FUNC) &_rayrender_tonemap_image, 4},
     {NULL, NULL, 0}
 };

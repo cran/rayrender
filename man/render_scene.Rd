@@ -44,7 +44,8 @@ render_scene(
   debug_channel = "none",
   return_raw_array = FALSE,
   progress = interactive(),
-  verbose = FALSE
+  verbose = FALSE,
+  new_page = TRUE
 )
 }
 \arguments{
@@ -191,6 +192,9 @@ information.}
 
 \item{verbose}{Default `FALSE`. Prints information and timing information about scene
 construction and raytracing progress.}
+
+\item{new_page}{Default `TRUE`. Whether to call `grid::grid.newpage()` when plotting the image (if
+no filename specified). Set to `FALSE` for faster plotting (does not affect render time).}
 }
 \value{
 Raytraced plot to current device, or an image saved to a file. Invisibly returns the
@@ -273,7 +277,7 @@ generate_cornell() \%>\%
                      material = glossy(checkercolor = "white",
                                        checkerperiod=10,color="dodgerblue"))) \%>\%
   render_scene(lookfrom=c(278,278,30), lookat=c(278,278,500), clamp_value=10,
-               fov = 360,  samples = 128, width=800, height=400)
+               fov = 360,  samples = 128, width=800, height=800)
 }
 if(rayrender:::run_documentation()) {
 #We can also use a realistic camera by specifying a camera description file (several of which
@@ -291,6 +295,7 @@ generate_cornell() \%>\%
                      material = glossy(checkercolor = "white",
                                        checkerperiod=10,color="dodgerblue"))) \%>\%
   render_scene(lookfrom=c(278,278,-300), lookat=c(278,278,500), clamp_value=10,
+               aperture=1, iso = 100000,
                camera_description_file = "fisheye", samples = 128, width=800, height=400)
 }
 if(rayrender:::run_documentation()) {            

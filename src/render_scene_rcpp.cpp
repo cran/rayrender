@@ -2,6 +2,62 @@
 #define STB_IMAGE_IMPLEMENTATION 
 #endif
 
+#include <Rcpp.h>
+
+// #define DEBUG_MEMORY
+#ifdef DEBUG_MEMORY
+
+#include <cstdlib>
+#include <iostream>
+#include <new>
+
+
+static std::size_t alloc{0};
+static std::size_t dealloc{0};
+static std::size_t memory_used{0};
+static std::size_t mem_counter(0);
+
+void* operator new(std::size_t sz){
+  alloc += 1;
+  memory_used += sz;
+  Rcpp::Rcout << alloc << " : " << sz << " : " << memory_used << "\n";
+  return std::malloc(sz);
+}
+
+void operator delete(void* ptr) noexcept{
+  dealloc += 1;
+  std::free(ptr);
+}
+
+void* operator new[](std::size_t sz){
+  alloc += 1;
+  memory_used += sz;
+  // Rcpp::Rcout << alloc << " : " << sz << " : " << memory_used << "\n";
+  
+  return std::malloc(sz);
+}
+
+void operator delete[](void* ptr) noexcept {
+  dealloc += 1;
+  std::free(ptr);
+}
+
+void getInfo(){
+  Rcpp::Rcout << "Number of allocations  : " << alloc << std::endl;
+  // Rcpp::Rcout << "Number of deallocations: " << dealloc << std::endl;
+  Rcpp::Rcout << "Total memory used      : " << memory_used <<      " bytes (";
+
+  if(memory_used < 1024) {
+  } else if (memory_used <= 1024*1024) {
+    Rcpp::Rcout << (float)memory_used/(float)1024 << " KB)" << std::endl;
+  } else if (memory_used <= 1024*1024*1024) {
+    Rcpp::Rcout << (float)memory_used/(float)(1024*1024) <<      " MB)" << std::endl;
+  } else {
+    Rcpp::Rcout << (float)memory_used/float(1024*1024*1024) <<      " GB)" << std::endl;
+  }
+}
+#endif
+
 #include "float.h"
 #include "vec3.h"
 #include "vec2.h"
@@ -40,6 +96,13 @@ using namespace std;
 
 // [[Rcpp::export]]
 List render_scene_rcpp(List camera_info, List scene_info) {
+#ifdef DEBUG_MEMORY
+  alloc = 0;
+  // dealloc = 0;
+  memory_used = 0;
+  mem_counter = 0;
+#endif
+
   //Unpack scene info
   bool ambient_light = as<bool>(scene_info["ambient_light"]);
   IntegerVector type = as<IntegerVector>(scene_info["type"]);
@@ -97,9 +160,10 @@ List render_scene_rcpp(List camera_info, List scene_info) {
   List roughness_list = as<List>(scene_info["roughness_list"]);
   List animation_info = as<List>(scene_info["animation_info"]);
 
+  Environment pkg = Environment::namespace_env("rayrender");
+  Function print_time = pkg["print_time"];
+  
 
-
-  auto startfirst = std::chrono::high_resolution_clock::now();
   //Unpack Camera Info
   int nx = as<int>(camera_info["nx"]);
   int ny = as<int>(camera_info["ny"]);
@@ -196,32 +260,32 @@ List render_scene_rcpp(List camera_info, List scene_info) {
                                      aperture, dist_to_focus,
                                      shutteropen, shutterclose));
   }
+  print_time(verbose, "Generated Camera" );
 
 
   int nx1, ny1, nn1;
-  auto start = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    Rcpp::Rcout << "Building BVH: ";
-  }
 
   std::vector<Float* > textures;
   std::vector<int* > nx_ny_nn;
 
-  std::vector<Float* > alpha_textures;
+  std::vector<unsigned char * > alpha_textures;
   std::vector<int* > nx_ny_nn_alpha;
 
-  std::vector<Float* > bump_textures;
+  std::vector<unsigned char * > bump_textures;
   std::vector<int* > nx_ny_nn_bump;
 
-  std::vector<Float* > roughness_textures;
+  std::vector<unsigned char * > roughness_textures;
   std::vector<int* > nx_ny_nn_roughness;
   //Shared material vector
   std::vector<std::shared_ptr<material> >* shared_materials = new std::vector<std::shared_ptr<material> >;
 
+  
+  size_t texture_bytes = 0;
   for(int i = 0; i < n; i++) {
     if(isimage(i)) {
       int nx, ny, nn;
       Float* tex_data = stbi_loadf(filelocation(i), &nx, &ny, &nn, 0);
+      texture_bytes += nx * ny * nn;
       textures.push_back(tex_data);
       nx_ny_nn.push_back(new int[3]);
       nx_ny_nn[i][0] = nx;
@@ -232,22 +296,22 @@ List render_scene_rcpp(List camera_info, List scene_info) {
       nx_ny_nn.push_back(nullptr);
     }
     if(has_alpha(i)) {
-      stbi_ldr_to_hdr_gamma(1.0f);
       int nxa, nya, nna;
-      Float* tex_data_alpha = stbi_loadf(alpha_files(i), &nxa, &nya, &nna, 0);
+      unsigned char * tex_data_alpha = stbi_load(alpha_files(i), &nxa, &nya, &nna, 0);
+      texture_bytes += nxa * nya * nna;
+      
       alpha_textures.push_back(tex_data_alpha);
       nx_ny_nn_alpha.push_back(new int[3]);
       nx_ny_nn_alpha[i][0] = nxa;
       nx_ny_nn_alpha[i][1] = nya;
       nx_ny_nn_alpha[i][2] = nna;
-      stbi_ldr_to_hdr_gamma(2.2f);
     } else {
       alpha_textures.push_back(nullptr);
       nx_ny_nn_alpha.push_back(nullptr);
     }
     if(has_bump(i)) {
       int nxb, nyb, nnb;
-      Float* tex_data_bump = stbi_loadf(bump_files(i), &nxb, &nyb, &nnb, 0);
+      unsigned char * tex_data_bump = stbi_load(bump_files(i), &nxb, &nyb, &nnb, 0);
       bump_textures.push_back(tex_data_bump);
       nx_ny_nn_bump.push_back(new int[3]);
       nx_ny_nn_bump[i][0] = nxb;
@@ -260,7 +324,9 @@ List render_scene_rcpp(List camera_info, List scene_info) {
     if(has_roughness(i)) {
       NumericVector temp_glossy = as<NumericVector>(glossyinfo(i));
       int nxr, nyr, nnr;
-      Float* tex_data_roughness = stbi_loadf(roughness_files(i), &nxr, &nyr, &nnr, 0);
+      unsigned char * tex_data_roughness = stbi_load(roughness_files(i), &nxr, &nyr, &nnr, 0);
+      texture_bytes += nxr * nyr * nnr;
+      
       Float min = temp_glossy(9), max = temp_glossy(10);
       Float rough_range = max-min;
       Float maxr = 0, minr = 1;
@@ -306,8 +372,9 @@ List render_scene_rcpp(List camera_info, List scene_info) {
       nx_ny_nn_roughness.push_back(nullptr);
     }
   }
-
-
+  print_time(verbose, "Loaded Textures" );
+  
+  hitable_list imp_sample_objects;
   std::shared_ptr<hitable> worldbvh = build_scene(type, radius, shape, position_list,
                                 properties,
                                 n,shutteropen,shutterclose,
@@ -327,18 +394,15 @@ List render_scene_rcpp(List camera_info, List scene_info) {
                                 scale_list, sigmavec, glossyinfo,
                                 shared_id_mat, is_shared_mat, shared_materials,
                                 image_repeat, csg_info, mesh_list, bvh_type, transformCache,
-                                animation_info, rng);
-  auto finish = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
+                                animation_info, implicit_sample, imp_sample_objects,
+                                verbose, rng);
+  print_time(verbose, "Built Scene BVH" );
 
   //Calculate world bounds and ensure camera is inside infinite area light
   aabb bounding_box_world;
   worldbvh->bounding_box(0,0,bounding_box_world);
-  Float world_radius = bounding_box_world.diag.length()/2 ;
-  vec3f world_center  = bounding_box_world.centroid;
+  Float world_radius = bounding_box_world.Diag().length()/2 ;
+  vec3f world_center  = bounding_box_world.Centroid();
   world_radius = world_radius > (lookfrom - world_center).length() ? world_radius : (lookfrom - world_center ).length();
   world_radius *= interactive ? 100 : 1;
   
@@ -347,11 +411,6 @@ List render_scene_rcpp(List camera_info, List scene_info) {
     world_radius += ortho_diag;
   }
 
-  //Initialize background
-  if(verbose && hasbackground) {
-    Rcpp::Rcout << "Loading Environment Image: ";
-  }
-  start = std::chrono::high_resolution_clock::now();
   std::shared_ptr<texture> background_texture = nullptr;
   std::shared_ptr<material> background_material = nullptr;
   std::shared_ptr<hitable> background_sphere = nullptr;
@@ -367,11 +426,12 @@ List render_scene_rcpp(List camera_info, List scene_info) {
   }
   std::shared_ptr<Transform> BackgroundTransform = transformCacheBg.Lookup(BackgroundAngle);
   std::shared_ptr<Transform> BackgroundTransformInv = transformCacheBg.Lookup(BackgroundAngle.GetInverseMatrix());
-
   if(hasbackground) {
     background_texture_data = stbi_loadf(background[0], &nx1, &ny1, &nn1, 0);
+    texture_bytes += nx1 * ny1 * nn1;
+    
     if(background_texture_data) {
-      background_texture = std::make_shared<image_texture>(background_texture_data, nx1, ny1, nn1, 1, 1, intensity_env);
+      background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1, 1, 1, intensity_env);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
       background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, vec3f(0.f),
                                                 background_texture, background_material,
@@ -404,6 +464,7 @@ List render_scene_rcpp(List camera_info, List scene_info) {
     background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, vec3f(0.f),
                                               background_texture, background_material,
                                               BackgroundTransform,BackgroundTransformInv,false);
+
   } else {
     //Minimum intensity FLT_MIN so the CDF isn't NAN
     background_texture = std::make_shared<constant_texture>(vec3f(FLT_MIN,FLT_MIN,FLT_MIN));
@@ -413,24 +474,12 @@ List render_scene_rcpp(List camera_info, List scene_info) {
                                               BackgroundTransform,
                                               BackgroundTransformInv,false);
   }
-  finish = std::chrono::high_resolution_clock::now();
-  if(verbose && hasbackground) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
-  int numbertosample = 0;
-  for(int i = 0; i < implicit_sample.size(); i++) {
-    if(implicit_sample(i)) {
-      numbertosample++;
-    }
-  }
-
+  print_time(verbose, "Loaded background" );
   hitable_list world;
-
   world.add(worldbvh);
 
   bool impl_only_bg = false;
-  if((numbertosample == 0 || hasbackground || ambient_light || interactive) && debug_channel != 18) {
+  if((imp_sample_objects.size() == 0 || hasbackground || ambient_light || interactive) && debug_channel != 18) {
     world.add(background_sphere);
     impl_only_bg = true;
   }
@@ -440,56 +489,22 @@ List render_scene_rcpp(List camera_info, List scene_info) {
                          background_sphere->ObjectToWorld.get(),
                          background_sphere->WorldToObject.get());
   
-
-  hitable_list hlist;
-  if(verbose) {
-    Rcpp::Rcout << "Building Importance Sampling List: ";
-  }
-  start = std::chrono::high_resolution_clock::now();
-  for(int i = 0; i < n; i++)  {
-    if(implicit_sample(i)) {
-      hlist.add(build_imp_sample(type, radius, shape, position_list,
-                               properties,
-                               n, shutteropen, shutterclose,
-                               angle, i, order_rotation_list,
-                               isgrouped, group_transform,
-                               fileinfo, filebasedir,
-                               transformCache ,scale_list,
-                               mesh_list,bvh_type, animation_info,  rng));
-    }
-  }
-  finish = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
   if(impl_only_bg || hasbackground) {
-    hlist.add(background_sphere);
+    imp_sample_objects.add(background_sphere);
   }
 
-  if(verbose && !progress_bar) {
-    Rcpp::Rcout << "Starting Raytracing:\n ";
-  }
-  RProgress::RProgress pb_sampler("Generating Samples [:bar] :percent%");
-  pb_sampler.set_width(70);
-  RProgress::RProgress pb("Adaptive Raytracing [:bar] :percent%");
-  pb.set_width(70);
-
-  if(progress_bar) {
-    pb_sampler.set_total(ny);
-    pb.set_total(ns);
-  }
   if(min_variance == 0) {
     min_adaptive_size = 1;
     min_variance = 10E-8;
   }
+  // Rcpp::Rcout << "Total world size: " << world.GetSize() + texture_bytes << " (Textures: " << texture_bytes << ") \n";
   if(debug_channel != 0) {
     debug_scene(numbercores, nx, ny, ns, debug_channel,
                 min_variance, min_adaptive_size,
                 routput, goutput,boutput,
                 progress_bar, sample_method, stratified_dim,
                 verbose, cam.get(), fov,
-                world, hlist, 
+                world, imp_sample_objects, 
                 clampval, max_depth, roulette_active,
                 light_direction, rng, sample_dist, keep_colors,
                 backgroundhigh);
@@ -499,41 +514,34 @@ List render_scene_rcpp(List camera_info, List scene_info) {
                routput, goutput,boutput,
                progress_bar, sample_method, stratified_dim,
                verbose, cam.get(),  fov,
-               world, hlist,
+               world, imp_sample_objects,
                clampval, max_depth, roulette_active, Display);
   }
 
-  if(verbose) {
-    Rcpp::Rcout << "Cleaning up memory..." << "\n";
-  }
   if(hasbackground) {
     stbi_image_free(background_texture_data);
   }
   for(int i = 0; i < n; i++) {
     if(isimage(i)) {
       stbi_image_free(textures[i]);
-      delete nx_ny_nn[i];
+      delete[] nx_ny_nn[i];
     }
     if(has_alpha(i)) {
       stbi_image_free(alpha_textures[i]);
-      delete nx_ny_nn_alpha[i];
+      delete[] nx_ny_nn_alpha[i];
     }
     if(has_bump(i)) {
       stbi_image_free(bump_textures[i]);
-      delete nx_ny_nn_bump[i];
+      delete[] nx_ny_nn_bump[i];
     }
     if(has_roughness(i)) {
       stbi_image_free(roughness_textures[i]);
-      delete nx_ny_nn_roughness[i];
+      delete[] nx_ny_nn_roughness[i];
     }
   }
   delete shared_materials;
   PutRNGstate();
-  finish = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - startfirst;
-    Rcpp::Rcout << "Total time elapsed: " << elapsed.count() << " seconds" << "\n";
-  }
+  print_time(verbose, "Finished rendering" );
   List final_image = List::create(_["r"] = routput.ConvertRcpp(), 
                                   _["g"] = goutput.ConvertRcpp(), 
                                   _["b"] = boutput.ConvertRcpp());
@@ -544,5 +552,68 @@ List render_scene_rcpp(List camera_info, List scene_info) {
     }
     final_image.attr("keyframes") = keyframes;
   }
+#ifdef DEBUG_MEMORY
+  Rcpp::Rcout << "Test alloc #" << mem_counter << "\n";
+  mem_counter++;
+  getInfo();
+#endif
   return(final_image);
 }
+
+
+// [[Rcpp::export]] 
+void PrintClassSizes() {
+  Rcpp::Rcout << "hitable                  : " << sizeof(hitable) << "\n";
+  Rcpp::Rcout << "---sphere                : " << sizeof(sphere) << "\n";
+  Rcpp::Rcout << "---xy_rect               : " << sizeof(xy_rect) << "\n";
+  Rcpp::Rcout << "---xz_rect               : " << sizeof(xz_rect) << "\n";
+  Rcpp::Rcout << "---yz_rect               : " << sizeof(yz_rect) << "\n";
+  Rcpp::Rcout << "---box                   : " << sizeof(box) << "\n";
+  Rcpp::Rcout << "---AnimatedHitable       : " << sizeof(AnimatedHitable) << "\n";
+  Rcpp::Rcout << "---triangle              : " << sizeof(triangle) << "\n";
+  Rcpp::Rcout << "---trimesh               : " << sizeof(trimesh) << "\n";
+  Rcpp::Rcout << "---disk                  : " << sizeof(disk) << "\n";
+  Rcpp::Rcout << "---cylinder              : " << sizeof(cylinder) << "\n";
+  Rcpp::Rcout << "---ellipsoid             : " << sizeof(ellipsoid) << "\n";
+  Rcpp::Rcout << "---cone                  : " << sizeof(cone) << "\n";
+  Rcpp::Rcout << "---curve                 : " << sizeof(curve) << "\n";
+  Rcpp::Rcout << "---csg                   : " << sizeof(csg) << "\n";
+  Rcpp::Rcout << "---plymesh               : " << sizeof(plymesh) << "\n";
+  Rcpp::Rcout << "---mesh3d                : " << sizeof(mesh3d) << "\n\n";
+  Rcpp::Rcout << "---InfiniteAreaLight     : " << sizeof(InfiniteAreaLight) << "\n\n";
+  
+  Rcpp::Rcout << "Float                    : " << sizeof(Float) << "\n";
+  Rcpp::Rcout << "Matrix4x4                : " << sizeof(Matrix4x4) << "\n";
+  Rcpp::Rcout << "Transform                : " << sizeof(Transform) << "\n";
+  Rcpp::Rcout << "TransformCache           : " << sizeof(TransformCache) << "\n";
+  Rcpp::Rcout << "RayMatrix                : " << sizeof(RayMatrix) << "\n";
+  Rcpp::Rcout << "vec3f                    : " << sizeof(vec3f) << "\n";
+  Rcpp::Rcout << "vec3i                    : " << sizeof(vec3i) << "\n";
+  Rcpp::Rcout << "point3f                  : " << sizeof(point3f) << "\n";
+  Rcpp::Rcout << "point3f                  : " << sizeof(point3f) << "\n";
+  Rcpp::Rcout << "vec2f                    : " << sizeof(vec2f) << "\n";
+  Rcpp::Rcout << "vec2i                    : " << sizeof(vec2i) << "\n";
+  Rcpp::Rcout << "random_gen               : " << sizeof(random_gen) << "\n";
+  Rcpp::Rcout << "aabb                     : " << sizeof(aabb) << "\n\n";
+  Rcpp::Rcout << "bvh_node                 : " << sizeof(bvh_node) << "\n\n";
+  Rcpp::Rcout << "hitable_list             : " << sizeof(hitable_list) << "\n\n";
+  
+  Rcpp::Rcout << "RayCamera                : " << sizeof(RayCamera) << "\n";
+  Rcpp::Rcout << "---camera                : " << sizeof(camera) << "\n";
+  Rcpp::Rcout << "---ortho_camera          : " << sizeof(ortho_camera) << "\n";
+  Rcpp::Rcout << "---environment_camera    : " << sizeof(RayCamera) << "\n";
+  Rcpp::Rcout << "---RealisticCamera       : " << sizeof(RealisticCamera) << "\n\n";
+  Rcpp::Rcout << "material                 : " << sizeof(material) << "\n";
+  Rcpp::Rcout << "---lambertian            : " << sizeof(lambertian) << "\n";
+  Rcpp::Rcout << "---metal                 : " << sizeof(metal) << "\n";
+  Rcpp::Rcout << "---dielectric            : " << sizeof(dielectric) << "\n";
+  Rcpp::Rcout << "---diffuse_light         : " << sizeof(diffuse_light) << "\n";
+  Rcpp::Rcout << "---spot_light            : " << sizeof(spot_light) << "\n";
+  Rcpp::Rcout << "---isotropic             : " << sizeof(isotropic) << "\n";
+  Rcpp::Rcout << "---orennayar             : " << sizeof(orennayar) << "\n";
+  Rcpp::Rcout << "---MicrofacetReflection  : " << sizeof(MicrofacetReflection) << "\n";
+  Rcpp::Rcout << "---MicrofacetTransmission: " << sizeof(MicrofacetTransmission) << "\n";
+  Rcpp::Rcout << "---glossy                : " << sizeof(glossy) << "\n";
+  Rcpp::Rcout << "---hair                  : " << sizeof(hair) << "\n";
+}
+
