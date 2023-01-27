@@ -1,4 +1,4 @@
-3b654f75284e828001901b0587d872af *DESCRIPTION
+6d57389c7475baec878b63ab11d868ac *DESCRIPTION
 2545b67e9de3248a9ea0047ac7df2e58 *NAMESPACE
 b69f2acb1785967e2a277048c370d394 *R/RcppExports.R
 f9ce7e03b9458b839f70fa639fadf844 *R/add_object.R
@@ -6,13 +6,13 @@ e51a75d24e2de530769fb52b66b56ae6 *R/animate_objects.R
 4c53940e2fb7abc47c7722566e50e557 *R/convert_color.R
 100f14b8a622c1cf89218e435164b277 *R/csg_construct.R
 a6c98241389160fdd0b7f679264bffb2 *R/flipfunctions.R
-2b2a6d9c5308672a693dc811a9d598e5 *R/generate_camera_motion.R
+1b74bc8962e5cf490f983433328fe6d7 *R/generate_camera_motion.R
 5e0f2ac5ec3925ea3a0700681c0ecfe2 *R/generate_cornell.R
 aad4bf2794c9b05ae17a03b13db793fa *R/generate_ground.R
 bb2e6d39f3f27e9c5ad919793a000681 *R/generate_studio.R
 16ec27c367bab0523efd8d87a4c3a6cd *R/group_objects.R
 a186e96823a2145a3a0ee620657180a5 *R/materials.R
-653f40d06bc766ab895f11a2ebbdd047 *R/objects.R
+bd3dcd6fb9a66e9f91051671769a48f9 *R/objects.R
 14e964876187d97775ec498db0b59c49 *R/pig.R
 9c1d3e10d170b636a0d20c5e0f8155d3 *R/post_process_frame.R
 d77ca6ee9d0c265b3ad6c2b596b85895 *R/post_process_scene.R
@@ -30,8 +30,8 @@ b241fb2a3d0d2928077dd69e59e907e0 *R/util-functions.R
 d3b7a853fc3c9ab92892f13d17dd0983 *R/zzz.R
 31f2e786639db3d57a409ad5db469a89 *cleanup
 b48d6e918bc455fe35fc93eb779fc5f1 *cleanup.win
-be4ea02476489d06b96fe15ef58d38b8 *configure
-ce4d04b657439481028d172fc6a068d3 *configure.ac
+7646721e823ee223f6318ef0098b77ef *configure
+0e328250c461ee0be09d6fdd0753caac *configure.ac
 97e79ffd2dea32cd65d354a69f19fd49 *configure.win
 6d87aea5e48d75aba0fad459e512a9f7 *inst/COPYRIGHTS
 ad000cd2643d822c3f7c63e15afbebda *inst/extdata/dgauss.50mm.txt
@@ -95,7 +95,7 @@ d7019714d504330d20f61443882ed2eb *man/extruded_path.Rd
 03aeeabbb00da7e2065ba1d7840d536c *man/extruded_polygon.Rd
 2c359449284cb32f81df273c94c6f5cc *man/fliplr.Rd
 dd760cb7d9a8d20680b0dace0c65cf8d *man/flipud.Rd
-859b6e4c4cb4add751262303fea36cbb *man/generate_camera_motion.Rd
+30aad8925eb05ee46067bc8da44242a9 *man/generate_camera_motion.Rd
 d44d782caed449491bf66afe37034201 *man/generate_cornell.Rd
 4810f68fe12064df9b7ba4692ecefe0f *man/generate_ground.Rd
 90538927b1bc9370b52e98d72aedc6c4 *man/generate_rotation_matrix.Rd
@@ -158,7 +158,7 @@ bf0c8f3ac59f51cf7c5a97f067e8b172 *src/animatedtransform.h
 a97b28db31c41f641f3aad9399778ab5 *src/bounds.h
 240cc778aac863cb7af331b7e1471011 *src/box.cpp
 d018d5b5f65c6582f0eb91056ce6a8c6 *src/box.h
-95ea57ec7ad8e81b1d03e4b19c15c868 *src/buildscene.cpp
+dfc6deaeaa802f5a884cadee7b13243b *src/buildscene.cpp
 95f9d9846701b22a19db17a91733a298 *src/buildscene.h
 ea2462657c4f54d57561255ec76c8469 *src/bvh_node.cpp
 699bc657ad7f9673fbf657fe72b62b33 *src/bvh_node.h
@@ -181,7 +181,7 @@ c847dd19702a5f5040dbd63609102a00 *src/debug.cpp
 6b1e4e48bb6f98984bd4dfd5da64d77d *src/define_functions.cpp
 b7370543983a995e43a4b1ee2bba13c2 *src/disk.cpp
 88ba0c783cc58a075fbafb2863b08fd3 *src/disk.h
-dd4b7416e1d2d970f8c2bef64cd40bf9 *src/distributions.cpp
+a396859295d206f11578ceae8270c8a6 *src/distributions.cpp
 07ec71fa32f212477b2deb93c699ae98 *src/distributions.h
 615b9bb9ae091321605683dbbc0c0584 *src/efloat.h
 38ab9afe8b64151e1f24357937ac3ae8 *src/ellipsoid.cpp
@@ -196,16 +196,16 @@ bdfcda662c2c16bbf10e4bc21f348aa7 *src/hitablelist.cpp
 4e434d79e869a33928b6b9902dd898c3 *src/hitablelist.h
 ba95c64646e023ed6fe303dd19e6f97c *src/infinite_area_light.cpp
 5fbdaa2af3d6710b95b2f4ef058b26a5 *src/infinite_area_light.h
-70bcf81a13e7ee0d722dfdf66ebb7294 *src/integrator.cpp
+c699896aa1cda91ed8fc1ec112edf5a3 *src/integrator.cpp
 4d8f596783b06775f3a8e48727888666 *src/integrator.h
 c70b02d0a922cca1902c7e9c6a575130 *src/interval.h
 9aca09e4210eed4e5e65b78962656a77 *src/material.cpp
 d4252bc227e7aa9c4af60990d40d226d *src/material.h
-a0cdb16c3aece74410ac0a4f41bdb2ff *src/mathinline.h
+a71879c26096d12eb04b20b07fea33b6 *src/mathinline.h
 ca5f2fbd1303d9dd3d2f081ba0a3aded *src/matrix.cpp
 da30a710284dd4b9db373f9a8915e224 *src/matrix.h
 54e588489a16d7399accd5d7476d38ca *src/medium.h
-e2dfaa61eb7ef575b7208995c6b41b9c *src/mesh3d.cpp
+11121134a2bae2d53e790f26dc7166c2 *src/mesh3d.cpp
 214a9c8df681867d52577726b26edee8 *src/mesh3d.h
 b883938d26072c4b1aad009735bf555c *src/microfacetdist.cpp
 744435618c0024073619bc0a3d52ece3 *src/microfacetdist.h
@@ -232,7 +232,7 @@ fc08e714d7be4a29a07b64924c480515 *src/ray.h
 433ad7eb606e8ebbad8928d210c01f19 *src/rectangle.cpp
 0d773fd1df4ba00a698028feb7e3d5bc *src/rectangle.h
 dfb585ac33a6d096e0dc815b58c8184b *src/render_animation_rcpp.cpp
-f8d04aa754c4ce81907da4b62342a19e *src/render_scene_rcpp.cpp
+5d487bd733ef3f3af1a1de2984558b20 *src/render_scene_rcpp.cpp
 c7530b2aa7dafeefb44af3705a24585a *src/rng.cpp
 c5fcc024ca879b5301de8a3fd7b61843 *src/rng.h
 2650f1422d882874964f2082700d21ff *src/sampler.cpp
@@ -242,7 +242,6 @@ ddcb2c5b54e61747fbf2dc58c642503e *src/sphere.cpp
 a10775f6d474238f1fdbb3190858595e *src/sphere.h
 d770c52ee44672b52fc78db8c6a1eed9 *src/stb_image.h
 7381a7070120fd5a36d8fb9e3179dd7c *src/stb_image_resize.h
-0813295ae33e3f1b0be3137541996f8b *src/test_windows.cpp
 b2507bd94314f5588ec71769b31a6b04 *src/texture.cpp
 ec12cf5dfbfe3fc4037f3dd1b83273e3 *src/texture.h
 3eab7e6a1241255728e543ab2067b82f *src/tinyobj/earcut.hpp
@@ -255,7 +254,7 @@ b8e774b7223deea9438ab8a2a791234d *src/transform.h
 1417e2410efe4543b31e89200e6802ba *src/transformcache.h
 d8a3aea26ca7b0ab7385fa3c294450b5 *src/triangle.cpp
 da4aed32779172046b9912b106725be2 *src/triangle.h
-4f0dc5695bca5f484bb2dc8cfdef2c6a *src/trianglemesh.cpp
+d93bbe8c109f9b497785072b521e1b07 *src/trianglemesh.cpp
 e710e044b4377b2edbebb8b223028647 *src/trianglemesh.h
 707dad7390bb6d221aeaca8141dfc6d8 *src/trimesh.cpp
 221c3351df92eb5eb97ed79d9a771b56 *src/trimesh.h
