@@ -1,4 +1,4 @@
-6d57389c7475baec878b63ab11d868ac *DESCRIPTION
+d03e7bceb42590eb202635c0fe27c3e4 *DESCRIPTION
 2545b67e9de3248a9ea0047ac7df2e58 *NAMESPACE
 b69f2acb1785967e2a277048c370d394 *R/RcppExports.R
 f9ce7e03b9458b839f70fa639fadf844 *R/add_object.R
@@ -11,8 +11,8 @@ a6c98241389160fdd0b7f679264bffb2 *R/flipfunctions.R
 aad4bf2794c9b05ae17a03b13db793fa *R/generate_ground.R
 bb2e6d39f3f27e9c5ad919793a000681 *R/generate_studio.R
 16ec27c367bab0523efd8d87a4c3a6cd *R/group_objects.R
-a186e96823a2145a3a0ee620657180a5 *R/materials.R
-bd3dcd6fb9a66e9f91051671769a48f9 *R/objects.R
+624f5eea272a15675ffceccf453e0730 *R/materials.R
+65bb3f8956747452f0bb1e99a433484c *R/objects.R
 14e964876187d97775ec498db0b59c49 *R/pig.R
 9c1d3e10d170b636a0d20c5e0f8155d3 *R/post_process_frame.R
 d77ca6ee9d0c265b3ad6c2b596b85895 *R/post_process_scene.R
@@ -22,7 +22,7 @@ ae69f0d3b8fbb4ca47753cbc57617167 *R/rayrenderrcpp.R
 509343cdecdd548d9ff1de94f496495e *R/render_animation.R
 c188a3e9bad25eaa2fb2ec2a36227d3a *R/render_ao.R
 c876286be0b11d8b532eacd6eb279105 *R/render_preview.R
-f68bbd772d5243a61a0f37ac980344e1 *R/render_scene.R
+51f5b7c724eccab4fa518d7a62bc1f35 *R/render_scene.R
 7777a7cde11cda3fa9bfe1e7eb9f2c65 *R/save_png.R
 c245969cd199279cd0fef3bccbf2f42c *R/scene_row.R
 b241fb2a3d0d2928077dd69e59e907e0 *R/util-functions.R
@@ -92,7 +92,7 @@ a9a2c0467174cfa65b3031aeb3f3ec8a *man/diffuse.Rd
 18726eeabac7dc762a4db8272015e12a *man/eval_bezier_deriv.Rd
 75b75c8977eb67aaa9d8ed3a639f2432 *man/expInOut.Rd
 d7019714d504330d20f61443882ed2eb *man/extruded_path.Rd
-03aeeabbb00da7e2065ba1d7840d536c *man/extruded_polygon.Rd
+0f4cc94041b2d37d47f9c87484212195 *man/extruded_polygon.Rd
 2c359449284cb32f81df273c94c6f5cc *man/fliplr.Rd
 dd760cb7d9a8d20680b0dace0c65cf8d *man/flipud.Rd
 30aad8925eb05ee46067bc8da44242a9 *man/generate_camera_motion.Rd
@@ -131,7 +131,7 @@ a8dedac7f6e6fa3576b8fa86f2ea41d7 *man/quadInOut.Rd
 6ca1194d3bac673ffa02b6dcbc70571e *man/render_animation.Rd
 13b375a76dc01178a7a32fb944d7e87d *man/render_ao.Rd
 cf22f36c8d398a33a2e007412be1f835 *man/render_preview.Rd
-de6453631fdd0cd3bfeab86e2dbc695d *man/render_scene.Rd
+0adb7a84993965965231333188ed8983 *man/render_scene.Rd
 20149427e120d8f13027ec3d6d79af31 *man/run_documentation.Rd
 6124c5de44453fa94319bfbf2a315191 *man/save_png.Rd
 29402649e5617d7ff44da3cccf918533 *man/segment.Rd
@@ -260,3 +260,5 @@ e710e044b4377b2edbebb8b223028647 *src/trianglemesh.h
 221c3351df92eb5eb97ed79d9a771b56 *src/trimesh.h
 78c7d330969b40cb2e4a76759a4a92f4 *src/vec2.h
 3a2f32558c2eb12417d1e106f71d1b43 *src/vec3.h
+37078fcf2e6f3997de46f8814ca08a1f *tests/testthat.R
+2956a7296cf828fa3e9265f8cbd7c10e *tests/testthat/test-basic-rendering.R

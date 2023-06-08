@@ -29,7 +29,8 @@ extruded_polygon(
 \item{polygon}{`sf` object, "SpatialPolygon" `sp` object,  or xy coordinates
 of polygon represented in a way that can be processed by `xy.coords()`.  If
 xy-coordinate based polygons are open, they will be closed by adding an
-edge from the last point to the first.}
+edge from the last point to the first. If the `sf` object contains MULTIPOLYGONZ data, it will
+flattened.}
 
 \item{x}{Default `0`. x-coordinate to offset the extruded model.}
 

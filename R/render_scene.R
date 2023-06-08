@@ -78,8 +78,7 @@
 #' Default `gamma` solely adjusts for gamma and clamps values greater than 1 to 1. 
 #' `reinhold` scales values by their individual color channels `color/(1+color)` and then performs the 
 #' gamma adjustment. `uncharted` uses the mapping developed for Uncharted 2 by John Hable. `hbd` uses an
-#' optimized formula by Jim Hejl and Richard Burgess-Dawson. Note: If set to anything other than `gamma`,
-#' objects with material `light()` may not be anti-aliased. If `raw`, the raw array of HDR values will be
+#' optimized formula by Jim Hejl and Richard Burgess-Dawson. If `raw`, the raw array of HDR values will be
 #' returned, rather than an image or a plot.
 #' @param bloom Default `TRUE`. Set to `FALSE` to get the raw, pathtraced image. Otherwise,
 #' this performs a convolution of the HDR image of the scene with a sharp, long-tailed
@@ -286,6 +285,7 @@ K: Save Keyframe | L: Reset Camera to Last Keyframe (if set) | F: Toggle Fast Tr
 Left Mouse Click: Change Look At (new focal distance) | Right Mouse Click: Change Look At ")
   }
   print_time(verbose, "Pre-processing scene")
+  debug_string = debug_channel
   scene_list = prepare_scene_list(scene = scene, width = width, height = height, fov = fov, 
                                   samples = samples,  camera_description_file = camera_description_file, 
                                   camera_scale = camera_scale, iso = iso, film_size = film_size,
@@ -319,7 +319,7 @@ Left Mouse Click: Change Look At (new focal distance) | Right Mouse Click: Chang
     keyframes = do.call(rbind,lapply(attr(rgb_mat,"keyframes"),as.data.frame))
     assign("keyframes",keyframes, envir = ray_environment)
   }
-  return_array = post_process_scene(rgb_mat, iso, tonemap, debug_channel, filename, return_raw_array, bloom,
+  return_array = post_process_scene(rgb_mat, iso, tonemap, debug_string, filename, return_raw_array, bloom,
                                     new_page)
   print_time(verbose, "Post-processed image" );
   
