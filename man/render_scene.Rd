@@ -18,7 +18,7 @@ render_scene(
   film_size = 22,
   min_variance = 5e-05,
   min_adaptive_size = 8,
-  sample_method = "sobol",
+  sample_method = "sobol_blue",
   max_depth = NA,
   roulette_active_depth = 100,
   ambient_light = NULL,
@@ -41,6 +41,7 @@ render_scene(
   environment_light = NULL,
   rotate_env = 0,
   intensity_env = 1,
+  transparent_background = FALSE,
   debug_channel = "none",
   return_raw_array = FALSE,
   progress = interactive(),
@@ -105,7 +106,8 @@ will use the maximum number of samples everywhere.}
 \item{sample_method}{Default `sobol`. The type of sampling method used to generate
 random numbers. The other options are `random` (worst quality but fastest), 
 `stratified` (only implemented for completion), `sobol_blue` (best option for sample counts below 256), 
-and `sobol` (slowest but best quality, better than `sobol_blue` for sample counts greater than 256).}
+and `sobol` (slowest but best quality, better than `sobol_blue` for sample counts greater than 256). If 
+`samples > 256` and `sobol_blue` is selected, the method will automatically switch to `sample_method = "sobol"`.}
 
 \item{max_depth}{Default `NA`, automatically sets to 50. Maximum number of bounces a ray can make in a scene. Alternatively,
 if a debugging option is chosen, this sets the bounce to query the debugging parameter (only for some options).}
@@ -162,8 +164,8 @@ slightly bleeding into adjacent pixels. This provides an antialiasing effect for
 tonemapping the image. Pass in a matrix to specify the convolution kernel manually, or a positive number
 to control the intensity of the bloom (higher number = more bloom).}
 
-\item{parallel}{Default `FALSE`. If `TRUE`, it will use all available cores to render the image
-(or the number specified in `options("cores")` if that option is not `NULL`).}
+\item{parallel}{Default `TRUE`. If `FALSE`, it will use all available cores to render the image
+(or the number specified in `options("cores")` or `options("Ncpus")` if that option is not `NULL`).}
 
 \item{bvh_type}{Default `"sah"`, "surface area heuristic". Method of building the bounding volume
 hierarchy structure used when rendering. Other option is "equal", which splits tree into groups
@@ -176,6 +178,10 @@ the scene. Supports both HDR (`.hdr`) and low-dynamic range (`.png`, `.jpg`) ima
 
 \item{intensity_env}{Default `1`. The amount to increase the intensity of the environment lighting. Useful
 if using a LDR (JPEG or PNG) image as an environment map.}
+
+\item{transparent_background}{Default `FALSE`. If `TRUE`, any initial camera rays that escape the scene
+will be marked as transparent in the final image. If for a pixel some rays escape and others hit a surface,
+those pixels will be partially transparent.}
 
 \item{debug_channel}{Default `none`. If `depth`, function will return a depth map of rays into the scene 
 instead of an image. If `normals`, function will return an image of scene normals, mapped from 0 to 1.
@@ -196,8 +202,8 @@ construction and raytracing progress.}
 no filename specified). Set to `FALSE` for faster plotting (does not affect render time).}
 }
 \value{
-Raytraced plot to current device, or an image saved to a file. Invisibly returns the
-array (containing either debug data or the RGB)
+A pathtraced image to the current device, or an image saved to a file. Invisibly returns the
+array (containing either debug data or the RGB).
 }
 \description{
 Takes the scene description and renders an image, either to the device or to a filename. The
@@ -205,113 +211,96 @@ user can also interactively fly around the 3D scene if they have X11 support on 
 or are on Windows.
 }
 \examples{
-#Generate a large checkered sphere as the ground
-if(rayrender:::run_documentation()) {
-scene = generate_ground(depth=-0.5, material = diffuse(color="white", checkercolor="darkgreen"))
-render_scene(scene,parallel=TRUE,samples=128,sample_method="sobol")
+# Generate a large checkered sphere as the ground
+if (run_documentation()) {
+  scene = generate_ground(depth = -0.5, 
+                          material = diffuse(color = "white", checkercolor = "darkgreen"))
+  render_scene(scene, parallel = TRUE, samples = 128, sample_method = "sobol")
 }
-if(rayrender:::run_documentation()) {
-#Add a sphere to the center
-scene = scene \%>\%
-  add_object(sphere(x=0,y=0,z=0,radius=0.5,material = diffuse(color=c(1,0,1))))
-render_scene(scene,fov=20,parallel=TRUE,samples=128)
+if (run_documentation()) {
+  # Add a sphere to the center
+  scene = scene \%>\%
+    add_object(sphere(x = 0, y = 0, z = 0, radius = 0.5, material = diffuse(color = c(1, 0, 1))))
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
 }
-if(rayrender:::run_documentation()) {
-#Add a marbled cube 
-scene = scene \%>\%
-  add_object(cube(x=1.1,y=0,z=0,material = diffuse(noise=3)))
-render_scene(scene,fov=20,parallel=TRUE,samples=128)
+if (run_documentation()) {
+  # Add a marbled cube
+  scene = scene \%>\%
+    add_object(cube(x = 1.1, y = 0, z = 0, material = diffuse(noise = 3)))
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
 }
-if(rayrender:::run_documentation()) {
-#Add a metallic gold sphere, using stratified sampling for a higher quality render
-scene = scene \%>\%
-  add_object(sphere(x=-1.1,y=0,z=0,radius=0.5,material = metal(color="gold",fuzz=0.1)))
-render_scene(scene,fov=20,parallel=TRUE,samples=128)
+if (run_documentation()) {
+  # Add a metallic gold sphere, using stratified sampling for a higher quality render
+  # We also add a light, which turns off the default ambient lighting
+  scene = scene \%>\%
+    add_object(sphere(x = -1.1, y = 0, z = 0, radius = 0.5, 
+                      material = metal(color = "gold", fuzz = 0.1))) \%>\%
+    add_object(sphere(y=10,z=13,radius=2,material=light(intensity=40)))
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
 }
-if(rayrender:::run_documentation()) {
-#Lower the number of samples to render more quickly (here, we also use only one core).
-render_scene(scene, samples=4, parallel=FALSE)
+if (run_documentation()) {
+  # Lower the number of samples to render more quickly (here, we also use only one core).
+  render_scene(scene, samples = 4, parallel = FALSE)
 }
-if(rayrender:::run_documentation()) {
-#Add a floating R plot using the iris dataset as a png onto a floating 2D rectangle
-
-tempfileplot = tempfile()
-png(filename=tempfileplot,height=400,width=800)
-plot(iris$Petal.Length,iris$Sepal.Width,col=iris$Species,pch=18,cex=4)
-dev.off()
-
-image_array = aperm(png::readPNG(tempfileplot),c(2,1,3))
-scene = scene \%>\%
-  add_object(xy_rect(x=0,y=1.1,z=0,xwidth=2,angle = c(0,180,0),
-                     material = diffuse(image_texture = image_array)))
-render_scene(scene,fov=20,parallel=TRUE,samples=128)
+if (run_documentation()) {
+  # Add a floating R plot using the iris dataset as a png onto a floating 2D rectangle
+  tempfileplot = tempfile()
+  png(filename = tempfileplot, height = 400, width = 800)
+  plot(iris$Petal.Length, iris$Sepal.Width, col = iris$Species, pch = 18, cex = 4)
+  dev.off()
+  image_array = aperm(png::readPNG(tempfileplot), c(2, 1, 3))
+  scene = scene \%>\%
+    add_object(xy_rect(x = 0, y = 1.1, z = 0, xwidth = 2, angle = c(0, 0, 0), 
+                       material = diffuse(image_texture = image_array)))
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
 }
-if(rayrender:::run_documentation()) {
-#Move the camera
-render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,parallel=TRUE)
+if (run_documentation()) {
+  # Move the camera
+  render_scene(scene, lookfrom = c(7, 1.5, 10), lookat = c(0, 0.5, 0), fov = 15, parallel = TRUE)
 }
-if(rayrender:::run_documentation()) {
-#Change the background gradient to a night time ambiance
-render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
-             backgroundhigh = "#282375", backgroundlow = "#7e77ea", parallel=TRUE,
-             samples=128)
+if (run_documentation()) {
+  # Change the background gradient to a firey sky
+  render_scene(scene, lookfrom = c(7, 1.5, 10), lookat = c(0, 0.5, 0), fov = 15,
+               backgroundhigh = "orange", backgroundlow = "red", parallel = TRUE,
+               ambient = TRUE,
+               samples = 128)
 }
-if(rayrender:::run_documentation()) {    
-#Increase the aperture to blur objects that are further from the focal plane.
-render_scene(scene,lookfrom = c(7,1.5,10),lookat = c(0,0.5,0),fov=15,
-             aperture = 0.5,parallel=TRUE,samples=128)
+if (run_documentation()) {    
+  # Increase the aperture to blur objects that are further from the focal plane.
+  render_scene(scene, lookfrom = c(7, 1.5, 10), lookat = c(0, 0.5, 0), fov = 15,
+               aperture = 1, parallel = TRUE, samples = 128)
 }
-if(rayrender:::run_documentation()) {
-#We can also capture a 360 environment image by setting `fov = 360` (can be used for VR)
-generate_cornell() \%>\%
-  add_object(ellipsoid(x=555/2,y=100,z=555/2,a=50,b=100,c=50, 
-             material = metal(color="lightblue"))) \%>\%
-  add_object(cube(x=100,y=130/2,z=200,xwidth = 130,ywidth=130,zwidth = 130,
-                  material=diffuse(checkercolor="purple", 
-                                   checkerperiod = 30),angle=c(0,10,0))) \%>\%
-  add_object(pig(x=100,y=190,z=200,scale=40,angle=c(0,30,0))) \%>\%
-  add_object(sphere(x=420,y=555/8,z=100,radius=555/8,
-                    material = dielectric(color="orange"))) \%>\%
-  add_object(xz_rect(x=555/2,z=555/2, y=1,xwidth=555,zwidth=555,
-                     material = glossy(checkercolor = "white",
-                                       checkerperiod=10,color="dodgerblue"))) \%>\%
-  render_scene(lookfrom=c(278,278,30), lookat=c(278,278,500), clamp_value=10,
-               fov = 360,  samples = 128, width=800, height=800)
+if (run_documentation()) {
+  # We can also capture a 360 environment image by setting `fov = 360` (can be used for VR)
+  generate_cornell() \%>\%
+    add_object(ellipsoid(x = 555 / 2, y = 100, z = 555 / 2, a = 50, b = 100, c = 50, 
+                          material = metal(color = "lightblue"))) \%>\%
+    add_object(cube(x = 100, y = 130 / 2, z = 200, xwidth = 130, ywidth = 130, zwidth = 130,
+                     material = diffuse(checkercolor = "purple", 
+                                        checkerperiod = 30), angle = c(0, 10, 0))) \%>\%
+    add_object(pig(x = 100, y = 190, z = 200, scale = 40, angle = c(0, 30, 0))) \%>\%
+    add_object(sphere(x = 420, y = 555 / 8, z = 100, radius = 555 / 8,
+                       material = dielectric(color = "orange"))) \%>\%
+    add_object(xz_rect(x = 555 / 2, z = 555 / 2, y = 1, xwidth = 555, zwidth = 555,
+                       material = glossy(checkercolor = "white",
+                                         checkerperiod = 10, color = "dodgerblue"))) \%>\%
+    render_scene(lookfrom = c(278, 278, 30), lookat = c(278, 278, 500), clamp_value = 10,
+                 fov = 360,  samples = 128, width = 800, height = 800)
 }
-if(rayrender:::run_documentation()) {
-#We can also use a realistic camera by specifying a camera description file (several of which
-#are built-in to rayrender. Note the curvature introduced by the fisheye lens:
-generate_cornell() \%>\%
-  add_object(ellipsoid(x=555/2,y=100,z=555/2,a=50,b=100,c=50, 
-             material = metal(color="lightblue"))) \%>\%
-  add_object(cube(x=100,y=130/2,z=200,xwidth = 130,ywidth=130,zwidth = 130,
-                  material=diffuse(checkercolor="purple", 
-                                   checkerperiod = 30),angle=c(0,10,0))) \%>\%
-  add_object(pig(x=100,y=190,z=200,scale=40,angle=c(0,30,0))) \%>\%
-  add_object(sphere(x=420,y=555/8,z=100,radius=555/8,
-                    material = dielectric(color="orange"))) \%>\%
-  add_object(xz_rect(x=555/2,z=555/2, y=1,xwidth=555,zwidth=555,
-                     material = glossy(checkercolor = "white",
-                                       checkerperiod=10,color="dodgerblue"))) \%>\%
-  render_scene(lookfrom=c(278,278,-300), lookat=c(278,278,500), clamp_value=10,
-               aperture=1, iso = 100000,
-               camera_description_file = "fisheye", samples = 128, width=800, height=400)
-}
-if(rayrender:::run_documentation()) {            
-#Spin the camera around the scene, decreasing the number of samples to render faster. To make 
-#an animation, specify the a filename in `render_scene` for each frame and use the `av` package
-#or ffmpeg to combine them all into a movie.
-
-t=1:30 
-xpos = 10 * sin(t*12*pi/180+pi/2)
-zpos = 10 * cos(t*12*pi/180+pi/2)
-#Save old par() settings
-old.par = par(no.readonly = TRUE)
-on.exit(par(old.par))
-par(mfrow=c(5,6))
-for(i in 1:30) {
- render_scene(scene, samples=16, 
-   lookfrom = c(xpos[i],1.5,zpos[i]),lookat = c(0,0.5,0), parallel=TRUE)
-}
+if (run_documentation()) {            
+  # Spin the camera around the scene, decreasing the number of samples to render faster. To make 
+  # an animation, specify the a filename in `render_scene` for each frame and use the `av` package
+  # or ffmpeg to combine them all into a movie.
+  t = 1:30 
+  xpos = 10 * sin(t * 12 * pi / 180 + pi / 2)
+  zpos = 10 * cos(t * 12 * pi / 180 + pi / 2)
+  # Save old par() settings
+  old.par = par(no.readonly = TRUE)
+  on.exit(par(old.par))
+  par(mfrow = c(5, 6))
+  for (i in 1:30) {
+    render_scene(scene, samples = 16, 
+                 lookfrom = c(xpos[i], 1.5, zpos[i]), lookat = c(0, 0.5, 0), parallel = TRUE)
+  }
 }
 }

@@ -5,9 +5,13 @@
 
 class RayMatrix {
 public: 
+  RayMatrix();
   RayMatrix(unsigned int _rows, unsigned int _cols, float start_value = 0);
   inline float& operator()(unsigned int x, unsigned int y) { 
     return data[x + nrow * y]; 
+  }
+  inline void add_one(unsigned int x, unsigned int y) { 
+    data[x + nrow * y] += 1;
   }
   unsigned int rows() {return(nrow);}
   unsigned int cols() {return(ncol);}
@@ -24,10 +28,9 @@ public:
   std::vector<float> data;
   unsigned int nrow;
   unsigned int ncol;
-  
-  
-  
 };
+
+
 
 
 #endif

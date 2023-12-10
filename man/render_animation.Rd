@@ -45,6 +45,7 @@ render_animation(
   return_raw_array = FALSE,
   progress = interactive(),
   verbose = FALSE,
+  transparent_background = FALSE,
   preview_light_direction = c(0, -1, 0),
   preview_exponent = 6
 )
@@ -175,6 +176,10 @@ information.}
 \item{verbose}{Default `FALSE`. Prints information and timing information about scene
 construction and raytracing progress.}
 
+\item{transparent_background}{Default `FALSE`. If `TRUE`, any initial camera rays that escape the scene
+will be marked as transparent in the final image. If for a pixel some rays escape and others hit a surface,
+those pixels will be partially transparent.}
+
 \item{preview_light_direction}{Default `c(0,-1,0)`. Vector specifying the orientation for the global light using for phong shading.}
 
 \item{preview_exponent}{Default `6`. Phong exponent.}
@@ -187,7 +192,7 @@ Takes the scene description and renders an image, either to the device or to a f
 }
 \examples{
 #Create and animate flying through a scene on a simulated roller coaster
-if(rayrender:::run_documentation()) {
+if(run_documentation()) {
 set.seed(3)
 elliplist = list()
 ellip_colors = rainbow(8)
@@ -209,7 +214,7 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
                camera_up = c(0,0,1),
                fov=80)
 }
-if(rayrender:::run_documentation()) {
+if(run_documentation()) {
 #Side view     
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -218,7 +223,7 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   render_scene(lookfrom=c(20,0,0),width=800,height=800,samples=32,
                  fov=80)
  }
-if(rayrender:::run_documentation()) {
+if(run_documentation()) {
 #View from the start        
 generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\% 
   add_object(ellip_scene) \%>\% 
@@ -227,7 +232,7 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
   render_scene(lookfrom=c(0,1.5,16),width=800,height=800,samples=32,
                  fov=80)
  }
-if(rayrender:::run_documentation()) {             
+if(run_documentation()) {             
 #Generate Camera movement, setting the lookat position to be same as camera position, but offset
 #slightly in front. We'll render 12 frames, but you'd likely want more in a real animation.
 
@@ -250,7 +255,7 @@ generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) \%>\%
                  emotion="angry", spider=TRUE)) \%>\% 
   add_object(path(camera_pos, y=-0.2,material=diffuse(color="red"))) \%>\% 
   render_animation(filename = NA, camera_motion = camera_motion, samples=100,
-                   sample_method="sobol_blue",  
+                   sample_method="sobol_blue",  transparent_background=TRUE,
                    clamp_value=10, width=400, height=400)
 
 }

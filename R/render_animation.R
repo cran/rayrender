@@ -90,13 +90,16 @@
 #' @param verbose Default `FALSE`. Prints information and timing information about scene
 #' construction and raytracing progress.
 #' @param sample_dist Default `10`. Sample distance if `debug_channel = "ao"`.
+#' @param transparent_background Default `FALSE`. If `TRUE`, any initial camera rays that escape the scene
+#' will be marked as transparent in the final image. If for a pixel some rays escape and others hit a surface,
+#' those pixels will be partially transparent. 
 #' @export
 #' @importFrom  grDevices col2rgb
 #' @return Raytraced plot to current device, or an image saved to a file. 
 #'
 #' @examples
 #' #Create and animate flying through a scene on a simulated roller coaster
-#' if(rayrender:::run_documentation()) {
+#' if(run_documentation()) {
 #' set.seed(3)
 #' elliplist = list()
 #' ellip_colors = rainbow(8)
@@ -118,7 +121,7 @@
 #'                camera_up = c(0,0,1),
 #'                fov=80)
 #' }
-#' if(rayrender:::run_documentation()) {
+#' if(run_documentation()) {
 #' #Side view     
 #' generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) %>% 
 #'   add_object(ellip_scene) %>% 
@@ -127,7 +130,7 @@
 #'   render_scene(lookfrom=c(20,0,0),width=800,height=800,samples=32,
 #'                  fov=80)
 #'  }
-#' if(rayrender:::run_documentation()) {
+#' if(run_documentation()) {
 #' #View from the start        
 #' generate_ground(material=diffuse(checkercolor="grey20"),depth=-10) %>% 
 #'   add_object(ellip_scene) %>% 
@@ -136,7 +139,7 @@
 #'   render_scene(lookfrom=c(0,1.5,16),width=800,height=800,samples=32,
 #'                  fov=80)
 #'  }
-#' if(rayrender:::run_documentation()) {             
+#' if(run_documentation()) {             
 #' #Generate Camera movement, setting the lookat position to be same as camera position, but offset
 #' #slightly in front. We'll render 12 frames, but you'd likely want more in a real animation.
 #' 
@@ -159,7 +162,7 @@
 #'                  emotion="angry", spider=TRUE)) %>% 
 #'   add_object(path(camera_pos, y=-0.2,material=diffuse(color="red"))) %>% 
 #'   render_animation(filename = NA, camera_motion = camera_motion, samples=100,
-#'                    sample_method="sobol_blue",  
+#'                    sample_method="sobol_blue",  transparent_background=TRUE,
 #'                    clamp_value=10, width=400, height=400)
 #' 
 #' }
@@ -178,7 +181,7 @@ render_animation = function(scene, camera_motion, start_frame = 1, end_frame = N
                             tonemap ="gamma", bloom = TRUE, parallel=TRUE, bvh_type = "sah",
                             environment_light = NULL, rotate_env = 0, intensity_env = 1,
                             debug_channel = "none", return_raw_array = FALSE,
-                            progress = interactive(), verbose = FALSE,
+                            progress = interactive(), verbose = FALSE, transparent_background = FALSE,
                             preview_light_direction = c(0,-1,0), preview_exponent = 6) { 
   if(ambient_occlusion) {
     debug_channel = "ao"
@@ -247,5 +250,6 @@ render_animation = function(scene, camera_motion, start_frame = 1, end_frame = N
   #Pathrace Scene
   rgb_mat = render_animation_rcpp(camera_info = camera_info, scene_info = scene_info, camera_movement = camera_motion,
                               start_frame = start_frame - 1, end_frame = end_frame, filenames = filename_str, post_process_frame  = post_process_frame,
-                              toneval=toneval, bloom = bloom, write_image = write_file) 
+                              toneval=toneval, bloom = bloom, write_image = write_file,
+                              transparent_background = transparent_background) 
 }
