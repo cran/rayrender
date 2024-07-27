@@ -19,7 +19,9 @@
 #include "matrix.h"
 #include "transform.h"
 #include "transformcache.h"
+#include "texturecache.h"
 #include "debug.h"
+#include "bvh_node.h"
 using namespace Rcpp;
 #include "RcppThread.h"
 #include "PreviewDisplay.h"
@@ -27,36 +29,34 @@ using namespace Rcpp;
 using namespace std;
 
 // [[Rcpp::export]]
-void render_animation_rcpp(List scene, List camera_info, List scene_info, List camera_movement, 
+void render_animation_rcpp(List scene, List camera_info, List scene_info, List render_info,
+                           List camera_movement, 
                            int start_frame, int end_frame,
                            CharacterVector filenames, Function post_process_frame, int toneval,
                            bool bloom, bool write_image, bool transparent_background) {
-  
-  size_t n = scene.length();
   //Unpack scene info
-  bool ambient_light = as<bool>(scene_info["ambient_light"]);
   IntegerVector shape = as<IntegerVector>(scene_info["shape"]);
-  List position_list = as<List>(scene_info["position_list"]);
-  NumericVector bghigh  = as<NumericVector>(scene_info["bghigh"]);
-  NumericVector bglow = as<NumericVector>(scene_info["bglow"]);
-  LogicalVector isimage = as<LogicalVector>(scene_info["isimage"]);
-  CharacterVector filelocation = as<CharacterVector>(scene_info["filelocation"]);
-  List alphalist = as<List>(scene_info["alphalist"]);
-  Float clampval = as<Float>(scene_info["clampval"]);
-  bool progress_bar = as<bool>(scene_info["progress_bar"]);
-  int numbercores = as<int>(scene_info["numbercores"]);
-  bool hasbackground = as<bool>(scene_info["hasbackground"]);
-  CharacterVector background = as<CharacterVector>(scene_info["background"]);
-  Float rotate_env = as<Float>(scene_info["rotate_env"]);
-  Float intensity_env = as<Float>(scene_info["intensity_env"]);
-  bool verbose = as<bool>(scene_info["verbose"]);
-  int debug_channel = as<int>(scene_info["debug_channel"]);
-  Float min_variance = as<Float>(scene_info["min_variance"]);
-  int min_adaptive_size = as<int>(scene_info["min_adaptive_size"]);
-  List roughness_list = as<List>(scene_info["roughness_list"]);
+  
+  //Unpack render info
+  bool ambient_light = as<bool>(render_info["ambient_light"]);
+  NumericVector bghigh  = as<NumericVector>(render_info["bghigh"]);
+  NumericVector bglow = as<NumericVector>(render_info["bglow"]);
+  Float clampval = as<Float>(render_info["clampval"]);
+  bool progress_bar = as<bool>(render_info["progress_bar"]);
+  int numbercores = as<int>(render_info["numbercores"]);
+  bool hasbackground = as<bool>(render_info["hasbackground"]);
+  std::string background = as<std::string>(render_info["background"]);
+  Float rotate_env = as<Float>(render_info["rotate_env"]);
+  Float intensity_env = as<Float>(render_info["intensity_env"]);
+  bool verbose = as<bool>(render_info["verbose"]);
+  int debug_channel = as<int>(render_info["debug_channel"]);
+  Float min_variance = as<Float>(render_info["min_variance"]);
+  int min_adaptive_size = as<int>(render_info["min_adaptive_size"]);
+  
+  Environment pkg = Environment::namespace_env("rayrender");
+  Function print_time = pkg["print_time"];
 
 
-  auto startfirst = std::chrono::high_resolution_clock::now();
   //Unpack Camera Info
   int nx = as<int>(camera_info["nx"]);
   int ny = as<int>(camera_info["ny"]);
@@ -76,7 +76,6 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
   bool keep_colors = as<bool>(camera_info["keep_colors"]);
   bool preview = as<bool>(camera_info["preview"]);
   Float iso = as<Float>(camera_info["iso"]);
-  
   
   std::unique_ptr<RayCamera> cam;
 
@@ -99,156 +98,51 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
 
   vec3f backgroundhigh(bghigh[0],bghigh[1],bghigh[2]);
   vec3f backgroundlow(bglow[0],bglow[1],bglow[2]);
-  CharacterVector alpha_files = as<CharacterVector>(alphalist["alpha_temp_file_names"]);
-  LogicalVector has_alpha = as<LogicalVector>(alphalist["alpha_tex_bool"]);
-
-  CharacterVector bump_files = as<CharacterVector>(alphalist["bump_temp_file_names"]);
-  LogicalVector has_bump = as<LogicalVector>(alphalist["bump_tex_bool"]);
-
-  CharacterVector roughness_files = as<CharacterVector>(roughness_list["rough_temp_file_names"]);
-  LogicalVector has_roughness = as<LogicalVector>(roughness_list["rough_tex_bool"]);
 
   RcppThread::ThreadPool pool(numbercores);
   GetRNGstate();
   random_gen rng(unif_rand() * std::pow(2,32));
   int nx1, ny1, nn1;
-  auto start = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    Rcpp::Rcout << "Building BVH: ";
-  }
+  print_time(verbose, "Loaded Data");
 
   std::vector<Float* > textures;
-  std::vector<int* > nx_ny_nn;
-
   std::vector<unsigned char * > alpha_textures;
-  std::vector<int* > nx_ny_nn_alpha;
-
   std::vector<unsigned char * > bump_textures;
-  std::vector<int* > nx_ny_nn_bump;
-
   std::vector<unsigned char * > roughness_textures;
-  std::vector<int* > nx_ny_nn_roughness;
   //Shared material vector
   std::vector<std::shared_ptr<material> >* shared_materials = new std::vector<std::shared_ptr<material> >;
 
-  for(size_t i = 0; i < n; i++) {
-    if(isimage(i)) {
-      int nx, ny, nn;
-      Float* tex_data = stbi_loadf(filelocation(i), &nx, &ny, &nn, 4);
-      nn = 4;
-      // texture_bytes += nx * ny * nn;
-      textures.push_back(tex_data);
-      nx_ny_nn.push_back(new int[3]);
-      nx_ny_nn[i][0] = nx;
-      nx_ny_nn[i][1] = ny;
-      nx_ny_nn[i][2] = nn;
-    } else {
-      textures.push_back(nullptr);
-      nx_ny_nn.push_back(nullptr);
-    }
-    if(has_alpha(i)) {
-      int nxa, nya, nna;
-      unsigned char * tex_data_alpha = stbi_load(alpha_files(i), &nxa, &nya, &nna, 0);
-      // texture_bytes += nxa * nya * nna;
-      
-      alpha_textures.push_back(tex_data_alpha);
-      nx_ny_nn_alpha.push_back(new int[3]);
-      nx_ny_nn_alpha[i][0] = nxa;
-      nx_ny_nn_alpha[i][1] = nya;
-      nx_ny_nn_alpha[i][2] = nna;
-    } else {
-      alpha_textures.push_back(nullptr);
-      nx_ny_nn_alpha.push_back(nullptr);
-    }
-    if(has_bump(i)) {
-      int nxb, nyb, nnb;
-      unsigned char * tex_data_bump = stbi_load(bump_files(i), &nxb, &nyb, &nnb, 0);
-      bump_textures.push_back(tex_data_bump);
-      nx_ny_nn_bump.push_back(new int[3]);
-      nx_ny_nn_bump[i][0] = nxb;
-      nx_ny_nn_bump[i][1] = nyb;
-      nx_ny_nn_bump[i][2] = nnb;
-    } else {
-      bump_textures.push_back(nullptr);
-      nx_ny_nn_bump.push_back(nullptr);
-    }
-    if(has_roughness(i)) {
-      List material = as<List>(scene(i))["material"];
-      NumericVector temp_glossy = as<NumericVector>(material["glossyinfo"]);
-      int nxr, nyr, nnr;
-      unsigned char * tex_data_roughness = stbi_load(roughness_files(i), &nxr, &nyr, &nnr, 0);
-      // texture_bytes += nxr * nyr * nnr;
-      
-      Float min = temp_glossy(9), max = temp_glossy(10);
-      Float rough_range = max-min;
-      Float maxr = 0, minr = 1;
-      for(int ii = 0; ii < nxr; ii++) {
-        for(int jj = 0; jj < nyr; jj++) {
-          Float temp_rough = tex_data_roughness[nnr*ii + nnr*nxr*jj];
-          maxr = maxr < temp_rough ? temp_rough : maxr;
-          minr = minr > temp_rough ? temp_rough : minr;
-          if(nnr > 1) {
-            temp_rough = tex_data_roughness[nnr*ii + nnr*nxr*jj+1];
-            maxr = maxr < temp_rough ? temp_rough : maxr;
-            minr = minr > temp_rough ? temp_rough : minr;
-          }
-        }
-      }
-      Float data_range = maxr-minr;
-      for(int ii = 0; ii < nxr; ii++) {
-        for(int jj = 0; jj < nyr; jj++) {
-          if(!temp_glossy(11)) {
-            tex_data_roughness[nnr*ii + nnr*nxr*jj] =
-              (tex_data_roughness[nnr*ii + nnr*nxr*jj]-minr)/data_range * rough_range + min;
-            if(nnr > 1) {
-              tex_data_roughness[nnr*ii + nnr*nxr*jj+1] =
-                (tex_data_roughness[nnr*ii + nnr*nxr*jj+1]-minr)/data_range * rough_range + min;
-            }
-          } else {
-            tex_data_roughness[nnr*ii + nnr*nxr*jj] =
-              (1.0-(tex_data_roughness[nnr*ii + nnr*nxr*jj]-minr)/data_range) * rough_range + min;
-            if(nnr > 1) {
-              tex_data_roughness[nnr*ii + nnr*nxr*jj+1] =
-                (1.0-(tex_data_roughness[nnr*ii + nnr*nxr*jj+1]-minr)/data_range) * rough_range + min;
-            }
-          }
-        }
-      }
-      roughness_textures.push_back(tex_data_roughness);
-      nx_ny_nn_roughness.push_back(new int[3]);
-      nx_ny_nn_roughness[i][0] = nxr;
-      nx_ny_nn_roughness[i][1] = nyr;
-      nx_ny_nn_roughness[i][2] = nnr;
-    } else {
-      roughness_textures.push_back(nullptr);
-      nx_ny_nn_roughness.push_back(nullptr);
-    }
-  }
 
   //Initialize transformation cache
   TransformCache transformCache;
+  
+  //Initialize texture cache
+  TextureCache texCache;
+  
   hitable_list imp_sample_objects;
+  std::vector<std::shared_ptr<hitable> > instanced_objects;
+  std::vector<std::shared_ptr<hitable_list> > instance_importance_sampled;
   
-  std::shared_ptr<hitable> worldbvh = build_scene(scene, shape, position_list,
+  std::shared_ptr<bvh_node> worldbvh = build_scene(scene, shape, 
                                                   shutteropen,shutterclose,
-                                                  textures, nx_ny_nn,
-                                                  alpha_textures, nx_ny_nn_alpha,
-                                                  bump_textures, nx_ny_nn_bump,
-                                                  roughness_textures, nx_ny_nn_roughness,
+                                                  textures, 
+                                                  alpha_textures,
+                                                  bump_textures,
+                                                  roughness_textures, 
                                                   shared_materials, bvh_type,
-                                                  transformCache, imp_sample_objects,
+                                                  transformCache, 
+                                                  texCache,
+                                                  imp_sample_objects,
+                                                  instanced_objects,
+                                                  instance_importance_sampled,
                                                   verbose, rng);
+  print_time(verbose, "Built Scene BVH" );
   
-  auto finish = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
 
   //Calculate world bounds
   aabb bounding_box_world;
   worldbvh->bounding_box(0,0,bounding_box_world);
-  Float world_radius = bounding_box_world.Diag().length()/2 ;
+  Float world_radius = bounding_box_world.Diag().length() ;
   vec3f world_center  = bounding_box_world.Centroid();
   for(int i = 0; i < cam_x.length(); i++) {
     vec3f lf(cam_x(i),cam_y(i),cam_z(i));
@@ -256,11 +150,7 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
       1.1*(lf - world_center).length();
   }
 
-  //Initialize background
-  if(verbose && hasbackground) {
-    Rcpp::Rcout << "Loading Environment Image: ";
-  }
-  start = std::chrono::high_resolution_clock::now();
+  
   std::shared_ptr<texture> background_texture = nullptr;
   std::shared_ptr<material> background_material = nullptr;
   std::shared_ptr<hitable> background_sphere = nullptr;
@@ -276,20 +166,20 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
   std::shared_ptr<Transform> BackgroundTransformInv = transformCache.Lookup(BackgroundAngle.GetInverseMatrix());
 
   if(hasbackground) {
-    background_texture_data = stbi_loadf(background[0], &nx1, &ny1, &nn1, 4);
-    nn1 = 4;
+    background_texture_data = texCache.LookupFloat(background, nx1, ny1, nn1, 3);
+    // nn1 = 3;
+    // texture_bytes += nx1 * ny1 * nn1;
+    
     if(background_texture_data) {
-      background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1, 1, 1, intensity_env);
+      background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1,
+                                                                 1, 1, intensity_env);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
       background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, world_center,
                                                               background_texture, background_material,
                                                               BackgroundTransform,
                                                               BackgroundTransformInv, false);
     } else {
-      Rcpp::Rcout << "Failed to load background image at " << background(0) << "\n";
-      if(stbi_failure_reason()) {
-        Rcpp::Rcout << stbi_failure_reason() << "\n";
-      }
+      Rcpp::Rcout << "Failed to load background image at " << background << "\n";
       hasbackground = false;
       ambient_light = true;
       backgroundhigh = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
@@ -310,20 +200,19 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
     background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
                                                             background_texture, background_material,
-                                                            BackgroundTransform,BackgroundTransformInv,false);
+                                                            BackgroundTransform, BackgroundTransformInv, false);
+    
   } else {
     //Minimum intensity FLT_MIN so the CDF isn't NAN
     background_texture = std::make_shared<constant_texture>(vec3f(FLT_MIN,FLT_MIN,FLT_MIN));
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
     background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
                                                             background_texture, background_material,
-                                                            BackgroundTransform,BackgroundTransformInv,false);
+                                                            BackgroundTransform,
+                                                            BackgroundTransformInv, false);
   }
-  finish = std::chrono::high_resolution_clock::now();
-  if(verbose && hasbackground) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
+  //Initialize background
+  print_time(verbose, "Loaded Background" );
   hitable_list world;
   world.add(worldbvh);
 
@@ -337,16 +226,12 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
                    background_sphere->ObjectToWorld.get(),
                    background_sphere->WorldToObject.get());
   
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - start;
-    Rcpp::Rcout << elapsed.count() << " seconds" << "\n";
-  }
   if(impl_only_bg || hasbackground) {
     imp_sample_objects.add(background_sphere);
   }
 
   if(verbose && !progress_bar) {
-    Rcpp::Rcout << "Starting Raytracing:\n ";
+    Rcpp::message(CharacterVector("Starting Raytracing"));
   }
   RProgress::RProgress pb_sampler("Generating Samples [:bar] :percent%");
   pb_sampler.set_width(70);
@@ -524,35 +409,8 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List c
     }
   }
 
-  if(verbose) {
-    Rcpp::Rcout << "Cleaning up memory..." << "\n";
-  }
-  if(hasbackground) {
-    stbi_image_free(background_texture_data);
-  }
-  for(int i = 0; i < n; i++) {
-    if(isimage(i)) {
-      stbi_image_free(textures[i]);
-      delete[] nx_ny_nn[i];
-    }
-    if(has_alpha(i)) {
-      stbi_image_free(alpha_textures[i]);
-      delete[] nx_ny_nn_alpha[i];
-    }
-    if(has_bump(i)) {
-      stbi_image_free(bump_textures[i]);
-      delete[] nx_ny_nn_bump[i];
-    }
-    if(has_roughness(i)) {
-      stbi_image_free(roughness_textures[i]);
-      delete[] nx_ny_nn_roughness[i];
-    }
-  }
   delete shared_materials;
   PutRNGstate();
-  finish = std::chrono::high_resolution_clock::now();
-  if(verbose) {
-    std::chrono::duration<double> elapsed = finish - startfirst;
-    Rcpp::Rcout << "Total time elapsed: " << elapsed.count() << " seconds" << "\n";
-  }
+  print_time(verbose, "Finished rendering" );
+  
 }

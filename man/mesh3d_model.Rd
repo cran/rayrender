@@ -11,8 +11,12 @@ mesh3d_model(
   z = 0,
   swap_yz = FALSE,
   reverse = FALSE,
-  scale_mesh = 1,
+  subdivision_levels = 1,
   verbose = FALSE,
+  displacement_texture = NA,
+  displacement_intensity = 1,
+  displacement_vector = FALSE,
+  recalculate_normals = FALSE,
   override_material = FALSE,
   material = diffuse(),
   angle = c(0, 0, 0),
@@ -37,9 +41,23 @@ only supports one image texture per mesh. All quads will be triangulated.}
 
 \item{reverse}{Default `FALSE`. Reverse the orientation of the indices, flipping their normals.}
 
-\item{scale_mesh}{Default `1`. Amount to scale the size of the mesh in all directions.}
+\item{subdivision_levels}{Default `1`. Number of Loop subdivisions to be applied to the mesh.}
 
 \item{verbose}{Default `FALSE`. If `TRUE`, prints information about the mesh to the console.}
+
+\item{displacement_texture}{Default `NA`. File path to the displacement texture. 
+This texture is used to displace the vertices of the mesh based on the texture's pixel values.}
+
+\item{displacement_intensity}{Default `1`. Intensity of the displacement effect. 
+Higher values result in greater displacement.}
+
+\item{displacement_vector}{Default `FALSE`. Whether to use vector displacement. 
+If `TRUE`, the displacement texture is interpreted as providing a 3D displacement vector. 
+Otherwise, the texture is interpreted as providing a scalar displacement.}
+
+\item{recalculate_normals}{Default `FALSE`. Whether to recalculate vertex normals based on the 
+connecting face orientations. This can be used to compute normals for meshes lacking them or
+to calculate new normals after a displacement map has been applied to the mesh.}
 
 \item{override_material}{Default `FALSE`. If `TRUE`, overrides the material specified in the 
 `mesh3d` object with the one specified in `material`.}
@@ -71,7 +89,7 @@ if(length(find.package("Rcvg", quiet=TRUE)) > 0) {
   
   generate_studio() \%>\% 
     add_object(mesh3d_model(humface,y=-0.3,x=0,z=0,
-                          material=glossy(color="dodgerblue4"), scale_mesh = 1/70)) \%>\%
+                          material=glossy(color="dodgerblue4"), scale = 1/70)) \%>\%
     add_object(sphere(y=5,x=5,z=5,material=light(intensity=50))) \%>\% 
     render_scene(samples=128,width=800,height=800,
                  lookat = c(0,0.5,1), aperture=0.0)

@@ -3,7 +3,7 @@
 
 #ifndef STBIMAGEH
 #define STBIMAGEH
-#include "stb_image.h"
+#include "stb/stb_image.h"
 #endif
 
 #include "texture.h"
@@ -19,13 +19,17 @@ inline char separator() {
 #endif
 }
 
+class TextureCache;
+
 struct TriangleMesh {
   // TriangleMesh Public Methods
   TriangleMesh(std::string inputfile, std::string basedir,
                std::shared_ptr<material> default_material, 
+               std::shared_ptr<alpha_texture> alpha_default,
+               std::shared_ptr<bump_texture> bump_default,
                bool load_materials, bool load_textures, bool load_vertex_colors,  bool load_normals,
                bool verbose, Float scale, 
-               bool calculate_consistent_normals,
+               bool calculate_consistent_normals, TextureCache& texCache,
                std::shared_ptr<Transform> ObjectToWorld, 
                std::shared_ptr<Transform> WorldToObject, 
                bool reverseOrientation);
@@ -39,7 +43,7 @@ struct TriangleMesh {
                std::shared_ptr<alpha_texture> alpha,
                std::shared_ptr<bump_texture> bump,
                std::shared_ptr<material> default_material, 
-               bool load_materials, bool load_textures,
+               bool load_materials, bool load_textures, TextureCache& texCache,
                std::shared_ptr<Transform> ObjectToWorld, 
                std::shared_ptr<Transform> WorldToObject, 
                bool reverseOrientation);
@@ -58,25 +62,19 @@ struct TriangleMesh {
                bool override_material, bool flip_transmittance,
                std::shared_ptr<alpha_texture> alpha,
                std::shared_ptr<bump_texture> bump,
+               TextureCache& texCache,
                std::shared_ptr<material> default_material, 
                std::shared_ptr<Transform> ObjectToWorld, 
                std::shared_ptr<Transform> WorldToObject, 
                bool reverseOrientation);
   
-  ~TriangleMesh() {
-    for(auto tex : obj_texture_data) {
-      if(tex) stbi_image_free(tex);
-    }
-    for(auto bump : bump_texture_data) {
-      if(bump) stbi_image_free(bump);
-    }
-  }
+  ~TriangleMesh();
   size_t GetSize();
   void ValidateMesh();
     
   // TriangleMesh Data
-  size_t nTriangles, nVertices, nNormals, nTex;
-  bool has_normals, has_tex, has_vertex_colors, has_consistent_normals;
+  size_t nTriangles, nVertices, nNormals, nTex, nTangents;
+  bool has_normals, has_tex, has_vertex_colors, has_consistent_normals, has_tangents;
   std::vector<int> vertexIndices;
   std::vector<int> normalIndices;
   std::vector<int> texIndices;
@@ -86,7 +84,7 @@ struct TriangleMesh {
   std::unique_ptr<normal3f[]> face_n; //For consistent normals
   std::vector<Float> alpha_v; //For consistent normals
   
-  // std::unique_ptr<vec3f[]>    s;
+  std::unique_ptr<vec3f[]>    t; //tangent vector
   std::unique_ptr<point2f[]>  uv;
   std::unique_ptr<point3f[]>  vc;
   
@@ -102,6 +100,7 @@ struct TriangleMesh {
   std::vector<std::shared_ptr<alpha_texture> > alpha_textures;
   size_t texture_size;
   std::vector<bool> material_is_light;
+  std::vector<bool> tangent_right_handed;
 };
 
 #endif

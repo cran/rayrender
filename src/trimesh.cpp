@@ -1,26 +1,71 @@
 #include "trimesh.h"
 #include "RProgress.h"
+#include "loopsubdiv.h"
+#include "displacement.h"
+#include "calctangents.h"
+#include "assert.h"
+#include "calcnormals.h"
 
 trimesh::trimesh(std::string inputfile, std::string basedir, Float scale, Float sigma,
-                 std::shared_ptr<material> default_material, bool load_materials, 
+                 std::shared_ptr<material> default_material, 
+                 std::shared_ptr<alpha_texture> alpha_default, std::shared_ptr<bump_texture> bump_default,
+                 bool load_materials, 
                  bool load_textures, bool load_vertex_colors,
                  bool importance_sample_lights, bool load_normals, bool calculate_consistent_normals,
-                 hitable_list& imp_sample_objects,
+                 int subdivision_levels, std::string displacement_texture, Float displacement,
+                 bool displacement_vector, TextureCache& texCache, bool recalculate_normals,
+                 hitable_list& imp_sample_objects, 
                  Float shutteropen, Float shutterclose, int bvh_type, random_gen rng, bool verbose,
                  std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) : 
   hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
   mesh = std::unique_ptr<TriangleMesh>(new TriangleMesh(inputfile, basedir, default_material, 
+                                                        alpha_default, bump_default,
                                                         load_materials, load_textures, load_vertex_colors, load_normals, verbose,
-                                                        scale, calculate_consistent_normals,
+                                                        scale, calculate_consistent_normals, texCache,
                                                         ObjectToWorld, WorldToObject, reverseOrientation));
-  size_t n = mesh->nTriangles;
+  //Loop subdivision automatically calculates new normals
+  if(subdivision_levels > 1) {
+    LoopSubdivide(mesh.get(),
+                  subdivision_levels,
+                  verbose);
+  } else if (recalculate_normals) {
+    CalculateNormals(mesh.get());
+  }
+  if(displacement_texture.length() > 0) {
+    if(mesh->nVertices != mesh->nNormals) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh normals for displacement"));
+      }
+      CalculateNormals(mesh.get());
+    }
+    if(displacement_vector) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh tangents for vector displacement"));
+      }
+      CalculateTangents(mesh.get());
+    }
+    if(verbose) {
+      Rcpp::message(Rcpp::CharacterVector("* Displacing mesh"));
+    }
+    DisplaceMesh(mesh.get(),
+                 displacement_texture,
+                 displacement,
+                 displacement_vector);
+    // Calculate new normals
+    if(recalculate_normals) {
+      CalculateNormals(mesh.get());
+    }
+  }
+
+  // mesh->ValidateMesh();
+  size_t n = mesh->nTriangles * 3;
   for(size_t i = 0; i < n; i += 3) {
     triangles.add(std::make_shared<triangle>(mesh.get(), 
                                              &mesh->vertexIndices[i], 
                                              &mesh->normalIndices[i],
                                              &mesh->texIndices[i], i / 3,
                                              ObjectToWorld, WorldToObject, reverseOrientation));
-   if(mesh->material_is_light[mesh->face_material_id[i / 3]] && importance_sample_lights) {
+   if(mesh->material_is_light[mesh->face_material_id[i / 3]] == 1 && importance_sample_lights) {
       imp_sample_objects.add(triangles.back());
     }
   }

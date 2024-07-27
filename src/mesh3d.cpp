@@ -1,7 +1,19 @@
 #include "mesh3d.h"
 #include "texture.h"
+#include "loopsubdiv.h"
+#include "displacement.h"
+#include "calcnormals.h"
+#include "calctangents.h"
+#ifndef STBIMAGEH
+#define STBIMAGEH
+#include "stb/stb_image.h"
+#endif
+#include "texturecache.h"
 
 mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat, 
+               std::string displacement_texture, Float displacement, bool displacement_vector, 
+               TextureCache &texCache, bool recalculate_normals,
+               bool verbose, 
                Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
                std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) :
   hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
@@ -9,6 +21,8 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
   Rcpp::IntegerMatrix indices = Rcpp::as<Rcpp::IntegerMatrix>(mesh_info["indices"]);
   Rcpp::NumericMatrix norms = Rcpp::as<Rcpp::NumericMatrix>(mesh_info["normals"]);
   Rcpp::NumericMatrix txcoord = Rcpp::as<Rcpp::NumericMatrix>(mesh_info["texcoords"]);
+  int subdivision_levels = Rcpp::as<int>(mesh_info["subdivision_levels"]);
+  
   // float scale_mesh = Rcpp::as<float>(mesh_info["scale_mesh"]);
   
   
@@ -26,7 +40,7 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
   unsigned char* mesh_material_data;
   unsigned char* bump_texture_data;
   if(strlen(texture_location.c_str()) > 0) {
-    mesh_material_data = stbi_load(texture_location.c_str(), &nx, &ny, &nn, 4);
+    mesh_material_data = texCache.LookupChar(texture_location, nx, ny, nn, 4);
     nn = 4;
     // has_texture = nx != 0 && ny != 0 && nn != 0;
   } else {
@@ -50,7 +64,7 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
   int nxb = 0, nyb = 0, nnb = 0;
   
   if(strlen(bump_text_location.c_str()) > 0) {
-    bump_texture_data = stbi_load(bump_text_location.c_str(), &nxb, &nyb, &nnb, 0);
+    bump_texture_data = texCache.LookupChar(bump_text_location, nxb, nyb, nnb, 4);
     has_bump = nxb != 0 && nyb != 0 && nnb != 0;
   } else {
     bump_texture_data = nullptr;
@@ -74,11 +88,41 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
                                                         mesh_material_data, bump_texture_data,
                                                         alpha, bump,
                                                         mat, true, true, 
+                                                        texCache,
                                                         ObjectToWorld, WorldToObject, reverseOrientation));
+  
+  //Loop subdivision automatically calculates new normals
+  if(subdivision_levels > 1) {
+    LoopSubdivide(mesh.get(),
+                  subdivision_levels,
+                  verbose);
+  } else if (recalculate_normals) {
+    CalculateNormals(mesh.get());
+  }
+  if(displacement_texture.length() > 0) {
+    if(mesh->nVertices != mesh->nNormals) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh normals for displacement"));
+      }
+      CalculateNormals(mesh.get());
+    }
+    if(displacement_vector) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh tangents for vector displacement"));
+      }
+      CalculateTangents(mesh.get());
+    }
+    DisplaceMesh(mesh.get(),
+                 displacement_texture,
+                 displacement,
+                 displacement_vector);
+    CalculateNormals(mesh.get());
+  }
+  size_t n = mesh->nTriangles * 3;
+  // mesh->ValidateMesh();
   
   mesh->texture_size += sizeof(unsigned char) * (nx * ny * nn + nxb * nyb * nnb) ;
   
-  size_t n = mesh->nTriangles * 3;
   for(size_t i = 0; i < n; i += 3) {
     triangles.add(std::make_shared<triangle>(mesh.get(), 
                                              &mesh->vertexIndices[i], 

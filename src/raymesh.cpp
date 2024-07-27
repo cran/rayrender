@@ -1,13 +1,30 @@
 #include "raymesh.h"
 #include "RProgress.h"
+#include "loopsubdiv.h"
+#include "displacement.h"
+#include "calcnormals.h"
+#include "calctangents.h"
+#ifndef STBIMAGEH
+#define STBIMAGEH
+#include "stb/stb_image.h"
+#endif
+#include "texturecache.h"
+#include "trianglemesh.h"
+#include "bvh_node.h"
+#include "rng.h"
+#include "triangle.h"
 
 raymesh::raymesh(Rcpp::List raymesh_list, 
                  std::shared_ptr<material> default_material, 
-                 std::shared_ptr<alpha_texture> alpha_mask, std::shared_ptr<bump_texture> bump_tex,
+                 std::shared_ptr<alpha_texture> alpha_mask, 
+                 std::shared_ptr<bump_texture> bump_tex,
                  bool importance_sample_lights, 
                  bool calculate_consistent_normals,
                  bool override_material,
                  bool flip_transmittance,
+                 int subdivision_levels,
+                 std::string displacement_texture, Float displacement, bool displacement_vector,
+                 TextureCache &texCache, bool recalculate_normals,
                  hitable_list& imp_sample_objects, 
                  bool verbose, 
                  Float shutteropen, Float shutterclose, int bvh_type, random_gen rng, 
@@ -18,19 +35,48 @@ raymesh::raymesh(Rcpp::List raymesh_list,
                                                         flip_transmittance,
                                                         alpha_mask,
                                                         bump_tex,
+                                                        texCache,
                                                         default_material, 
                                                         ObjectToWorld, WorldToObject, reverseOrientation));
+  //Loop subdivision automatically calculates new normals
+  if(subdivision_levels > 1) {
+    LoopSubdivide(mesh.get(),
+                  subdivision_levels,
+                  verbose);
+  } else if (recalculate_normals) {
+    CalculateNormals(mesh.get());
+  }
+  
+  if(displacement_texture.length() > 0) {
+    if(mesh->nVertices != mesh->nNormals) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh normals for displacement"));
+      }
+      CalculateNormals(mesh.get());
+    }
+    if(displacement_vector) {
+      if(verbose) {
+        Rcpp::message(Rcpp::CharacterVector("* Calculating mesh tangents for vector displacement"));
+      }
+      CalculateTangents(mesh.get());
+    }
+    DisplaceMesh(mesh.get(),
+                 displacement_texture,
+                 displacement,
+                 displacement_vector);
+  }
+  size_t n = mesh->nTriangles * 3;
+  
 #ifdef FULL_DEBUG
   mesh->ValidateMesh();
 #endif
-  size_t n = mesh->nTriangles;
-  for(size_t i = 0; i < 3*n; i += 3) {
+  for(size_t i = 0; i < n; i += 3) {
     triangles.add(std::make_shared<triangle>(mesh.get(), 
                                              &mesh->vertexIndices[i], 
                                              &mesh->normalIndices[i],
                                              &mesh->texIndices[i], i / 3,
                                              ObjectToWorld, WorldToObject, reverseOrientation));
-    if(mesh->face_material_id[i / 3] < 0 || mesh->face_material_id[i / 3] >= mesh->mesh_materials.size()) {
+    if(mesh->face_material_id[i / 3] < 0 || mesh->face_material_id[i / 3] >= (int)mesh->mesh_materials.size()) {
       throw std::runtime_error("Material ID out of range");
     }
     if(mesh->material_is_light[mesh->face_material_id[i / 3]] && importance_sample_lights) {

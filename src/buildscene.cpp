@@ -1,4 +1,28 @@
 #include "buildscene.h"
+#include "hitable.h"
+#include "sphere.h"
+#include "hitablelist.h"
+#include "bvh_node.h"
+#include "perlin.h"
+#include "texture.h"
+#include "rectangle.h"
+#include "box.h"
+#include "constant.h"
+#include "triangle.h"
+#include "pdf.h"
+#include "trimesh.h"
+#include "disk.h"
+#include "cylinder.h"
+#include "ellipsoid.h"
+#include "curve.h"
+#include "csg.h"
+#include "plymesh.h"
+#include "mesh3d.h"
+#include "raymesh.h"
+#include "instance.h"
+#include "transform.h"
+#include "transformcache.h"
+#include "texturecache.h"
 
 Transform rotation_order_matrix(NumericVector temprotvec, NumericVector order_rotation) {
   Transform M;
@@ -36,7 +60,8 @@ enum ShapeEnum {
   CSG_OBJECT = 11, 
   PLY = 12,
   MESH3D = 13,
-  RAYMESH = 14
+  RAYMESH = 14,
+  INSTANCE = 15
 };
 
 enum MaterialEnum {   
@@ -52,13 +77,124 @@ enum MaterialEnum {
   MICROFACET_TRANSMISSION = 10
 };
 
+void LoadTexture(std::string image_file,
+                 std::string alpha_file,
+                 std::string bump_file,
+                 std::string roughness_file,
+                 std::vector<Float* >& textures,
+                 std::vector<unsigned char * >& alpha_textures,
+                 std::vector<unsigned char * >& bump_textures,
+                 std::vector<unsigned char * >& roughness_textures,
+                 int* nvec,
+                 int* nveca,
+                 int* nvecb,
+                 int* nvecr,
+                 NumericVector glossy_info,
+                 bool has_image, bool has_alpha, bool has_bump, bool has_roughness,
+                 TextureCache& texCache) {
+  
+  if(has_image) {
+    int nx, ny, nn;
+    Float* texture_data = texCache.LookupFloat(image_file, nx, ny, nn, 4);
+    nn = 4;
+    // texture_bytes += nx * ny * nn;
+    textures.push_back(texture_data);
+    nvec[0] = nx;
+    nvec[1] = ny;
+    nvec[2] = nn;
+  } else {
+    textures.push_back(nullptr);
+  }
+  if(has_alpha) {
+    int nxa, nya, nna;
+    unsigned char* alpha_data = texCache.LookupChar(alpha_file, nxa, nya, nna, 4);
+    // texture_bytes += nxa * nya * nna;
+    nna = 4;
+    alpha_textures.push_back(alpha_data);
+    nveca[0] = nxa;
+    nveca[1] = nya;
+    nveca[2] = nna;
+  } else {
+    alpha_textures.push_back(nullptr);
+  }
+  if(has_bump) {
+    int nxb, nyb, nnb;
+    unsigned char* bump_data = texCache.LookupChar(bump_file, nxb, nyb, nnb, 1);
+
+    nnb = 1;
+    bump_textures.push_back(bump_data);
+    nvecb[0] = nxb;
+    nvecb[1] = nyb;
+    nvecb[2] = nnb;
+  } else {
+    bump_textures.push_back(nullptr);
+  }
+  if(has_roughness) {
+    int nxr, nyr, nnr;
+    unsigned char* roughness_data = texCache.LookupChar(roughness_file, nxr, nyr, nnr, 3);
+    nnr = 3;
+    // texture_bytes += nxr * nyr * nnr;
+    
+    Float min = glossy_info(9), max = glossy_info(10);
+    Float rough_range = max-min;
+    Float maxr = 0, minr = 1;
+    for(int ii = 0; ii < nxr; ii++) {
+      for(int jj = 0; jj < nyr; jj++) {
+        Float temp_rough = roughness_data[nnr*ii + nnr*nxr*jj];
+        maxr = maxr < temp_rough ? temp_rough : maxr;
+        minr = minr > temp_rough ? temp_rough : minr;
+        if(nnr > 1) {
+          temp_rough = roughness_data[nnr*ii + nnr*nxr*jj+1];
+          maxr = maxr < temp_rough ? temp_rough : maxr;
+          minr = minr > temp_rough ? temp_rough : minr;
+        }
+      }
+    }
+    Float data_range = maxr-minr;
+    for(int ii = 0; ii < nxr; ii++) {
+      for(int jj = 0; jj < nyr; jj++) {
+        if(!glossy_info(11)) {
+          roughness_data[nnr*ii + nnr*nxr*jj] =
+            (roughness_data[nnr*ii + nnr*nxr*jj]-minr)/data_range * rough_range + min;
+          if(nnr > 1) {
+            roughness_data[nnr*ii + nnr*nxr*jj+1] =
+              (roughness_data[nnr*ii + nnr*nxr*jj+1]-minr)/data_range * rough_range + min;
+          }
+        } else {
+          roughness_data[nnr*ii + nnr*nxr*jj] =
+            (1.0-(roughness_data[nnr*ii + nnr*nxr*jj]-minr)/data_range) * rough_range + min;
+          if(nnr > 1) {
+            roughness_data[nnr*ii + nnr*nxr*jj+1] =
+              (1.0-(roughness_data[nnr*ii + nnr*nxr*jj+1]-minr)/data_range) * rough_range + min;
+          }
+        }
+      }
+    }
+    roughness_textures.push_back(roughness_data);
+    nvecr[0] = nxr;
+    nvecr[1] = nyr;
+    nvecr[2] = nnr;
+  } else {
+    roughness_textures.push_back(nullptr);
+  }
+} 
+
 
 std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
-                                            Float* textures,
-                                            int* nvec,
-                                            unsigned char * rough_texture,  
-                                            int* nvecr,
-                                            NumericVector tricolorinfo) {
+                                             TextureCache& texCache,
+                                             std::vector<Float* >& textures,
+                                             std::vector<unsigned char * >& alpha_textures,
+                                             std::vector<unsigned char * >& bump_textures,
+                                             std::vector<unsigned char * >& roughness_textures,
+                                             int* nvec,
+                                             int* nveca,
+                                             int* nvecb,
+                                             int* nvecr,
+                                             bool& has_image,
+                                             bool& has_alpha,
+                                             bool& has_bump,
+                                             bool& has_roughness,
+                                             NumericVector tricolorinfo) {
   MaterialEnum type = static_cast<MaterialEnum>(as<int>(SingleMaterial["type"]));
   NumericVector properties = as<NumericVector>(as<List>(SingleMaterial["properties"])(0));
   NumericVector checkercolor = as<NumericVector>(as<List>(SingleMaterial["checkercolor"])(0));
@@ -79,16 +215,40 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
   Float noiseintensity = as<Float>(SingleMaterial["noiseintensity"]);
   NumericVector noisecolor = as<NumericVector>(as<List>(SingleMaterial["noisecolor"])(0));
   
-  bool isimage = as<bool>(SingleMaterial["image"]);
-  
+
   NumericVector image_repeat = as<NumericVector>(as<List>(SingleMaterial["image_repeat"])(0));
-  LogicalVector alphaimage = as<LogicalVector>(SingleMaterial["alphaimage"]);
-  
+
   Float lightintensity = as<Float>(SingleMaterial["lightintensity"]);
   Float sigma = as<Float>(SingleMaterial["sigma"]);
   NumericVector glossyinfo = as<NumericVector>(as<List>(SingleMaterial["glossyinfo"])(0));
   
-  bool has_rough = as<bool>(SingleMaterial["roughness_texture"]);
+  std::string image_file = as<std::string>(SingleMaterial["image"]);
+  std::string alpha_file = as<std::string>(SingleMaterial["alphaimage"]);
+  std::string bump_file = as<std::string>(SingleMaterial["bump_texture"]);
+  std::string roughness_file = as<std::string>(SingleMaterial["roughness_texture"]);
+  has_image = !image_file.empty();
+  has_alpha = !alpha_file.empty();
+  has_bump = !bump_file.empty();
+  has_roughness = !roughness_file.empty();
+  
+  LoadTexture(image_file, 
+              alpha_file, 
+              bump_file, 
+              roughness_file,
+              textures,
+              alpha_textures,
+              bump_textures,
+              roughness_textures,
+              nvec,
+              nveca,
+              nvecb,
+              nvecr,
+              glossyinfo,
+              has_image,
+              has_alpha,
+              has_bump,
+              has_roughness,
+              texCache);
   
   std::shared_ptr<material> mat = nullptr;
   std::shared_ptr<texture> material_texture;
@@ -96,13 +256,13 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
   bool is_tri_color = tricolorinfo.size() == 9;
   
   std::shared_ptr<roughness_texture> roughness;
-  if(has_rough) {
-    roughness = std::make_shared<roughness_texture>(rough_texture, 
+  if(has_roughness) {
+    roughness = std::make_shared<roughness_texture>(roughness_textures.back(), 
                                                     nvecr[0], nvecr[1], nvecr[2]);
   }
   
-  if(isimage) {
-    material_texture = std::make_shared<image_texture_float>(textures, nvec[0], nvec[1], nvec[2], 
+  if(has_image) {
+    material_texture = std::make_shared<image_texture_float>(textures.back(), nvec[0], nvec[1], nvec[2], 
                                                              image_repeat[0], image_repeat[1], 1.0);
   } else if (isnoise) {
     material_texture = std::make_shared<noise_texture>(noise,point3f(properties(0),properties(1),properties(2)),
@@ -163,9 +323,9 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
     case MICROFACET: {
       MicrofacetDistribution *dist;
       if(glossyinfo(0) == 1) {
-        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough,  true);
+        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness,  true);
       } else {
-        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough, true);
+        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness, true);
       }
       point3f eta(glossyinfo(3), glossyinfo(4), glossyinfo(5));
       point3f kappa(glossyinfo(6), glossyinfo(7), glossyinfo(8));
@@ -175,9 +335,9 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
     case GLOSSY: {
       MicrofacetDistribution *dist;
       if(glossyinfo(0) == 1) {
-        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough,  true);
+        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness,  true);
       } else {
-        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough, true);
+        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness, true);
       }
       point3f eta(glossyinfo(3), glossyinfo(4), glossyinfo(5));
       point3f kappa(glossyinfo(6),glossyinfo(7),glossyinfo(8));
@@ -205,9 +365,9 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
     case MICROFACET_TRANSMISSION: {
       MicrofacetDistribution *dist;
       if(glossyinfo(0) == 1) {
-        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough,  true);
+        dist = new TrowbridgeReitzDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness,  true);
       } else {
-        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_rough, true);
+        dist = new BeckmannDistribution(glossyinfo(1), glossyinfo(2),roughness, has_roughness, true);
       }
       point3f eta(glossyinfo(3), glossyinfo(4), glossyinfo(5));
       point3f kappa(glossyinfo(6), glossyinfo(7), glossyinfo(8));
@@ -223,25 +383,29 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
 }
 
 
-std::shared_ptr<hitable> build_scene(List& scene,
+std::shared_ptr<bvh_node> build_scene(List& scene,
                                      IntegerVector& shape,
-                                     List& position_list,
                                      Float shutteropen, 
                                      Float shutterclose,
                                      std::vector<Float* >& textures, 
-                                     std::vector<int* >& nvec,
                                      std::vector<unsigned char * >& alpha_textures, 
-                                     std::vector<int* >& nveca,
                                      std::vector<unsigned char * >& bump_textures, 
-                                     std::vector<int* >& nvecb,
                                      std::vector<unsigned char * >& roughness_textures,  
-                                     std::vector<int* >& nvecr,
                                      std::vector<std::shared_ptr<material> >* shared_materials, 
                                      int bvh_type,
                                      TransformCache& transformCache, 
+                                     TextureCache& texCache,
                                      hitable_list& imp_sample_objects,
+                                     std::vector<std::shared_ptr<hitable> >& instanced_objects,
+                                     std::vector<std::shared_ptr<hitable_list> >& instance_importance_sampled,
                                      bool verbose,
                                      random_gen& rng) {
+  auto nvec  = std::make_unique<int[]>(3);
+  auto nveca = std::make_unique<int[]>(3);
+  auto nvecb = std::make_unique<int[]>(3);
+  auto nvecr = std::make_unique<int[]>(3);
+  std::vector<int> texture_idx;
+  
   hitable_list list;
   NumericMatrix IdentityMat(4,4);
   IdentityMat.fill_diag(1);
@@ -252,14 +416,13 @@ std::shared_ptr<hitable> build_scene(List& scene,
   List AnimationInfo = as<List>(scene["animation_info"]);
   size_t n = ShapeInfo.length();
 
-  NumericVector x = position_list["xvec"];
-  NumericVector y = position_list["yvec"];
-  NumericVector z = position_list["zvec"];
+  NumericVector x = scene["x"];
+  NumericVector y = scene["y"];
+  NumericVector z = scene["z"];
   
-  std::vector<std::shared_ptr<alpha_texture> > alpha(n);
-  std::vector<std::shared_ptr<bump_texture> > bump(n);
-  std::vector<std::shared_ptr<roughness_texture> > roughness(n);
-  
+  std::vector<std::shared_ptr<alpha_texture> > alpha;
+  std::vector<std::shared_ptr<bump_texture> > bump;
+  std::vector<std::shared_ptr<roughness_texture> > roughness;
   
   for(size_t i = 0; i < n; i++) {
     List SingleShape = ShapeInfo(i);
@@ -278,16 +441,31 @@ std::shared_ptr<hitable> build_scene(List& scene,
     bool is_shared_mat = Rcpp::IntegerVector::is_na(material_id_vec(0));
     int material_id = material_id_vec(0);
     std::shared_ptr<material> shape_material;
+    bool has_image = false;
+    bool has_alpha = false;
+    bool has_bump = false;
+    bool has_roughness = false;
     
     if(is_shared_mat && shared_materials->size() > static_cast<size_t>(material_id - 1)) {
       shape_material = shared_materials->at(material_id-1);
+      texture_idx.push_back(material_id-1);
     } else {
       shape_material = LoadSingleMaterial(SingleMaterial,
-                                          textures[i],
-                                          nvec[i],
-                                          roughness_textures[i],  
-                                          nvecr[i],
+                                          texCache,
+                                          textures,
+                                          alpha_textures,
+                                          bump_textures,
+                                          roughness_textures,
+                                          nvec.get(),
+                                          nveca.get(),
+                                          nvecb.get(),
+                                          nvecr.get(),
+                                          has_image,
+                                          has_alpha,
+                                          has_bump,
+                                          has_roughness,
                                           tricolorinfo);
+      texture_idx.push_back(i);
     }
     if(is_shared_mat && shared_materials->size() < static_cast<size_t>(material_id)) {
       shared_materials->push_back(shape_material);
@@ -323,17 +501,20 @@ std::shared_ptr<hitable> build_scene(List& scene,
     std::shared_ptr<material> tex = nullptr;
     Float bump_intensity = as<Float>(SingleMaterial["bump_intensity"]);
     NumericVector image_repeat = as<NumericVector>(as<List>(SingleMaterial["image_repeat"])(0));
-    bool has_alpha = as<bool>(SingleMaterial["alphaimage"]);
-    bool has_bump = as<bool>(SingleMaterial["bump_texture"]);
     
+    
+    //`mat_idx` selects the index of the texture, in case there's a shared material.
+    int mat_idx = texture_idx[i];
     if(has_alpha) {
-      alpha[i] = std::make_shared<alpha_texture>(alpha_textures[i], 
-                                                 nveca[i][0], nveca[i][1], nveca[i][2]);
+      alpha.push_back(std::make_shared<alpha_texture>(alpha_textures[mat_idx], nveca[0], nveca[1], nveca[2]));
+    } else {
+      alpha.push_back(nullptr);
     }
     if(has_bump) {
-      bump[i] = std::make_shared<bump_texture>(bump_textures[i], 
-                                               nvecb[i][0], nvecb[i][1], nvecb[i][2], 
-                                               bump_intensity, image_repeat[0], image_repeat[1]);
+      bump.push_back(std::make_shared<bump_texture>(bump_textures[mat_idx], nvecb[0], nvecb[1], nvecb[2], 
+                                                    bump_intensity, image_repeat[0], image_repeat[1]));
+    } else {
+      bump.push_back(nullptr);
     }
     //Generate center vector
     ShapeEnum shape_type = static_cast<ShapeEnum>(shape(i));
@@ -365,7 +546,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
     switch(shape_type) {
       case SPHERE: {
         Float radius = as<Float>(shape_properties["radius"]);
-        entry = std::make_shared<sphere>(radius, shape_material, alpha[i], bump[i],
+        entry = std::make_shared<sphere>(radius, shape_material, alpha[mat_idx], bump[mat_idx],
                                          ObjToWorld, WorldToObj, is_flipped);
         if(isvolume) {
           entry = std::make_shared<constant_medium>(entry, fog_density, 
@@ -381,7 +562,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         NumericVector widths =  as<NumericVector>(shape_properties["rectinfo"]);
         entry = std::make_shared<xy_rect>(-widths(0)/2, widths(0)/2,
                                           -widths(1)/2, widths(1)/2,
-                                          0, shape_material, alpha[i], bump[i], 
+                                          0, shape_material, alpha[mat_idx], bump[mat_idx], 
                                           ObjToWorld,WorldToObj, is_flipped);
         if(is_animated) {
           entry = std::make_shared<AnimatedHitable>(entry, Animate);
@@ -393,7 +574,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         NumericVector widths =  as<NumericVector>(shape_properties["rectinfo"]);
         entry = std::make_shared<xz_rect>(-widths(0)/2, widths(0)/2,
                                           -widths(1)/2, widths(1)/2,
-                                          0, shape_material, alpha[i], bump[i], 
+                                          0, shape_material, alpha[mat_idx], bump[mat_idx], 
                                           ObjToWorld,WorldToObj, is_flipped);
         if(is_animated) {
           entry = std::make_shared<AnimatedHitable>(entry, Animate);
@@ -405,7 +586,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         NumericVector widths =  as<NumericVector>(shape_properties["rectinfo"]);
         entry = std::make_shared<yz_rect>(-widths(0)/2, widths(0)/2,
                                           -widths(1)/2, widths(1)/2,
-                                          0, shape_material, alpha[i], bump[i], 
+                                          0, shape_material, alpha[mat_idx], bump[mat_idx], 
                                           ObjToWorld,WorldToObj, is_flipped);
         if(is_animated) {
           entry = std::make_shared<AnimatedHitable>(entry, Animate);
@@ -418,7 +599,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         
         entry = std::make_shared<box>(-vec3f(widths(0),widths(1),widths(2))/2, 
                                        vec3f(widths(0),widths(1),widths(2))/2, 
-                                       shape_material, alpha[i], bump[i],
+                                       shape_material, alpha[mat_idx], bump[mat_idx],
                                        ObjToWorld,WorldToObj, is_flipped);
         
         if(isvolume) {
@@ -454,11 +635,27 @@ std::shared_ptr<hitable> build_scene(List& scene,
         bool importance_sample_lights = as<bool>(shape_properties["importance_sample_lights"]);
         bool load_normals = as<bool>(shape_properties["load_normals"]);
         bool calculate_consistent_normals = as<bool>(shape_properties["calculate_consistent_normals"]);
+        int subdivision_levels = as<int>(shape_properties["subdivision_levels"]);
+        std::string displacement_texture = as<std::string>(shape_properties["displacement_texture"]);
+        Float displacement_intensity = as<Float>(shape_properties["displacement_intensity"]);
+        bool is_vector_displacement = as<bool>(shape_properties["displacement_vector"]);
+        bool recalculate_normals = as<bool>(shape_properties["recalculate_normals"]);
+        
+        
         Float sigma_obj = as<Float>(SingleMaterial["sigma"]);
+
+        
         entry = std::make_shared<trimesh>(objfilename, objbasename, 
                                           scale_obj, sigma_obj, shape_material, 
+                                          alpha[mat_idx], bump[mat_idx], 
                                           load_material, load_textures, load_vertex_colors,
                                           importance_sample_lights, load_normals, calculate_consistent_normals,
+                                          subdivision_levels, 
+                                          displacement_texture,
+                                          displacement_intensity,
+                                          is_vector_displacement,
+                                          texCache,
+                                          recalculate_normals,
                                           imp_sample_objects,
                                           shutteropen, shutterclose, bvh_type, rng, verbose,
                                           ObjToWorld,WorldToObj, is_flipped);
@@ -476,8 +673,8 @@ std::shared_ptr<hitable> build_scene(List& scene,
         Float radius = as<Float>(shape_properties["radius"]);
         Float inner_radius = as<Float>(shape_properties["inner_radius"]);
         
-        entry = std::make_shared<disk>(vec3f(0,0,0), radius, inner_radius, shape_material, alpha[i], bump[i],
-                                       ObjToWorld,WorldToObj, is_flipped);
+        entry = std::make_shared<disk>(vec3f(0,0,0), radius, inner_radius, shape_material, alpha[mat_idx], bump[mat_idx],
+                                       ObjToWorld, WorldToObj, is_flipped);
         if(is_animated) {
           entry = std::make_shared<AnimatedHitable>(entry, Animate);
         }
@@ -495,7 +692,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         bool has_cap_option = has_cap && has_caps_not_light;
         entry = std::make_shared<cylinder>(radius, length, 
                                            phi_min, phi_max, has_cap_option,
-                                           shape_material, alpha[i], bump[i],
+                                           shape_material, alpha[mat_idx], bump[mat_idx],
                                            ObjToWorld,WorldToObj, is_flipped);
         if(is_animated) {
           entry = std::make_shared<AnimatedHitable>(entry, Animate);
@@ -509,7 +706,7 @@ std::shared_ptr<hitable> build_scene(List& scene,
         Float c =  Rcpp::as<Float>(shape_properties["c"]);
         entry = std::make_shared<ellipsoid>(vec3f(0,0,0), 1, 
                                             vec3f(a,b,c),
-                                            shape_material, alpha[i], bump[i],
+                                            shape_material, alpha[mat_idx], bump[mat_idx],
                                             ObjToWorld,WorldToObj, is_flipped);
         if(isvolume) {
           entry = std::make_shared<constant_medium>(entry, fog_density, 
@@ -569,9 +766,13 @@ std::shared_ptr<hitable> build_scene(List& scene,
         std::string plyfilename = Rcpp::as<std::string>(SingleShape["fileinfo"]);
         std::string plybasename =  Rcpp::as<std::string>(shape_properties["basename"]);
         Float scale_ply = as<Float>(shape_properties["scale_ply"]);
+        int subdivision_levels = as<int>(shape_properties["subdivision_levels"]);
+        bool recalculate_normals = as<bool>(shape_properties["recalculate_normals"]);
+        
         entry = std::make_shared<plymesh>(plyfilename, plybasename, 
-                                          shape_material, alpha[i], bump[i], 
-                                          scale_ply,
+                                          shape_material, alpha[mat_idx], bump[mat_idx], 
+                                          scale_ply, subdivision_levels, recalculate_normals,
+                                          verbose,
                                           shutteropen, shutterclose, bvh_type, rng,
                                           ObjToWorld,WorldToObj, is_flipped);
         if(entry == nullptr) {
@@ -591,7 +792,17 @@ std::shared_ptr<hitable> build_scene(List& scene,
       }
       case MESH3D: {
         List mesh_entry = as<List>(SingleShape["mesh_info"])(0);
+        std::string displacement_texture = as<std::string>(mesh_entry["displacement_texture"]);
+        Float displacement_intensity = as<Float>(mesh_entry["displacement_intensity"]);
+        bool is_vector_displacement = as<bool>(mesh_entry["displacement_vector"]);
+        bool recalculate_normals = as<bool>(mesh_entry["recalculate_normals"]);
+        
         entry = std::make_shared<mesh3d>(mesh_entry, shape_material,
+                                         displacement_texture,
+                                         displacement_intensity,
+                                         is_vector_displacement,
+                                         texCache, recalculate_normals,
+                                         verbose,
                                          shutteropen, shutterclose, bvh_type, rng,
                                          ObjToWorld,WorldToObj, is_flipped);
         if(is_animated) {
@@ -606,15 +817,26 @@ std::shared_ptr<hitable> build_scene(List& scene,
         bool calculate_consistent_normals = as<bool>(shape_properties["calculate_consistent_normals"]);
         bool override_material = as<bool>(shape_properties["override_material"]);
         bool flip_transmittance = as<bool>(shape_properties["flip_transmittance"]);
+        int subdivision_levels = as<int>(shape_properties["subdivision_levels"]);
+        std::string displacement_texture = as<std::string>(shape_properties["displacement_texture"]);
+        Float displacement_intensity = as<Float>(shape_properties["displacement_intensity"]);
+        bool is_vector_displacement = as<bool>(shape_properties["displacement_vector"]);
+        bool recalculate_normals = as<bool>(shape_properties["recalculate_normals"]);
+        
         //importance sample lights--need to change
         ////calculate consistent normals--need to change
         entry = std::make_shared<raymesh>(raymesh_object,
                                           shape_material,
-                                          alpha[i], bump[i], 
+                                          alpha[mat_idx], bump[mat_idx], 
                                           importance_sample_lights, 
                                           calculate_consistent_normals, 
                                           override_material,
                                           flip_transmittance,
+                                          subdivision_levels,
+                                          displacement_texture,
+                                          displacement_intensity,
+                                          is_vector_displacement,
+                                          texCache, recalculate_normals,
                                           imp_sample_objects, 
                                           verbose, 
                                           shutteropen, shutterclose, bvh_type, rng, 
@@ -625,8 +847,64 @@ std::shared_ptr<hitable> build_scene(List& scene,
         list.add(entry);
         break;
       }
+      case INSTANCE: {
+        List original_scene = as<List>(shape_properties["original_scene"])(0);
+        NumericVector x_values = as<NumericVector>(shape_properties["x_values"]);
+        NumericVector y_values = as<NumericVector>(shape_properties["y_values"]);
+        NumericVector z_values = as<NumericVector>(shape_properties["z_values"]);
+        NumericVector angle_x = as<NumericVector>(shape_properties["angle_x"]);
+        NumericVector angle_y = as<NumericVector>(shape_properties["angle_y"]);
+        NumericVector angle_z = as<NumericVector>(shape_properties["angle_z"]);
+        NumericVector scale_x = as<NumericVector>(shape_properties["scale_x"]);
+        NumericVector scale_y = as<NumericVector>(shape_properties["scale_y"]);
+        NumericVector scale_z = as<NumericVector>(shape_properties["scale_z"]);
+        IntegerVector shape_vec = as<IntegerVector>(original_scene["shape"]);
+        auto instance_importance_sample_list = std::make_shared<hitable_list>();
+        std::shared_ptr<bvh_node> instance_scene = build_scene(original_scene,
+                                                              shape_vec,
+                                                              shutteropen,
+                                                              shutterclose,
+                                                              textures, 
+                                                              alpha_textures, 
+                                                              bump_textures, 
+                                                              roughness_textures,  
+                                                              shared_materials,
+                                                              bvh_type,
+                                                              transformCache,
+                                                              texCache,
+                                                              (*instance_importance_sample_list),
+                                                              instanced_objects,
+                                                              instance_importance_sampled,
+                                                              false,
+                                                              rng);
+        instanced_objects.push_back(instance_scene);
+        bool any_importance_sampled = instance_importance_sample_list->size() > 0;
+        if(any_importance_sampled) {
+          instance_importance_sampled.push_back(instance_importance_sample_list);
+        }
+        
+        for(size_t ii = 0; ii < (size_t)x_values.size(); ii++) {
+          vec3f center_instance = vec3f(x_values(ii), y_values(ii), z_values(ii));
+          NumericVector angle_instance = {angle_x(ii), angle_y(ii), angle_z(ii)};
+
+          Transform InstanceTransform = GroupTransform * 
+            Translate(center_instance) * 
+            rotation_order_matrix(angle_instance, order_rotation) * 
+            Scale(scale_x(ii), scale_y(ii), scale_z(ii));
+          std::shared_ptr<Transform> ObjToWorldInst = transformCache.Lookup(InstanceTransform);
+          std::shared_ptr<Transform> WorldToObjInst = transformCache.Lookup(InstanceTransform.GetInverseMatrix());
+          list.add(std::make_shared<instance>(instance_scene.get(),
+                                              ObjToWorldInst, 
+                                              WorldToObjInst,
+                                              instance_importance_sample_list.get()));
+          if(any_importance_sampled) {
+            imp_sample_objects.add(list.back());
+          }
+        }
+        break;
+      }
     }
-    if(importance_sample) {
+    if(importance_sample && shape_type != INSTANCE) {
       imp_sample_objects.add(entry);
     }
   }
