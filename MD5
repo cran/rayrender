@@ -1,4 +1,4 @@
-9ad9fb0bbbb70fbb08cd3b071f9ed01b *DESCRIPTION
+9f9adbea108a03b4c718f31fcdca615d *DESCRIPTION
 ba43fc3b402571571d2483fda44e5b04 *NAMESPACE
 9f2fcf004335ea283dbb4163ebf34565 *R/RcppExports.R
 31c32ea1becd4c7527e98e1714fbee51 *R/add_object.R
@@ -280,7 +280,7 @@ a10775f6d474238f1fdbb3190858595e *src/sphere.h
 754fc47d4b93c3ce8a2bdc374b537f22 *src/stb/stb_image_write.h
 b2507bd94314f5588ec71769b31a6b04 *src/texture.cpp
 ec12cf5dfbfe3fc4037f3dd1b83273e3 *src/texture.h
-5a06d2c2dcc24c8aff8f2c36ce3b6808 *src/texturecache.cpp
+0b9ac66a5841e2c71a5aae08d196358c *src/texturecache.cpp
 18b35d46d9b319985d899bde0bf34771 *src/texturecache.h
 22dbe105b6953781422a97e1e66c43ca *src/tinyobj/earcut.hpp
 5786234740b940eba4c223bab49a246a *src/tinyobj/tiny_obj_loader.h
@@ -293,7 +293,7 @@ b8e774b7223deea9438ab8a2a791234d *src/transform.h
 1417e2410efe4543b31e89200e6802ba *src/transformcache.h
 e1892a85c97b7abc766201f7276513f5 *src/triangle.cpp
 da4aed32779172046b9912b106725be2 *src/triangle.h
-0bceca3d4d2d4b7d088ed7be7ff66d07 *src/trianglemesh.cpp
+edea9241ab79fd63d036440bd29fd095 *src/trianglemesh.cpp
 c655daa61602c95d8087c0cfa4d4fa00 *src/trianglemesh.h
 ed2fe1400e2df3417dc7119551ffe87d *src/trimesh.cpp
 14f82215bf23b841f016a778ede31218 *src/trimesh.h
