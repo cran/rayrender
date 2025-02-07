@@ -7,6 +7,7 @@
 #include "transform.h"
 #include "matrix.h"
 #include "efloat.h"
+#include "vectypes.h"
 
 class sphere: public hitable {
   public:
@@ -14,13 +15,14 @@ class sphere: public hitable {
     ~sphere() {}
     sphere(Float r, std::shared_ptr<material> mat, 
            std::shared_ptr<alpha_texture> alpha_mask, std::shared_ptr<bump_texture> bump_tex,
-           std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) : 
-            hitable(ObjectToWorld, WorldToObject, reverseOrientation), 
-            radius(r), 
-            mat_ptr(mat), alpha_mask(alpha_mask), bump_tex(bump_tex) {};
-    virtual bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng);
-    virtual bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler);
-    
+           Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) : 
+            hitable(ObjectToWorld, WorldToObject, mat, reverseOrientation), 
+            radius(r), alpha_mask(alpha_mask), bump_tex(bump_tex) {};
+    virtual const bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng) const;
+    virtual const bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler) const;
+    virtual bool HitP(const ray &r, Float t_min, Float t_max, random_gen& rng) const;
+    virtual bool HitP(const ray &r, Float t_min, Float t_max, Sampler* sampler) const;
+
     virtual bool bounding_box(Float t0, Float t1, aabb& box) const;
     virtual Float pdf_value(const point3f& o, const vec3f& v, random_gen& rng, Float time = 0);
     virtual Float pdf_value(const point3f& o, const vec3f& v, Sampler* sampler, Float time = 0);
@@ -30,9 +32,13 @@ class sphere: public hitable {
     virtual std::string GetName() const {
       return(std::string("Sphere"));
     }
+    virtual void hitable_info_bounds(Float t0, Float t1) const {
+      aabb box;
+      bounding_box(t0, t1, box);
+      Rcpp::Rcout << GetName() << ": " <<  box.min() << "-" << box.max() << "\n";
+    }
     size_t GetSize();
     Float radius;
-    std::shared_ptr<material> mat_ptr;
     std::shared_ptr<alpha_texture> alpha_mask;
     std::shared_ptr<bump_texture> bump_tex;
 };

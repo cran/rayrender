@@ -1,13 +1,15 @@
 #include "hitablelist.h"
+#include "raylog.h"
 
-
-bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("Hitable List");
   hit_record temp_rec;
 #ifdef DEBUGBVH
   temp_rec.bvh_nodes = rec.bvh_nodes;
 #endif
   bool hit_anything = false;
-  double closest_so_far = t_max;
+  Float closest_so_far = t_max;
   for (const auto& object : objects) {
     if (object->hit(r, t_min, closest_so_far, temp_rec, rng)) {
       hit_anything = true;
@@ -18,13 +20,15 @@ bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, 
   return(hit_anything);
 }
 
-bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("Hitable List");
   hit_record temp_rec;
 #ifdef DEBUGBVH
   temp_rec.bvh_nodes = rec.bvh_nodes;
 #endif
   bool hit_anything = false;
-  double closest_so_far = t_max;
+  Float closest_so_far = t_max;
   for (const auto& object : objects) {
     if (object->hit(r, t_min, closest_so_far, temp_rec, sampler)) {
       hit_anything = true;
@@ -35,7 +39,31 @@ bool hitable_list::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, 
   return(hit_anything);
 }
 
+bool hitable_list::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("Hitable List");
+  for (const auto& object : objects) {
+    if (object->HitP(r, t_min, t_max, rng)) {
+      return(true);
+    }
+  }
+  return(false);
+}
+
+bool hitable_list::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("Hitable List");
+  for (const auto& object : objects) {
+    if (object->HitP(r, t_min, t_max, sampler)) {
+      return(true);
+    }
+  }
+  return(false);
+}
+
 bool hitable_list::bounding_box(Float t0, Float t1, aabb& box) const {
+  SCOPED_CONTEXT("Bounding Box");
+  SCOPED_TIMER_COUNTER("Hitable List");
   if(objects.empty()) {
     return(false);
   }

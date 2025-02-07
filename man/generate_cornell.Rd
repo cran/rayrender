@@ -10,6 +10,7 @@ generate_cornell(
   lightcolor = "white",
   lightwidth = 332,
   lightdepth = 343,
+  light_position = c(555/2, 554, 555/2),
   sigma = 0,
   leftcolor = "#1f7326",
   rightcolor = "#a60d0d",
@@ -27,6 +28,8 @@ generate_cornell(
 \item{lightwidth}{Default `332`. Width (z) of the light.}
 
 \item{lightdepth}{Default `343`. Depth (x) of the light.}
+
+\item{light_position}{Default `c(555/2,554,555/2)`. Position of the light.}
 
 \item{sigma}{Default `0`. Oren-Nayar microfacet angle.}
 
@@ -46,30 +49,30 @@ Generate Cornell Box
 }
 \examples{
 #Generate and render the default Cornell box.
-scene = generate_cornell()
 if(run_documentation()) {
-render_scene(scene, samples=128,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
+render_scene(generate_cornell(), 
+             samples=16,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 if(run_documentation()) {
 #Make a much smaller light in the center of the room.
-scene = generate_cornell(lightwidth=200,lightdepth=200)
-render_scene(scene, samples=128,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
+render_scene(generate_cornell(lightwidth=200,lightdepth=200), 
+             samples=16,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 if(run_documentation()) {
 #Place a sphere in the middle of the box.
-scene = scene \%>\%
+scene = generate_cornell(lightwidth=200,lightdepth=200) \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/4))
-render_scene(scene, samples=128,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
+render_scene(scene, samples=16,aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 if(run_documentation()) {
 #Reduce "fireflies" by setting a clamp_value in render_scene()
-render_scene(scene, samples=128,aperture=0, fov=40, ambient_light=FALSE, 
+render_scene(scene, samples=16,aperture=0, fov=40, ambient_light=FALSE, 
              parallel=TRUE,clamp_value=3)
 }
 if(run_documentation()) {
 # Change the color scheme of the cornell box
-new_cornell = generate_cornell(leftcolor="purple", rightcolor="yellow")
-render_scene(new_cornell, samples=128,aperture=0, fov=40, ambient_light=FALSE, 
-             parallel=TRUE,clamp_value=3)
+generate_cornell(leftcolor="purple", rightcolor="yellow") |> 
+  render_scene(samples=16,aperture=0, fov=40, ambient_light=FALSE, 
+               parallel=TRUE,clamp_value=3)
 }
 }

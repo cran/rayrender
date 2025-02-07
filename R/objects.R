@@ -23,7 +23,7 @@
 #' generate_cornell() %>%
 #'   add_object(sphere(x = 555/2, y = 555/2, z = 555/2, radius = 100)) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, clamp_value = 5)
 #' }
 #' 
 #' #Generate a gold sphere in the cornell box
@@ -32,7 +32,7 @@
 #'   add_object(sphere(x = 555/2, y = 100, z = 555/2, radius = 100, 
 #'                     material = microfacet(color = "gold"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, clamp_value = 5)
 #' }
 sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(), 
                   angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -89,7 +89,7 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #'   add_object(cube(x = 555/2, y = 100, z = 555/2, 
 #'                   xwidth = 200, ywidth = 200, zwidth = 200, angle = c(0, 30, 0))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Generate a gold cube in the cornell box
 #' if(run_documentation()) {
@@ -98,7 +98,7 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #'                   xwidth = 200, ywidth = 200, zwidth = 200, angle = c(0, 30, 0),
 #'                   material = metal(color = "gold", fuzz = 0.2))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Generate a rotated dielectric box in the cornell box
@@ -108,7 +108,7 @@ sphere = function(x = 0, y = 0, z = 0, radius = 1, material = diffuse(),
 #'                   xwidth = 200, ywidth = 100, zwidth = 200, angle = c(-30, 30, -30),
 #'                   material = dielectric())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40,  
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5) 
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5) 
 #' }
 cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth = 1, 
                 material = diffuse(), angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -167,7 +167,7 @@ cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth =
 #'   add_object(xy_rect(x = 555/2, y = 100, z = 555/2, xwidth = 200, ywidth = 200,
 #'              material = diffuse(color = "purple"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800), lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Generate a gold plane in the cornell box
@@ -177,7 +177,7 @@ cube = function(x = 0, y = 0, z = 0, width = 1, xwidth = 1, ywidth = 1, zwidth =
 #'                      xwidth = 200, ywidth = 200, angle = c(0, 30, 0),
 #'                      material = metal(color = "gold"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,  
                    material = diffuse(), angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -233,7 +233,7 @@ xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,
 #'   add_object(yz_rect(x = 100, y = 100, z = 555/2, ywidth = 200, zwidth = 200,
 #'                      material = diffuse(color = "purple"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Generate a gold plane in the cornell box
 #' if(run_documentation()) {
@@ -242,7 +242,7 @@ xy_rect = function(x = 0, y = 0, z = 0, xwidth = 1, ywidth = 1,
 #'                      ywidth = 200, zwidth = 200, angle = c(0, 30, 0),
 #'                      material = metal(color = "gold"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffuse(), 
                    angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -298,7 +298,7 @@ yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffu
 #'   add_object(xz_rect(x = 555/2, y = 100, z = 555/2, xwidth = 200, zwidth = 200,
 #'              material = diffuse(color = "purple"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Generate a gold plane in the cornell box
@@ -308,7 +308,7 @@ yz_rect = function(x = 0, y = 0, z = 0, ywidth = 1, zwidth = 1, material = diffu
 #'              xwidth = 200, zwidth = 200, angle = c(0, 30, 0),
 #'              material = metal(color = "gold"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffuse(), 
                    angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -373,7 +373,7 @@ xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffu
 #'   add_object(triangle(v1 = c(100, 100, 100), v2 = c(555/2, 455, 455), v3 = c(455, 100, 100),
 #'                       material = diffuse(color = "purple"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Pass individual colors to each vertex: 
 #' if(run_documentation()) {
@@ -381,7 +381,7 @@ xz_rect = function(x = 0, xwidth = 1, z = 0, zwidth = 1, y = 0, material = diffu
 #'   add_object(triangle(v1 = c(100, 100, 100), v2 = c(555/2, 455, 455), v3 = c(455, 100, 100),
 #'                       color1 = "green", color2 = "yellow", color3 = "red")) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0), 
                     n1 = rep(NA, 3), n2 = rep(NA, 3), n3 = rep(NA, 3),
@@ -472,7 +472,7 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #'   add_object(disk(x = 555/2, y = 50, z = 555/2, radius = 150, 
 #'                   material = diffuse(color = "orange"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Rotate the disk.
 #' if(run_documentation()) {
@@ -480,7 +480,7 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #'   add_object(disk(x = 555/2, y = 555/2, z = 555/2, radius = 150, angle = c(-45, 0, 0), 
 #'                   material = diffuse(color = "orange"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) , lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Pass a value for the inner radius.
 #' if(run_documentation()) {
@@ -489,7 +489,7 @@ triangle = function(v1 = c(1, 0, 0), v2 = c(0, 1, 0), v3 = c(-1, 0, 0),
 #'                   radius = 150, inner_radius = 75, angle = c(-45, 0, 0), 
 #'                   material = diffuse(color = "orange"))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = diffuse(), 
                 angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
@@ -543,7 +543,7 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
 #' @param importance_sample_lights Default `TRUE`. Whether to importance sample lights specified in the OBJ material
 #' (objects with a non-zero Ke MTL material).
 #' @param subdivision_levels Default `1`. Number of Loop subdivisions to be applied to the mesh.
-#' @param displacement_texture Default `NA`. File path to the displacement texture. 
+#' @param displacement_texture Default `""`. File path to the displacement texture. 
 #' This texture is used to displace the vertices of the mesh based on the texture's pixel values.
 #' @param displacement_intensity Default `1`. Intensity of the displacement effect. 
 #' Higher values result in greater displacement.
@@ -578,7 +578,7 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
 #'                        scale_obj=3)) %>%
 #'    add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
 #'                      material = light(intensity = 10))) %>%
-#'   render_scene(parallel = TRUE, samples = 256, aperture = 0.05, 
+#'   render_scene(parallel = TRUE, samples = 16, aperture = 0.05, 
 #'                sample_method="sobol_blue",
 #'                fov = 20, lookfrom = c(0, 2, 10))
 #' }
@@ -590,7 +590,7 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
 #'                        scale_obj=3, subdivision_levels = 3)) %>%
 #'    add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
 #'                      material = light(intensity = 10))) %>%
-#'   render_scene(parallel = TRUE, samples = 256, aperture = 0.05,
+#'   render_scene(parallel = TRUE, samples = 16, aperture = 0.05,
 #'                sample_method="sobol_blue", 
 #'                fov = 20, lookfrom = c(0, 2, 10))
 #' }
@@ -610,7 +610,7 @@ disk = function(x = 0, y = 0, z = 0, radius = 1, inner_radius = 0, material = di
 #'                                              attenuation_intensity = 20))) %>%
 #'   add_object(sphere(z = 20, x = 20, y = 20, radius = 10,
 #'                     material = light(intensity = 10))) %>%
-#'   render_scene(parallel = TRUE, samples = 256, aperture = 0.05, 
+#'   render_scene(parallel = TRUE, samples = 16, aperture = 0.05, 
 #'                sample_method="sobol_blue", lookat=c(0,0.5,0),
 #'                fov = 22, lookfrom = c(0, 2, 10))
 #' 
@@ -619,7 +619,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
                      load_material = TRUE, load_textures = TRUE, load_normals = TRUE,
                      vertex_colors = FALSE, calculate_consistent_normals = TRUE,
                      subdivision_levels = 1,  
-                     displacement_texture = NA, 
+                     displacement_texture = "", 
                      displacement_intensity = 1, 
                      displacement_vector = FALSE,
                      recalculate_normals = FALSE,
@@ -661,7 +661,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
                                                                      calculate_consistent_normals = calculate_consistent_normals,
                                                                      subdivision_levels = subdivision_levels,
                                                                      basename = base_dir(filename),
-                                                                     displacement_texture = list(displacement_texture), 
+                                                                     displacement_texture = displacement_texture, 
                                                                      displacement_intensity = displacement_intensity, 
                                                                      displacement_vector = displacement_vector,
                                                                      recalculate_normals = recalculate_normals),
@@ -714,7 +714,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #'   add_object(cylinder(x = 555/2, y = 250, z = 555/2, 
 #'                       length = 300, radius = 100, material = metal())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' #Rotate the cylinder
 #' if(run_documentation()) {
@@ -723,7 +723,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #'                       length = 300, radius = 100, angle = c(0, 0, 45),
 #'                       material = diffuse())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' # Only render a subtended arc of the cylinder, flipping the normals.
@@ -733,7 +733,7 @@ obj_model = function(filename, x = 0, y = 0, z = 0, scale_obj = 1,
 #'                       length = 300, radius = 100, angle = c(45, 0, 0), phi_min = 0, phi_max = 180,
 #'                       material = diffuse(), flipped = TRUE)) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1, 
                     phi_min = 0, phi_max = 360, material = diffuse(), 
@@ -800,7 +800,7 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' generate_cornell() %>%
 #'   add_object(segment(start = c(100, 100, 100), end = c(455, 455, 455), radius = 50)) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #'
 #' # Draw a line graph representing a normal distribution, but with metal:
@@ -819,7 +819,7 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' generate_cornell() %>% 
 #'   add_object(scene_segments) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #'
 #' #Draw the outline of a cube:
@@ -841,7 +841,7 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #' generate_cornell() %>%
 #'   add_object(cube_outline) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Shrink and rotate the cube
@@ -850,7 +850,7 @@ cylinder = function(x = 0, y = 0, z = 0, radius = 1, length = 1,
 #'   add_object(group_objects(cube_outline, pivot_point = c(555/2, 555/2, 555/2),
 #'                            angle = c(45,45,45), scale = c(0.5,0.5,0.5))) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1, 
                    phi_min = 0, phi_max = 360, from_center = TRUE, direction = NA,
@@ -912,8 +912,7 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1,
 
 #' Ellipsoid Object
 #'
-#' Note: light importance sampling for this shape is currently approximated by a sphere. This will fail
-#' for ellipsoids with large differences between axes.
+#' Note: this is just a scaled sphere.
 #'
 #' @param x Default `0`. x-coordinate of the center of the ellipsoid.
 #' @param y Default `0`. y-coordinate of the center of the ellipsoid.
@@ -940,7 +939,7 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1,
 #'   add_object(ellipsoid(x = 555/2, y = 555/2, z = 555/2, 
 #'                        a = 100, b = 50, c = 50)) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Change the axes to make it taller rather than wide:
@@ -949,7 +948,7 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1,
 #'   add_object(ellipsoid(x = 555/2, y = 555/2, z = 555/2, 
 #'                        a = 100, b = 200, c = 100, material = metal())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 #' 
 #' #Rotate it and make it dielectric:
@@ -959,35 +958,13 @@ segment = function(start = c(0, -1, 0), end = c(0, 1, 0), radius = 0.1,
 #'                        a = 100, b = 200, c = 100, angle = c(0, 0, 45),
 #'                        material = dielectric())) %>%
 #'   render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
-#'                ambient_light = FALSE, samples = 128, parallel = TRUE, clamp_value = 5)
+#'                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
 #' }
 ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
                   material = diffuse(), 
                   angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                   flipped = FALSE, scale = c(1,1,1)) {
-  if(length(scale) == 1) {
-    scale = c(scale, scale, scale)
-  }
-  new_tibble_row(list(x = x, y = y, z = z, shape = "ellipsoid",
-                 material = material,
-                 shape_info = ray_shape_info(shape_properties = list(a = a, 
-                                                                     b = b,
-                                                                     c = c),
-                                             tricolorinfo = list(NA), 
-                                             fileinfo = NA,
-                                             material_id = NA_integer_,  
-                                             csg_object = list(NA), 
-                                             mesh_info = list(NA),
-                                             flipped = flipped),
-                 transforms = ray_transform(angle = list(angle),
-                                            order_rotation = list(order_rotation),
-                                            scale = list(scale),
-                                            group_transform = list(matrix(NA_real_))),
-                 animation_info = ray_animated_transform(
-                   start_transform_animation = list(matrix(NA_real_)), 
-                   end_transform_animation = list(matrix(NA_real_)),
-                   start_time = 0, end_time = 1)
-                 ))
+  return(sphere(x=x,y=y,z=z,scale=c(a,b,c)*scale, material=material, angle = angle,flipped = flipped, order_rotation = order_rotation))
 }
 
 #' Extruded Polygon Object
@@ -1044,7 +1021,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'   add_object(extruded_polygon(star_polygon,top=0.5,bottom=0,
 #'                               material=diffuse(color="red",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,z=-3,material=light(intensity=30))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(0,2,3),samples=128,lookat=c(0,0.5,0),fov=60)
+#'   render_scene(parallel=TRUE,lookfrom = c(0,2,3),samples=16,lookat=c(0,0.5,0),fov=60)
 #' }
 #' 
 #' #Now, let's add a hole to the center of the polygon. We'll make the polygon
@@ -1062,7 +1039,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'   add_object(extruded_polygon(hollow_star,top=0.25,bottom=0, holes = nrow(star_polygon) + 1,
 #'                               material=diffuse(color="red",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,z=-3,material=light(intensity=30))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=128,lookat=c(0,0,0),fov=30)
+#'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=16,lookat=c(0,0,0),fov=30)
 #' }
 #' 
 #' # Render one in the y-x plane as well by changing the `plane` argument,
@@ -1076,7 +1053,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'                               holes = nrow(star_polygon) + 1, plane = "yx", 
 #'                               material=diffuse(color="green",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,material=light(intensity=30))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=128,lookat=c(0,0.9,0),fov=40)
+#'   render_scene(parallel=TRUE,lookfrom = c(0,2,4),samples=16,lookat=c(0,0.9,0),fov=40)
 #' }
 #' 
 #' # Now add the zy plane:
@@ -1092,7 +1069,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'                               holes = nrow(star_polygon) + 1, plane = "zy", 
 #'                               material=diffuse(color="blue",sigma=90))) %>%
 #'   add_object(sphere(y=4,x=-3,material=light(intensity=30))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(-4,2,4),samples=128,lookat=c(0,0.9,0),fov=40)
+#'   render_scene(parallel=TRUE,lookfrom = c(-4,2,4),samples=16,lookat=c(0,0.9,0),fov=40)
 #' }
 #' 
 #' #We can also directly pass in sf polygons:
@@ -1114,7 +1091,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'                               material=diffuse(color="#ff2222",sigma=90))) %>%
 #'   add_object(sphere(y=30,x=-30,radius=10,
 #'                     material=light(color="lightblue",intensity=40))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(0,10,-10),samples=128,fov=60)
+#'   render_scene(parallel=TRUE,lookfrom = c(0,10,-10),samples=16,fov=60)
 #' }
 #' 
 #' #Here we use the raw coordinates, but offset the polygon manually.
@@ -1127,7 +1104,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'                     material=light(color="lightblue",intensity=200))) %>%
 #'   add_object(sphere(y=30,x=100,radius=10,
 #'                     material=light(color="orange",intensity=200))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(0,120,-120),samples=128,fov=20)
+#'   render_scene(parallel=TRUE,lookfrom = c(0,120,-120),samples=16,fov=20)
 #' }
 #' 
 #' #We can also set the map the height of each polygon to a column in the sf object,
@@ -1143,7 +1120,7 @@ ellipsoid = function(x = 0, y = 0, z = 0, a = 1, b = 1, c = 1,
 #'                     material=light(color="lightblue",intensity=250))) %>%
 #'   add_object(sphere(y=30,x=100,z=-60,radius=10,
 #'                     material=light(color="orange",intensity=250))) %>%
-#'   render_scene(parallel=TRUE,lookfrom = c(-60,50,-40),lookat=c(0,-5,0),samples=128,fov=30)
+#'   render_scene(parallel=TRUE,lookfrom = c(-60,50,-40),lookat=c(0,-5,0),samples=16,fov=30)
 #' }
 #' 
 extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
@@ -1508,14 +1485,14 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 #' generate_studio() %>% 
 #'  add_object(cone(start=c(0,-1,0), end=c(0,1,0), radius=1,material=diffuse(color="red"))) %>% 
 #'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
-#'  render_scene(samples=128,clamp_value=10)
+#'  render_scene(samples=16,clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #'  #Change the radius, length, and direction
 #' generate_studio() %>% 
 #'  add_object(cone(start=c(0,0,0), end=c(0,-1,0), radius=0.5,material=diffuse(color="red"))) %>% 
 #'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
-#'  render_scene(samples=128,clamp_value=10)
+#'  render_scene(samples=16,clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #Give custom start and end points (and customize the color/texture)
@@ -1526,7 +1503,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 #'  add_object(cone(start=c(-1,-0.5,0), end=c(1,-0.5,0), radius=0.25,
 #'    material = diffuse(color="red",gradient_color="green"))) %>% 
 #'  add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
-#'  render_scene(samples=128,clamp_value=10)
+#'  render_scene(samples=16,clamp_value=10)
 #' }
 #' if(run_documentation()) {  
 #' #Specify cone via direction and location, instead of start and end positions
@@ -1540,7 +1517,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 #'   add_object(sphere(y=5,material=light())) %>% 
 #'   add_object(sphere(y=3,x=-3,z=-3,material=light(color="red"))) %>% 
 #'   add_object(sphere(y=3,x=3,z=-3,material=light(color="green"))) %>% 
-#'   render_scene(lookfrom=c(0,4,10), clamp_value=10, samples=128)
+#'   render_scene(lookfrom=c(0,4,10), clamp_value=10, samples=16)
 #' }
 #' if(run_documentation()) {
 #'  #Render the position from the base, instead of the center of the cone:
@@ -1555,7 +1532,7 @@ extruded_polygon = function(polygon = NULL, x = 0, y = 0, z = 0, plane = "xz",
 #'   add_object(cone(start = c(0,-1,1.5), from_center = FALSE, radius=0.5, direction = c(0,1,0), 
 #'     material = noise_mat)) %>% 
 #'   add_object(sphere(y=5,x=5,material=light(intensity=40))) %>% 
-#'   render_scene(lookfrom=c(0,4,10), clamp_value=10,fov=25, samples=128)
+#'   render_scene(lookfrom=c(0,4,10), clamp_value=10,fov=25, samples=16)
 #' }
 cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5, 
                 direction = NA, from_center = TRUE,
@@ -1599,7 +1576,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #' generate_studio() %>% 
 #'   add_object(arrow(start = c(-1,0,0), end = c(1,0,0), material=glossy(color="red"))) %>% 
 #'   add_object(sphere(y=5,material=light(intensity=20))) %>% 
-#'   render_scene(clamp_value=10,  samples=128)
+#'   render_scene(clamp_value=10,  samples=16)
 #' }
 #' if(run_documentation()) {
 #' #Change the proportion of tail to top
@@ -1611,7 +1588,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #'   add_object(arrow(start = c(-1,1,0), end = c(1,1,0), tail_proportion = 0.9,
 #'                    material=glossy(color="red"))) %>% 
 #'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
-#'   render_scene(clamp_value=10, fov=25,  samples=128)
+#'   render_scene(clamp_value=10, fov=25,  samples=16)
 #' }
 #' if(run_documentation()) {
 #' #Change the radius of the tail/top segments
@@ -1626,7 +1603,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #'                    radius_top = 0.3, radius_tail=0.2,
 #'                    material=glossy(color="red"))) %>% 
 #'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
-#'   render_scene(clamp_value=10, samples=128)
+#'   render_scene(clamp_value=10, samples=16)
 #' }
 #' if(run_documentation()) {
 #' #We can also specify arrows via a midpoint and direction:
@@ -1640,7 +1617,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #'   add_object(arrow(start = c(0,-0.5,-1), direction = c(-1,0,0),
 #'                    material=glossy(color="purple"))) %>% 
 #'   add_object(sphere(y=5,z=5,x=2,material=light(intensity=30))) %>% 
-#'   render_scene(clamp_value=10, samples=128, 
+#'   render_scene(clamp_value=10, samples=16, 
 #'                lookfrom=c(0,5,10), lookat=c(0,-0.5,0), fov=16)
 #' }
 #' if(run_documentation()) {
@@ -1664,7 +1641,7 @@ cone = function(start = c(0, 0, 0), end = c(0, 1, 0), radius = 0.5,
 #' sphere(material=diffuse(noise=1,color="blue",noisecolor="darkgreen")) %>% 
 #'   add_object(vector_field) %>% 
 #'   add_object(sphere(y=0,x=10,z=5,material=light(intensity=200))) %>% 
-#'   render_scene(fov=20, ambient=TRUE, samples=128,
+#'   render_scene(fov=20, ambient=TRUE, samples=16,
 #'                backgroundlow="black",backgroundhigh="white") 
 #' }
 arrow = function(start = c(0,0,0), end = c(0,1,0), 
@@ -1739,7 +1716,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
 #'   render_scene(clamp_value = 10, lookat = c(0,0.5,0), fov=13,
-#'                samples=128)
+#'                samples=16)
 #' }
 #' 
 #' if(run_documentation()) {
@@ -1754,7 +1731,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
 #'   render_scene(clamp_value = 10, lookat = c(0,0.5,0), fov=15,
-#'                samples=128)
+#'                samples=16)
 #' }
 #' if(run_documentation()) {
 #' #We can make the curve flat (always facing the camera) by setting the type to `flat`
@@ -1763,7 +1740,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
 #'   render_scene(clamp_value = 10, lookat = c(0,0.5,0), fov=13,
-#'                samples=128)
+#'                samples=16)
 #' }
 #' if(run_documentation()) {
 #' #We can also plot a ribbon, which is further specified by a start and end orientation with
@@ -1776,7 +1753,7 @@ arrow = function(start = c(0,0,0), end = c(0,1,0),
 #'   add_object(sphere(y=3,z=5,x=2,radius=0.3,
 #'                     material=light(intensity=200, spotlight_focus = c(0,0.5,0)))) %>%
 #'   render_scene(clamp_value = 10, lookat = c(0,0.5,0), fov=13,
-#'                samples=128)
+#'                samples=16)
 #' }
 #' if(run_documentation()) {
 #' #Create a single curve and copy and rotate it around the y-axis to create a wavy fountain effect:
@@ -1923,14 +1900,14 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #'   add_object(sphere(x=1,y=-1,radius=0.1,material=point_mat)) %>% 
 #'   add_object(sphere(x=2,y=1,radius=0.1,material=point_mat)) %>% 
 #'   add_object(sphere(z=5,x=5,y=5,radius=2,material=light(intensity=15))) %>% 
-#'   render_scene(samples=128, clamp_value=10,fov=30)
+#'   render_scene(samples=16, clamp_value=10,fov=30)
 #' }
 #' if(run_documentation()) {
 #' #Here we use straight lines by setting `straight = TRUE`:
 #' generate_studio(depth=-1.5) %>% 
 #'   add_object(path(points = wave,straight = TRUE, material=glossy(color="red"))) %>% 
 #'   add_object(sphere(z=5,x=5,y=5,radius=2,material=light(intensity=15))) %>% 
-#'   render_scene(samples=128, clamp_value=10,fov=30)
+#'   render_scene(samples=16, clamp_value=10,fov=30)
 #' }
 #' if(run_documentation()) {
 #' #We can also pass a matrix of values, specifying the x/y/z coordinates. Here,
@@ -1940,14 +1917,14 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #' generate_studio(depth=-1.5) %>% 
 #'   add_object(path(points=random_mat, material=glossy(color="red"))) %>% 
 #'   add_object(sphere(y=5,radius=1,material=light(intensity=30))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16, clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #We can ensure the curve is closed by setting `closed = TRUE`
 #' generate_studio(depth=-1.5) %>% 
 #'   add_object(path(points=random_mat, closed = TRUE, material=glossy(color="red"))) %>% 
 #'   add_object(sphere(y=5,radius=1,material=light(intensity=30))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16, clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #Finally, let's render a pretzel to show how you can render just a subset of the curve:
@@ -1959,21 +1936,21 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17,  material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16, clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #Here, we'll render only the first third of the pretzel by setting `u_max = 0.33`
 #' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17, u_max=0.33, material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16, clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #Here's the last third, by setting `u_min = 0.66`
 #' generate_studio(depth = -1.1) %>% 
 #'   add_object(path(pretzel, width=0.17, u_min=0.66, material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16, clamp_value=10)
 #' }
 #' if(run_documentation()) {
 #' #Here's the full pretzel, decomposed into thirds using the u_min and u_max coordinates
@@ -1985,7 +1962,7 @@ bezier_curve = function(p1 = c(0,0,0), p2 = c(-1,0.33,0), p3 = c(1,0.66,0), p4=c
 #'   add_object(path(pretzel, width=0.17, u_min=0.33, u_max=0.66, x=0,
 #'                   material = glossy(color="#db5b00"))) %>% 
 #'   add_object(sphere(y=5,x=2,z=4,material=light(intensity=20,spotlight_focus = c(0,0,0)))) %>% 
-#'   render_scene(samples=128, clamp_value=10, lookfrom=c(0,3,10))
+#'   render_scene(samples=16, clamp_value=10, lookfrom=c(0,3,10))
 #' }
 path = function(points,
                 x=0,y=0,z=0, closed = FALSE, closed_smooth = TRUE, 
@@ -2124,6 +2101,14 @@ path = function(points,
 #' @param y Default `0`. y-coordinate of the center of the label.
 #' @param z Default `0`. z-coordinate of the center of the label.
 #' @param text_height Default `1`. Height of the text.
+#' @param font Default `"sans"`. A character string specifying the font family (e.g., `"Arial"`, `"Times"`, `"Helvetica"`).
+#' @param font_style A character string specifying the font style, such as `"plain"`, `"italic"`, or `"bold"`. Default is `"plain"`.
+#' @param font_color Default `"black"`. The font color.
+#' @param font_lineheight Default `12`. The lineheight for strings with newlines.
+#' @param font_size Default `100`. The size of the font. Note that this does not control the size of the text, just the resolution
+#' as rendered in the texture.
+#' @param background_color Default `"white"`. The background color.
+#' @param background_alpha Default `0`. The background opacity. `1` is fully opaque.
 #' @param orientation Default `xy`. Orientation of the plane. Other options are `yz` and `xz`.
 #' @param material Default  \code{\link{diffuse}}. The material, called from one of the material 
 #' functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.
@@ -2144,35 +2129,35 @@ path = function(points,
 #' generate_cornell() %>% 
 #'   add_object(text3d(label="Cornell Box", x=555/2,y=555/2,z=555/2,text_height=60,
 #'                     material=diffuse(color="grey10"), angle=c(0,180,0))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16)
 #' }
 #' if(run_documentation()) {
 #' #Change the orientation
 #' generate_cornell() %>% 
-#'   add_object(text3d(label="YZ Plane", x=550,y=555/2,z=555/2,text_height=100,
+#'   add_object(text3d(label="YZ Plane", x=550,y=555/2,z=555/2,text_height=150,
 #'                     orientation = "yz",
 #'                     material=diffuse(color="grey10"), angle=c(0,180,0))) %>% 
-#'  add_object(text3d(label="XY Plane", z=550,y=555/2,x=555/2,text_height=100,
+#'  add_object(text3d(label="XY Plane", z=550,y=555/2,x=555/2,text_height=150,
 #'                     orientation = "xy",
 #'                     material=diffuse(color="grey10"), angle=c(0,180,0))) %>% 
-#'  add_object(text3d(label="XZ Plane", z=555/2,y=5,x=555/2,text_height=100,
+#'  add_object(text3d(label="XZ Plane", z=555/2,y=5,x=555/2,text_height=150,
 #'                     orientation = "xz",
 #'                     material=diffuse(color="grey10"))) %>% 
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16)
 #' }
 #' if(run_documentation()) {
 #' #Add an label in front of a sphere
 #' generate_cornell() %>% 
-#'   add_object(text3d(label="Cornell Box", x=555/2,y=555/2,z=555/2,text_height=60,
+#'   add_object(text3d(label="Cornell Box", x=555/2,y=555/2,z=555/2,text_height=90,
 #'                     material=diffuse(color="grey10"), angle=c(0,180,0))) %>% 
-#'   add_object(text3d(label="Sphere", x=555/2,y=100,z=100,text_height=30,
+#'   add_object(text3d(label="Sphere", x=555/2,y=100,z=100,text_height=60,
 #'                     material=diffuse(color="white"), angle=c(0,180,0))) %>% 
 #'   add_object(sphere(y=100,radius=100,z=555/2,x=555/2,
 #'                     material=glossy(color="purple"))) %>% 
 #'   add_object(sphere(y=555,radius=100,z=-1000,x=555/2,
 #'                     material=light(intensity=100,
 #'                                    spotlight_focus=c(555/2,100,100)))) %>%                   
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16)
 #' }
 #'   
 #' if(run_documentation()) {
@@ -2185,29 +2170,66 @@ path = function(points,
 #' bees = do.call(rbind,bee_list)
 #' generate_cornell() %>% 
 #'   add_object(bees) %>%                   
-#'   render_scene(samples=128, clamp_value=10)
+#'   render_scene(samples=16)
+#' }
+#' if(run_documentation()) {
+#' # If you have ragg installed, you can also use color emojis.
+#' library(rayrender)
+#' generate_cornell(light_position = c(555/2,554,10),
+#'                  lightwidth = 10, lightdepth = 100,
+#'                  lightintensity = 800) |>
+#'   add_object(text3d(label="\U1F30A",font_size = 500,angle=c(0,180,0),
+#'                     x=555/2,y=555/2,z=260,text_height=1000)) |>
+#'   add_object(text3d(label="\U1F6A3", x=180,y=140,z=260-50,
+#'                     text_height=400, font_size = 500,
+#'                     material=diffuse(color="black"),
+#'                     angle=c(0,0,30))) |>
+#'   add_object(text3d(label="\U1F5FB", x=180,y=230,z=260+50,text_height=300,
+#'                     font_size = 500,material=diffuse(color="black"),
+#'                     angle=c(0,0,0))) |>
+#'   render_scene(samples=16)
+#' 
+#' 
+#' 
 #' }
 text3d = function(label, x = 0, y = 0, z = 0, text_height = 1, orientation = "xy",
                   material = diffuse(), 
+                  font = "sans", font_style = "plain", font_color = "black",
+                  font_lineheight = 1, font_size = 100,
+                  background_color = "white", background_alpha = 0,
                   angle = c(0, 0, 0), order_rotation = c(1, 2, 3), 
                   flipped = FALSE, scale = c(1,1,1)) {
   labelfile = tempfile(fileext = ".png")
-  rayimage::add_title(matrix(0,ncol = nchar(label)*60, nrow=60*1.2), 
-                      title_size  = 60,
-                      title_offset = c(0,0),title_text = label, title_color = "white",
-                      title_position = "center", filename = labelfile)
-  material[[1]]$alphaimage = list(labelfile)
+  text_image = rayimage::render_text_image(label, 
+    font = font, 
+    size = font_size,
+    color = font_color, 
+    just = "left",
+    lineheight = font_lineheight,
+    background_color = background_color,
+    background_alpha = background_alpha,
+    filename = labelfile
+  )
+  height_val_raw = nrow(text_image)
+  width_val_raw = ncol(text_image)
+  ratio = text_height/height_val_raw
+
+  height_val = text_height
+  width_val = width_val_raw * ratio
+
+  material[[1]]$image = labelfile
+  
   if(orientation == "xy" || orientation == "yx") {
     rayrender::xy_rect(x=x,y=y,z=z, angle = angle,
-                       xwidth = nchar(label)*text_height, ywidth = text_height,
+                       xwidth = width_val, ywidth = height_val,
                        material = material)
   } else if (orientation == "yz" || orientation == "zy") {
     rayrender::yz_rect(x=x,y=y,z=z, angle = angle,
-                       zwidth = nchar(label)*text_height, ywidth = text_height,
+                       zwidth = width_val, ywidth = height_val,
                        material = material)
   } else if (orientation == "xz" || orientation == "zx") {
     rayrender::xz_rect(x=x,y=y,z=z, angle = angle,
-                       xwidth = nchar(label)*text_height, zwidth = text_height,
+                       xwidth = width_val, zwidth = height_val,
                        material = material)
   } else {
     stop("Orientation ", orientation, " not recognized")
@@ -2325,7 +2347,7 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1, subdivision_l
 #' @param override_material Default `FALSE`. If `TRUE`, overrides the material specified in the 
 #' `mesh3d` object with the one specified in `material`.
 #' @param subdivision_levels Default `1`. Number of Loop subdivisions to be applied to the mesh.
-#' @param displacement_texture Default `NA`. File path to the displacement texture. 
+#' @param displacement_texture Default `""`. File path to the displacement texture. 
 #' This texture is used to displace the vertices of the mesh based on the texture's pixel values.
 #' @param displacement_intensity Default `1`. Intensity of the displacement effect. 
 #' Higher values result in greater displacement.
@@ -2349,7 +2371,7 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1, subdivision_l
 #'
 #' @examples
 #' #Load a mesh3d object (from the Rvcg) and render it:
-#' if(length(find.package("Rcvg", quiet=TRUE)) > 0) {
+#' if(run_documentation()) {
 #'   library(Rvcg)
 #'   data(humface)
 #'   
@@ -2357,12 +2379,12 @@ ply_model = function(filename, x = 0, y = 0, z = 0, scale_ply = 1, subdivision_l
 #'     add_object(mesh3d_model(humface,y=-0.3,x=0,z=0,
 #'                           material=glossy(color="dodgerblue4"), scale = 1/70)) %>%
 #'     add_object(sphere(y=5,x=5,z=5,material=light(intensity=50))) %>% 
-#'     render_scene(samples=128,width=800,height=800,
+#'     render_scene(samples=16,width=800,height=800,
 #'                  lookat = c(0,0.5,1), aperture=0.0)
 #' }
 mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FALSE,
                         subdivision_levels = 1, verbose = FALSE, 
-                        displacement_texture = NA, 
+                        displacement_texture = "", 
                         displacement_intensity = 1, 
                         displacement_vector = FALSE,
                         recalculate_normals = FALSE,
@@ -2485,7 +2507,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
                    color_type=color_type,
                    material_type = material_type,
                    subdivision_levels = subdivision_levels,
-                   displacement_texture = list(displacement_texture), 
+                   displacement_texture = displacement_texture, 
                    displacement_intensity = displacement_intensity, 
                    displacement_vector = displacement_vector,
                    recalculate_normals = recalculate_normals)
@@ -2586,7 +2608,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0.5),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Change the width evenly along the tube
@@ -2596,7 +2618,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0.5),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Change the width along the full length of the tube
@@ -2606,7 +2628,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0.5),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Specify the exact parametric x positions for the width values:
@@ -2617,7 +2639,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0.5),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Generate a star polygon
@@ -2633,7 +2655,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,1),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Specify a circle polygon
@@ -2650,7 +2672,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0.5),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Add three and a half twists along the path, and make sure the breaks are evenly spaced
@@ -2661,7 +2683,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Smooth the normals for a less sharp appearance:
@@ -2674,7 +2696,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Only generate part of the curve, specified by the u_min and u_max arguments
@@ -2686,7 +2708,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                            material=diffuse(color="red"))) %>% 
 #'   add_object(sphere(y=3,z=5,x=2,material=light(intensity=15))) %>% 
 #'   render_scene(lookat=c(0.3,0.5,0),fov=12, width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 #' if(run_documentation()) {
 #' #Render a Mobius strip with 1.5 turns 
@@ -2704,7 +2726,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'                           material = diffuse(noisecolor = "black", noise = 10, 
 #'                                              noiseintensity = 10))) %>%
 #'  add_object(sphere(y=20,x=0,z=21,material=light(intensity = 1000))) %>% 
-#'  render_scene(lookat=c(0,0.5,0), fov=10, samples=128, sample_method = "sobol_blue",
+#'  render_scene(lookat=c(0,0.5,0), fov=10, samples=16, sample_method = "sobol_blue",
 #'               width = 800, height=800)
 #' }
 #' if(run_documentation()) {
@@ -2728,7 +2750,7 @@ mesh3d_model = function(mesh, x = 0, y = 0, z = 0, swap_yz = FALSE, reverse = FA
 #'   add_object(sphere(y=10,z=-5,x=0,radius=5,material=light(color = "white",intensity = 5))) %>%
 #'   render_scene(lookat=c(0,0.5,1),fov=10, 
 #'                width=800,height=800, clamp_value = 10,
-#'                aperture=0.025, samples=128, sample_method="sobol_blue")
+#'                aperture=0.025, samples=16, sample_method="sobol_blue")
 #' }
 extruded_path = function(points, x = 0, y = 0, z = 0, 
                          polygon = NA, polygon_end = NA, breaks=NA,
@@ -3043,6 +3065,9 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
     full_control_points[[length(full_control_points)]][3,] = 2*first_point[1,] - first_point[2,]
     full_control_points[[length(full_control_points)]][2,] = 2*last_point[4,]  - last_point[3,]
     full_control_points[[length(full_control_points)]][1,] = last_point[4,]
+  }
+  if(any(unlist(lapply(full_control_points, is.na)))) {
+    stop("`points` should not contain NA/NaN values.")
   }
   if(is.na(breaks)) {
     breaks = length(full_control_points) * 20
@@ -3372,7 +3397,7 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #' @param importance_sample_lights Default `TRUE`. Whether to importance sample lights specified in the OBJ material
 #' (objects with a non-zero Ke MTL material).
 #' @param subdivision_levels Default `1`. Number of Loop subdivisions to be applied to the mesh.
-#' @param displacement_texture Default `NA`. File path to the displacement texture. 
+#' @param displacement_texture Default `""`. File path to the displacement texture. 
 #' This texture is used to displace the vertices of the mesh based on the texture's pixel values.
 #' @param displacement_intensity Default `1`. Intensity of the displacement effect. 
 #' Higher values result in greater displacement.
@@ -3404,7 +3429,7 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #' raymesh_model(sphere_mesh(position = c(-1, 0, 0),
 #'               material = material_list(transmittance = "red"))) %>%
 #'   add_object(generate_ground(material = diffuse(checkercolor="grey20"))) %>%
-#'   render_scene(fov = 30, samples=128, sample_method="sobol_blue")
+#'   render_scene(fov = 30, samples=16, sample_method="sobol_blue")
 #' }
 #' 
 #' # We create a complex rayvertex mesh, using the `rayvertex::add_shape` function which
@@ -3419,7 +3444,7 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #' if(run_documentation()) {
 #' raymesh_model(rm_scene) %>%
 #'   add_object(generate_ground(material = diffuse(checkercolor="grey20"))) %>%
-#'   render_scene(fov = 30, samples=128, sample_method="sobol_blue")
+#'   render_scene(fov = 30, samples=16, sample_method="sobol_blue")
 #' }
 #' 
 #' # Set `flip_transmittance = FALSE` argument to specify attenuation coefficients directly
@@ -3430,7 +3455,7 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #' if(run_documentation()) {
 #' raymesh_model(rm_scene_new, flip_transmittance = FALSE) %>%
 #'   add_object(generate_ground(material = diffuse(checkercolor="grey20"))) %>%
-#'   render_scene(fov = 30, samples=128, sample_method="sobol_blue")
+#'   render_scene(fov = 30, samples=16, sample_method="sobol_blue")
 #' }
 #'
 #' # Override the material specified in the `raymesh` object and render the scene
@@ -3439,7 +3464,7 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #'               material = dielectric(attenuation = "dodgerblue2", attenuation_intensity = 4), 
 #'   override_material = TRUE) %>%
 #'   add_object(generate_ground(material = diffuse(checkercolor="grey20"))) %>%
-#'   render_scene(fov = 30, samples=128, sample_method="sobol_blue")
+#'   render_scene(fov = 30, samples=16, sample_method="sobol_blue")
 #' }
 #'
 #' # Adjusting the scale, position, and rotation parameters of the `raymesh` model
@@ -3447,14 +3472,14 @@ extruded_path = function(points, x = 0, y = 0, z = 0,
 #' raymesh_model(rm_scene,
 #'               x = 0, y = 0.5, z = -1, angle = c(0, 0, 20)) %>%
 #'   add_object(generate_ground(material = diffuse(checkercolor="grey20"))) %>%
-#'   render_scene(fov = 30,lookat=c(0,0.5,0), samples=128, sample_method="sobol_blue")
+#'   render_scene(fov = 30,lookat=c(0,0.5,0), samples=16, sample_method="sobol_blue")
 #' }
 raymesh_model = function(mesh, x = 0, y = 0, z = 0, 
                          flip_transmittance = TRUE, verbose = FALSE, 
                          importance_sample_lights = FALSE,
                          calculate_consistent_normals = TRUE,
                          subdivision_levels = 1,
-                         displacement_texture = NA, 
+                         displacement_texture = "", 
                          displacement_intensity = 1, 
                          displacement_vector = FALSE,
                          recalculate_normals = FALSE,
@@ -3469,6 +3494,8 @@ raymesh_model = function(mesh, x = 0, y = 0, z = 0,
   }
   if(validate_mesh) {
     raymesh = rayvertex::validate_mesh(mesh)
+  } else {
+    raymesh = mesh
   }
   if(subdivision_levels > getOption("rayrender_subdivision_max", 5) ) {
     stop("Default maximum subdivision level set to 5. Did you really mean to set a subdivision level ",
@@ -3485,7 +3512,7 @@ raymesh_model = function(mesh, x = 0, y = 0, z = 0,
                                                                           override_material = override_material,
                                                                           flip_transmittance = flip_transmittance,
                                                                           subdivision_levels = subdivision_levels,
-                                                                          displacement_texture = list(displacement_texture), 
+                                                                          displacement_texture = displacement_texture, 
                                                                           displacement_intensity = displacement_intensity, 
                                                                           displacement_vector = displacement_vector,
                                                                           recalculate_normals = recalculate_normals),

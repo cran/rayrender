@@ -6,20 +6,19 @@
 #include <cstdint>
 #include <cstring>
 #include "float.h"
-#include "vec3.h"
+#include "vectypes.h"
 #include "vec2.h"
-#include "point3.h"
 #include "point2.h"
 
-#include "normal.h"
 #include <limits>
 #include <array>
+#include "dop.h"
 
 
-static const Float mpi_over_180 = M_PI/180;
-static const Float SqrtPiOver8 = 0.626657069f;
-static const Float ONE_OVER_2_PI = 1 / (2 * M_PI);
-static const Float Infinity =  Infinity;
+static constexpr Float mpi_over_180 = M_PI/180;
+static constexpr Float SqrtPiOver8 = 0.626657069f;
+static constexpr Float ONE_OVER_2_PI = 1 / (2 * M_PI);
+static constexpr Float Infinity =  std::numeric_limits<Float>::infinity();
 
 static constexpr Float MachineEpsilon = std::numeric_limits<Float>::epsilon() * 0.5;
 
@@ -28,29 +27,60 @@ inline constexpr Float gamma(int n) {
 }
 
 template<class T>
-inline T ffmin(T a, T b) { return(a < b ? a : b);}
-
-template<class T>
-inline T ffmax(T a, T b) { return(a > b ? a : b);}
-
-template<class T>
 inline T lerp(Float t, T v1, T v2) {
   return((1-t) * v1 + t * v2);
 }
 
-template <typename T> int sgn(T val) {
-  return (T(0) < val) - (val < T(0));
+#ifdef RAYSIMDVEC
+// Overload for point3<float>
+inline point3f lerp(Float t, const point3f& v1, const point3f& v2) {
+    FVec4 tval = simd_set1(t);
+    FVec4 diff = simd_sub(v2.e, v1.e);
+    FVec4 scaled_diff = simd_mul(diff, tval);
+    point3f result;
+    result.e = simd_add(v1.e, scaled_diff);
+    return (result);
 }
 
-inline vec3f sgn(vec3f v) {
-  return(vec3f(sgn(v.x()),sgn(v.y()),sgn(v.z())));
+// Overload for vec3<float>
+inline vec3f lerp(Float t, const vec3f& v1, const vec3f& v2) {
+    FVec4 tval = simd_set1(t);
+    FVec4 diff = simd_sub(v2.e, v1.e);
+    FVec4 scaled_diff = simd_mul(diff, tval);
+    vec3f result;
+    result.e = simd_add(v1.e, scaled_diff);
+    return (result);
+}
+
+// Overload for normal3f
+inline normal3f lerp(Float t, const normal3f& v1, const normal3f& v2) {
+    FVec4 tval = simd_set1(t);
+    FVec4 diff = simd_sub(v2.e, v1.e);
+    FVec4 scaled_diff = simd_mul(diff, tval);
+    normal3f result;
+    result.e = simd_add(v1.e, scaled_diff);
+    return (result);
+}
+
+#endif
+
+// template <typename T> int sgn(T val) {
+//   return (T(0) < val) - (val < T(0));
+// }
+
+inline Float sgn(Float val) {
+  return (static_cast<Float>(0) < val) - (val < static_cast<Float>(0));
+}
+
+inline int sgn(int val) {
+  return (0 < val) - (val < 0);
 }
 
 inline Float Radians(Float deg) { 
-  return (M_PI / 180) * deg; 
+  return (static_cast<Float>(M_PI) / 180) * deg; 
 }
 inline Float Degrees(Float rad) { 
-  return (180 / M_PI) * rad; 
+  return (180 / static_cast<Float>(M_PI)) * rad; 
 }
 
 inline bool any_is_nan(const point3f& c) {
@@ -84,19 +114,25 @@ inline vec3f rand_to_unit(vec2f u) {
   Float r, phi;
   if (a*a > b*b) {
     r = a;
-    phi = (M_PI/4)*(b/a);
+    phi = (static_cast<Float>(M_PI)/4)*(b/a);
   } else {
     r = b;
-    phi = (M_PI_2) - (M_PI_4)*(a/b);
+    phi = static_cast<Float>(M_PI_2) - static_cast<Float>(M_PI_4)*(a/b);
   }
   return(vec3f(r*cos(phi),r*sin(phi),0));
+}
+
+template<typename T>
+inline vec3<T> sgn(vec3<T> v) {
+  vec3<T> result(sgn(v.e[0]),sgn(v.e[1]),sgn(v.e[2]));
+  return result;
 }
 
 inline vec3f rand_cosine_direction(vec2f u) {
   Float r1 = u.x();
   Float r2 = u.y();
-  Float z = std::sqrt(1.0-r2);
-  Float phi = 2.0 * M_PI * r1;
+  Float z = std::sqrt(static_cast<Float>(1)-r2);
+  Float phi = 2.0 * static_cast<Float>(M_PI) * r1;
   Float x = cos(phi) * std::sqrt(r2);
   Float y = sin(phi) * std::sqrt(r2);
   return(vec3f(x, y, z));
@@ -105,10 +141,10 @@ inline vec3f rand_cosine_direction(vec2f u) {
 inline vec3f rand_to_sphere(Float radius, Float distance_squared, vec2f u) {
   Float r1 = u.x();
   Float r2 = u.y();
-  Float z = 1.0 + r2 * (std::sqrt(1.0-radius * radius / distance_squared) - 1);
-  Float phi = 2.0 * M_PI * r1;
-  Float x = std::cos(phi) * std::sqrt(1-z*z);
-  Float y = std::sin(phi) * std::sqrt(1-z*z);
+  Float z = 1.0 + r2 * (std::sqrt(static_cast<Float>(1)-radius * radius / distance_squared) - 1);
+  Float phi = 2.0 * static_cast<Float>(M_PI) * r1;
+  Float x = std::cos(phi) * std::sqrt(static_cast<Float>(1)-z*z);
+  Float y = std::sin(phi) * std::sqrt(static_cast<Float>(1)-z*z);
   return(vec3f(x,y,z));
 }
 
@@ -388,7 +424,7 @@ template <typename Predicate> int FindInterval(int size, const Predicate &pred) 
 
 inline Float SphericalPhi(const vec3f &v) {
   float p = atan2f(v.x(), v.y());
-  return((p < 0.0f) ? p + 2.0f*M_PI : p);
+  return((p < 0.0f) ? p + 2.0f*static_cast<Float>(M_PI) : p);
 }
 
 inline Float SphericalTheta(const vec3f &v) {
@@ -435,15 +471,15 @@ inline bool refract(const vec3f& v, const normal3f& n2, Float ni_over_nt, vec3f&
 inline vec3f refract(const vec3f& uv, const vec3f& n, Float ni_over_nt) {
   Float cos_theta = dot(-uv, n);
   vec3f r_out_parallel =  ni_over_nt * (uv + cos_theta*n);
-  vec3f r_out_perp = -sqrt(1.0 - r_out_parallel.squared_length()) * n;
+  vec3f r_out_perp = -std::sqrt(static_cast<Float>(1) - r_out_parallel.squared_length()) * n;
   return(r_out_parallel + r_out_perp);
 }
 
 inline vec3f refract(const vec3f& uv, const normal3f& n, Float ni_over_nt) {
-  vec3f n2 = vec3f(n.x(),n.y(),n.z());
+  vec3f n2 = convert_to_vec3(n);
   Float cos_theta = dot(-uv, n);
   vec3f r_out_parallel =  ni_over_nt * (uv + cos_theta*n2);
-  vec3f r_out_perp = -sqrt(1.0 - r_out_parallel.squared_length()) * n2;
+  vec3f r_out_perp = -std::sqrt(static_cast<Float>(1) - r_out_parallel.squared_length()) * n2;
   return(r_out_parallel + r_out_perp);
 }
 
@@ -528,9 +564,9 @@ inline Float Erf(Float x) {
 }
 
 template <typename T>
-inline vec3<T> Reflect(const vec3<T> &wo, const normal3<T> &n) {
-  normal3<T> n2 = 2 * dot(wo, n) * n;
-  return(-wo + vec3<T>(n2.x(),n2.y(),n2.z()));
+inline vec3<T> Reflect(const vec3<T> &wo, const normal3f &n) {
+  normal3f n2 = 2 * dot(wo, n) * n;
+  return(-wo + convert_to_vec3(n2));
 }
 
 template <typename T>
@@ -748,7 +784,7 @@ inline Float I0(Float x) {
 
 inline Float LogI0(Float x) {
   if (x > 12) {
-    return(x + 0.5 * (-std::log(2 * M_PI) + std::log(1 / x) + 1 / (8 * x)));
+    return(x + 0.5 * (-std::log(2 * static_cast<Float>(M_PI)) + std::log(1 / x) + 1 / (8 * x)));
   } else {
     return(std::log(I0(x)));
   }
@@ -788,15 +824,15 @@ inline Float Mp(Float cosThetaI, Float cosThetaO, Float sinThetaI,
 }
 
 inline Float Phi(int p, Float gammaO, Float gammaT) {
-  return(2 * p * gammaT - 2 * gammaO + p * M_PI);
+  return(2 * p * gammaT - 2 * gammaO + p * static_cast<Float>(M_PI));
 }
 
 inline Float Np(Float phi, int p, Float s, Float gammaO, Float gammaT) {
   Float dphi = phi - Phi(p, gammaO, gammaT);
   // Remap _dphi_ to $[-\pi,\pi]$
-  while (dphi > M_PI) dphi -= 2 * M_PI;
-  while (dphi < -M_PI) dphi += 2 * M_PI;
-  return(TrimmedLogistic(dphi, s, -M_PI, M_PI));
+  while (dphi > static_cast<Float>(M_PI)) dphi -= 2 * static_cast<Float>(M_PI);
+  while (dphi < -static_cast<Float>(M_PI)) dphi += 2 * static_cast<Float>(M_PI);
+  return(TrimmedLogistic(dphi, s, -static_cast<Float>(M_PI), static_cast<Float>(M_PI)));
 }
 
 inline Float SampleTrimmedLogistic(Float u, Float s, Float a, Float b) {
@@ -851,7 +887,7 @@ CoordinateSystem(const vec3<T> &v1, vec3<T> *v2, vec3<T> *v3) {
 inline point3f OffsetRayOrigin(const point3f &p, const vec3f &pError,
                                const normal3f &n, const vec3f &w) {
   Float d = dot(Abs(n), pError);
-  vec3f offset = d * vec3f(n.x(),n.y(),n.z());
+  vec3f offset = d * convert_to_vec3(n);
   if (dot(w, n) < 0) {
     offset = -offset;
   }
@@ -869,13 +905,13 @@ inline point3f OffsetRayOrigin(const point3f &p, const vec3f &pError,
 
 
 inline Float UniformConePdf(Float cosThetaMax) {
-  return 1 / (2 * M_PI * (1 - cosThetaMax));
+  return 1 / (2 * static_cast<Float>(M_PI) * (1 - cosThetaMax));
 }
 
 inline vec3f UniformSampleCone(const point2f &u, Float cosThetaMax) {
   Float cosTheta = ((Float)1 - u[0]) + u[0] * cosThetaMax;
-  Float sinTheta = std::sqrt((Float)1 - cosTheta * cosTheta);
-  Float phi = u[1] * 2 * M_PI;
+  Float sinTheta = std::sqrt(static_cast<Float>(1) - cosTheta * cosTheta);
+  Float phi = u[1] * 2 * static_cast<Float>(M_PI);
   return vec3f(std::cos(phi) * sinTheta, std::sin(phi) * sinTheta,
                cosTheta);
 }
@@ -884,8 +920,8 @@ inline vec3f UniformSampleCone(const point2f &u, Float cosThetaMax,
                         const vec3f &x, const vec3f &y,
                         const vec3f &z) {
   Float cosTheta = lerp(u[0], cosThetaMax, (Float)1.);
-  Float sinTheta = std::sqrt((Float)1. - cosTheta * cosTheta);
-  Float phi = u[1] * 2 * M_PI;
+  Float sinTheta = std::sqrt(static_cast<Float>(1) - cosTheta * cosTheta);
+  Float phi = u[1] * 2 * static_cast<Float>(M_PI);
   return std::cos(phi) * sinTheta * x + std::sin(phi) * sinTheta * y +
     cosTheta * z;
 }
@@ -893,7 +929,7 @@ inline vec3f UniformSampleCone(const point2f &u, Float cosThetaMax,
 inline vec3f UniformSampleHemisphere(const vec2f &u) {
   Float z = u[0];
   Float r = std::sqrt(std::fmax((Float)0, (Float)1. - z * z));
-  Float phi = 2 * M_PI * u[1];
+  Float phi = 2 * static_cast<Float>(M_PI) * u[1];
   return vec3f(r * std::cos(phi), r * std::sin(phi), z);
 }
 
@@ -902,7 +938,7 @@ inline Float UniformHemispherePdf() { return 0.5*M_1_PI; }
 inline vec3f UniformSampleSphere(const vec2f &u) {
   Float z = 1 - 2 * u[0];
   Float r = std::sqrt(std::fmax((Float)0, (Float)1 - z * z));
-  Float phi = 2 * M_PI * u[1];
+  Float phi = 2 * static_cast<Float>(M_PI) * u[1];
   return vec3f(r * std::cos(phi), r * std::sin(phi), z);
 }
 
@@ -910,7 +946,7 @@ inline Float UniformSpherePdf() { return 0.25*M_1_PI; }
 
 inline point2f UniformSampleDisk(const vec2f &u) {
   Float r = std::sqrt(u[0]);
-  Float theta = 2 * M_PI * u[1];
+  Float theta = 2 * static_cast<Float>(M_PI) * u[1];
   return point2f(r * std::cos(theta), r * std::sin(theta));
 }
 
@@ -918,10 +954,9 @@ inline Float SphericalTriangleArea(vec3f a, vec3f b, vec3f c) {
   return(std::abs(2 * std::atan2(dot(a, cross(b, c)), 1 + dot(a, b) + dot(a, c) + dot(b, c))));
 }
 
-template <typename T>
-inline normal3<T> Faceforward(const normal3<T> &n, const normal3<T> &n2) {
-  return (dot(n, n2) < 0.f) ? -n : n;
-}
+// inline normal3f Faceforward(const normal3f &n, const normal3f &n2) {
+//   return (dot(n, n2) < 0.f) ? -n : n;
+// }
 
 template <typename T>
 inline vec3<T> Faceforward(const vec3<T> &v, const vec3<T> &v2) {
@@ -929,7 +964,7 @@ inline vec3<T> Faceforward(const vec3<T> &v, const vec3<T> &v2) {
 }
 
 template <typename T>
-inline vec3<T> Faceforward(const vec3<T> &v, const normal3<T> &n2) {
+inline vec3<T> Faceforward(const vec3<T> &v, const normal3f &n2) {
   return (dot(v, n2) < 0.f) ? -v : v;
 }
 

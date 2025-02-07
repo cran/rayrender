@@ -1,14 +1,12 @@
 #define RCPP_USE_UNWIND_PROTECT
 
 #include "float.h"
-#include "vec3.h"
+#include "vectypes.h"
 #include "vec2.h"
-#include "RayMatrix.h"
 #include "mathinline.h"
 #include "camera.h"
 #include "float.h"
 #include "buildscene.h"
-#include "RProgress.h"
 #include "rng.h"
 #include "tonemap.h"
 #include "infinite_area_light.h"
@@ -21,10 +19,21 @@
 #include "transformcache.h"
 #include "texturecache.h"
 #include "debug.h"
-#include "bvh_node.h"
+
+#include "bvh.h"
+#include "PreviewDisplay.h"
+
+#ifdef HAS_OIDN
+#undef None
+#include <OpenImageDenoise/oidn.hpp>
+#endif
+
+#include "Rcpp.h"
+#include "RayMatrix.h"
 using namespace Rcpp;
 #include "RcppThread.h"
-#include "PreviewDisplay.h"
+#include "RProgress.h"
+
 
 using namespace std;
 
@@ -52,7 +61,11 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   int debug_channel = as<int>(render_info["debug_channel"]);
   Float min_variance = as<Float>(render_info["min_variance"]);
   int min_adaptive_size = as<int>(render_info["min_adaptive_size"]);
-  
+  IntegratorType integrator_type = static_cast<IntegratorType>(as<int>(render_info["integrator_type"]));
+#ifdef HAS_OIDN
+  bool denoise = as<bool>(render_info["denoise"]);
+#endif
+
   Environment pkg = Environment::namespace_env("rayrender");
   Function print_time = pkg["print_time"];
 
@@ -96,8 +109,8 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   NumericVector cam_orthoy   = as<NumericVector>(camera_movement["orthoy"]);
   int n_frames = end_frame;
 
-  vec3f backgroundhigh(bghigh[0],bghigh[1],bghigh[2]);
-  vec3f backgroundlow(bglow[0],bglow[1],bglow[2]);
+  point3f backgroundhigh(bghigh[0],bghigh[1],bghigh[2]);
+  point3f backgroundlow(bglow[0],bglow[1],bglow[2]);
 
   RcppThread::ThreadPool pool(numbercores);
   GetRNGstate();
@@ -122,19 +135,26 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   hitable_list imp_sample_objects;
   std::vector<std::shared_ptr<hitable> > instanced_objects;
   std::vector<std::shared_ptr<hitable_list> > instance_importance_sampled;
-  
-  std::shared_ptr<bvh_node> worldbvh = build_scene(scene, shape, 
+  std::vector<std::shared_ptr<alpha_texture> > alpha;
+  std::vector<std::shared_ptr<bump_texture> > bump;
+  std::vector<std::shared_ptr<roughness_texture> > roughness;
+  std::vector<int> texture_idx;
+
+  std::shared_ptr<hitable> worldbvh = build_scene(scene, shape, 
                                                   shutteropen,shutterclose,
                                                   textures, 
                                                   alpha_textures,
                                                   bump_textures,
                                                   roughness_textures, 
-                                                  shared_materials, bvh_type,
+                                                  shared_materials, 
+                                                  alpha, bump, roughness,
+                                                  bvh_type,
                                                   transformCache, 
                                                   texCache,
                                                   imp_sample_objects,
                                                   instanced_objects,
                                                   instance_importance_sampled,
+                                                  texture_idx,
                                                   verbose, rng);
   print_time(verbose, "Built Scene BVH" );
   
@@ -143,7 +163,7 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   aabb bounding_box_world;
   worldbvh->bounding_box(0,0,bounding_box_world);
   Float world_radius = bounding_box_world.Diag().length() ;
-  vec3f world_center  = bounding_box_world.Centroid();
+  vec3f world_center  = convert_to_vec3(bounding_box_world.Centroid());
   for(int i = 0; i < cam_x.length(); i++) {
     vec3f lf(cam_x(i),cam_y(i),cam_z(i));
     world_radius = world_radius > (lf - world_center).length() ? world_radius : 
@@ -162,8 +182,8 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   } else {
     BackgroundAngle = Translate(world_center);
   }
-  std::shared_ptr<Transform> BackgroundTransform = transformCache.Lookup(BackgroundAngle);
-  std::shared_ptr<Transform> BackgroundTransformInv = transformCache.Lookup(BackgroundAngle.GetInverseMatrix());
+  Transform* BackgroundTransform = transformCache.Lookup(BackgroundAngle);
+  Transform* BackgroundTransformInv = transformCache.Lookup(BackgroundAngle.GetInverseMatrix());
 
   if(hasbackground) {
     background_texture_data = texCache.LookupFloat(background, nx1, ny1, nn1, 3);
@@ -174,7 +194,7 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
       background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1,
                                                                  1, 1, intensity_env);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-      background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, world_center,
+      background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, convert_to_point3(world_center),
                                                               background_texture, background_material,
                                                               BackgroundTransform,
                                                               BackgroundTransformInv, false);
@@ -182,31 +202,31 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
       Rcpp::Rcout << "Failed to load background image at " << background << "\n";
       hasbackground = false;
       ambient_light = true;
-      backgroundhigh = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
-      backgroundlow = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundhigh = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundlow = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
       background_texture = std::make_shared<gradient_texture>(backgroundlow, backgroundhigh, false, false);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-      background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+      background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                                               background_texture, background_material,
                                                               BackgroundTransform,BackgroundTransformInv,false);
     }
   } else if(ambient_light) {
     //Check if both high and low are black, and set to FLT_MIN
     if(backgroundhigh.length() == 0 && backgroundlow.length() == 0) {
-      backgroundhigh = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
-      backgroundlow = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundhigh = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundlow = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
     }
     background_texture = std::make_shared<gradient_texture>(backgroundlow, backgroundhigh, false, false);
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                                             background_texture, background_material,
                                                             BackgroundTransform, BackgroundTransformInv, false);
     
   } else {
     //Minimum intensity FLT_MIN so the CDF isn't NAN
-    background_texture = std::make_shared<constant_texture>(vec3f(FLT_MIN,FLT_MIN,FLT_MIN));
+    background_texture = std::make_shared<constant_texture>(point3f(FLT_MIN,FLT_MIN,FLT_MIN));
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                                             background_texture, background_material,
                                                             BackgroundTransform,
                                                             BackgroundTransformInv, false);
@@ -221,10 +241,6 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
   if((imp_sample_objects.size() == 0 || hasbackground || ambient_light) && debug_channel != 18) {
     impl_only_bg = true;
   }
-  
-  PreviewDisplay d(nx, ny, preview, false, 20.0f, cam.get(), 
-                   background_sphere->ObjectToWorld.get(),
-                   background_sphere->WorldToObject.get());
   
   if(impl_only_bg || hasbackground) {
     imp_sample_objects.add(background_sphere);
@@ -246,18 +262,14 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
     pb.set_total(ns);
     pb_frames.set_total(n_frames - start_frame);
   }
-  if(min_variance == 0) {
-    min_adaptive_size = 1;
-    min_variance = 10E-8;
-  }
 
   if(debug_channel != 0) {
     for(int i = start_frame; i < n_frames; i++ ) {
       if(progress_bar) {
         pb_frames.tick();
       }
-      vec3f lookfrom = vec3f(cam_x(i),cam_y(i),cam_z(i));
-      vec3f lookat = vec3f(cam_dx(i),cam_dy(i),cam_dz(i));
+      point3f lookfrom(cam_x(i),cam_y(i),cam_z(i));
+      point3f lookat(cam_dx(i),cam_dy(i),cam_dz(i));
       Float fov = cam_fov(i);
       Float aperture = cam_aperture(i);
       Float focus_distance = cam_focal(i);
@@ -270,7 +282,7 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
         Transform CamTransform = LookAt(lookfrom,
                                         lookat,
                                         camera_up).GetInverseMatrix();
-        std::shared_ptr<Transform> CameraTransform = transformCache.Lookup(CamTransform);
+        Transform* CameraTransform = transformCache.Lookup(CamTransform);
         AnimatedTransform CamTr(CameraTransform,0,CameraTransform,0);
         
         std::vector<Float> lensData;
@@ -309,20 +321,21 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
       }
 
       //Initialize output matrices
-      RayMatrix routput(nx,ny);
-      RayMatrix goutput(nx,ny);
-      RayMatrix boutput(nx,ny);
+      RayMatrix rgb_output(nx,ny, 3);
+      RayMatrix normalOutput(nx,ny, 3);
+      RayMatrix albedoOutput(nx,ny, 3);
+
       debug_scene(numbercores, nx, ny, ns, debug_channel,
                   min_variance, min_adaptive_size,
-                  routput, goutput,boutput,
+                  rgb_output, normalOutput, albedoOutput,
                   progress_bar, sample_method, stratified_dim,
                   verbose, cam.get(), fov,
                   world, imp_sample_objects,
                   clampval, max_depth, roulette_active,
                   light_direction, rng, sample_dist, keep_colors, backgroundhigh);
-      List temp = List::create(_["r"] = routput.ConvertRcpp(), 
-                               _["g"] = goutput.ConvertRcpp(), 
-                               _["b"] = boutput.ConvertRcpp());
+      List temp = List::create(_["r"] = rgb_output.ConvertRcpp(0), 
+                               _["g"] = rgb_output.ConvertRcpp(1), 
+                               _["b"] = rgb_output.ConvertRcpp(2));
       post_process_frame(temp, debug_channel, as<std::string>(filenames(i)), toneval);
     }
   } else {
@@ -330,8 +343,8 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
       if(progress_bar) {
         pb_frames.tick();
       }
-      vec3f lookfrom = vec3f(cam_x(i),cam_y(i),cam_z(i));
-      vec3f lookat = vec3f(cam_dx(i),cam_dy(i),cam_dz(i));
+      point3f lookfrom(cam_x(i),cam_y(i),cam_z(i));
+      point3f lookat(cam_dx(i),cam_dy(i),cam_dz(i));
       vec3f camera_up = vec3f(cam_upx(i),cam_upy(i),cam_upz(i));
 
       Float fov = cam_fov(i);
@@ -345,7 +358,7 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
         Transform CamTransform = LookAt(lookfrom,
                                         lookat,
                                         camera_up).GetInverseMatrix();
-        std::shared_ptr<Transform> CameraTransform = transformCache.Lookup(CamTransform);
+        Transform* CameraTransform = transformCache.Lookup(CamTransform);
         
         AnimatedTransform CamTr(CameraTransform,0,CameraTransform,0);
         
@@ -385,27 +398,77 @@ void render_animation_rcpp(List scene, List camera_info, List scene_info, List r
       }
 
       //Initialize output matrices
-      RayMatrix routput(nx,ny);
-      RayMatrix goutput(nx,ny);
-      RayMatrix boutput(nx,ny);
-      RayMatrix alpha_output(nx,ny);
-      
+      RayMatrix rgb_output(nx,ny, 3);
+      RayMatrix normalOutput(nx,ny, 3);
+      RayMatrix albedoOutput(nx,ny, 3);
+      RayMatrix alpha_output(nx,ny, 1);
+      RayMatrix draw_rgb_output(nx,ny, 3);
+
+#ifdef HAS_OIDN
+      // Create an Open Image Denoise device
+      oidn::DeviceRef device = oidn::newDevice(); // CPU or GPU if available
+      // oidn::DeviceRef device = oidn::newDevice(oidn::DeviceType::CPU);
+      device.commit();
+      // Create buffers for input/output images accessible by both host (CPU) and device (CPU/GPU)
+      oidn::BufferRef colorBuf  = device.newBuffer(rgb_output.begin(), nx * ny * 3 * sizeof(Float));
+      oidn::BufferRef albedoBuf = device.newBuffer(albedoOutput.begin(), nx * ny * 3 * sizeof(Float));
+      oidn::BufferRef normalBuf = device.newBuffer(normalOutput.begin(), nx * ny * 3 * sizeof(Float));
+      oidn::BufferRef colorBuf2 = device.newBuffer(draw_rgb_output.begin(), nx * ny * 3 * sizeof(Float));
+
+      // Create a filter for denoising a beauty (color) image using optional auxiliary images too
+      // This can be an expensive operation, so try no to create a new filter for every image!
+      oidn::FilterRef filter = device.newFilter("RT"); // generic ray tracing filter
+      filter.setImage("color",  colorBuf,  oidn::Format::Float3, nx, ny); // beauty
+      filter.setImage("albedo", albedoBuf, oidn::Format::Float3, nx, ny); // auxiliary
+      filter.setImage("normal", normalBuf, oidn::Format::Float3, nx, ny); // auxiliary
+      filter.setImage("output", colorBuf2,  oidn::Format::Float3, nx, ny); // denoised beauty
+      filter.set("hdr", true); // beauty image is HDR
+      filter.commit();
+#endif
+
+#ifdef HAS_OIDN
+      PreviewDisplay d(nx, ny, preview, false, 
+                   20.0f, cam.get(), 
+                   background_sphere->ObjectToWorld,
+                   background_sphere->WorldToObject,
+                   filter, denoise);
+#else
+  PreviewDisplay d(nx,ny, preview, false, 
+                         20.0f, cam.get(),
+                         background_sphere->ObjectToWorld,
+                         background_sphere->WorldToObject);
+#endif
       pathtracer(numbercores, nx, ny, ns, debug_channel,
                  min_variance, min_adaptive_size,
-                 routput, goutput, boutput, alpha_output,
+                 rgb_output, normalOutput, albedoOutput,
+                 alpha_output, draw_rgb_output,
                  progress_bar, sample_method, stratified_dim,
                  verbose, cam.get(),  fov,
                  world, imp_sample_objects,
-                 clampval, max_depth, roulette_active, d);
+                 clampval, max_depth, roulette_active, d, integrator_type);
       if(d.terminate) {
         break;
       }
-      List temp = List::create(_["r"] = routput.ConvertRcpp(), 
-                               _["g"] = goutput.ConvertRcpp(), 
-                               _["b"] = boutput.ConvertRcpp(),
+#ifdef HAS_OIDN
+      filter.execute();
+      const char* errorMessage;
+      if (device.getError(errorMessage) != oidn::Error::None) {
+        Rcpp::Rcout << "Error: " << errorMessage << std::endl;
+      }
+      List temp = List::create(_["r"] = draw_rgb_output.ConvertRcpp(0), 
+                               _["g"] = draw_rgb_output.ConvertRcpp(1), 
+                               _["b"] = draw_rgb_output.ConvertRcpp(2),
                                _["a"] = alpha_output.ConvertRcpp());
       post_process_frame(temp, debug_channel, as<std::string>(filenames(i)), toneval, bloom,
                        transparent_background, write_image);
+#else
+      List temp = List::create(_["r"] = rgb_output.ConvertRcpp(0), 
+                               _["g"] = rgb_output.ConvertRcpp(1), 
+                               _["b"] = rgb_output.ConvertRcpp(2),
+                               _["a"] = alpha_output.ConvertRcpp());
+      post_process_frame(temp, debug_channel, as<std::string>(filenames(i)), toneval, bloom,
+                       transparent_background, write_image);
+#endif
     }
   }
 

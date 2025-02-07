@@ -10,9 +10,12 @@
 #endif
 #include "texturecache.h"
 #include "trianglemesh.h"
-#include "bvh_node.h"
+
+#include "bvh.h"
+
 #include "rng.h"
 #include "triangle.h"
+#include "raylog.h"
 
 raymesh::raymesh(Rcpp::List raymesh_list, 
                  std::shared_ptr<material> default_material, 
@@ -28,8 +31,8 @@ raymesh::raymesh(Rcpp::List raymesh_list,
                  hitable_list& imp_sample_objects, 
                  bool verbose, 
                  Float shutteropen, Float shutterclose, int bvh_type, random_gen rng, 
-                 std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) : 
-  hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
+                 Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) : 
+  hitable(ObjectToWorld, WorldToObject, default_material, reverseOrientation) {
   mesh = std::unique_ptr<TriangleMesh>(new TriangleMesh(raymesh_list, verbose, 
                                                         calculate_consistent_normals, override_material,
                                                         flip_transmittance,
@@ -84,7 +87,7 @@ raymesh::raymesh(Rcpp::List raymesh_list,
     }
   }
   if(n > 0) {
-    tri_mesh_bvh = std::make_shared<bvh_node>(triangles, shutteropen, shutterclose, bvh_type, rng);
+    tri_mesh_bvh = std::make_shared<BVHAggregate>(triangles.objects, shutteropen, shutterclose, bvh_type, true);
 #ifdef FULL_DEBUG
     tri_mesh_bvh->validate_bvh();
 #endif
@@ -94,12 +97,32 @@ raymesh::raymesh(Rcpp::List raymesh_list,
   }
 }
 
-bool raymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool raymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("RayMesh");
+  
   return(tri_mesh_bvh->hit(r, t_min, t_max, rec, rng));
 }
 
-bool raymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool raymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("RayMesh");
+  
   return(tri_mesh_bvh->hit(r, t_min, t_max, rec, sampler));
+}
+
+bool raymesh::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("RayMesh");
+  
+  return(tri_mesh_bvh->HitP(r, t_min, t_max, rng));
+}
+
+bool raymesh::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("RayMesh");
+  
+  return(tri_mesh_bvh->HitP(r, t_min, t_max, sampler));
 }
 
 bool raymesh::bounding_box(Float t0, Float t1, aabb& box) const {

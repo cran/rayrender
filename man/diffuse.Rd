@@ -17,10 +17,10 @@ diffuse(
   gradient_point_start = NA,
   gradient_point_end = NA,
   gradient_type = "hsv",
-  image_texture = NA_character_,
+  image_texture = "",
   image_repeat = 1,
-  alpha_texture = NA,
-  bump_texture = NA,
+  alpha_texture = "",
+  bump_texture = "",
   bump_intensity = 1,
   fog = FALSE,
   fogdensity = 0.01,
@@ -64,15 +64,15 @@ begins with value `gradient_color`.}
 
 \item{gradient_type}{Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.}
 
-\item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
+\item{image_texture}{Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
 
 \item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
 `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
 
-\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to 
+\item{alpha_texture}{Default `""`. A matrix or filename (specifying a greyscale image) to 
 be used to specify the transparency.}
 
-\item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+\item{bump_texture}{Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 be used to specify a bump map for the surface.}
 
 \item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
@@ -101,7 +101,7 @@ Diffuse Material
 scene = generate_cornell() \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=diffuse()))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -110,7 +110,7 @@ scene = scene \%>\%
   add_object(cube(x=555/2,y=555/8,z=555/2,xwidth=555/2,ywidth=555/4,zwidth=555/2,
   material = diffuse(checkercolor="purple",checkerperiod=20)))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
   
@@ -119,7 +119,7 @@ scene = scene \%>\%
   add_object(sphere(x=555/2+555/4,y=555/2,z=555/2,radius=555/8,
   material = diffuse(noise=1/20)))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -128,7 +128,7 @@ scene = scene \%>\%
   add_object(cube(x=555/2-555/4,y=555/2,z=555/2,xwidth=555/4,ywidth=555/4,zwidth=555/4,
   material = diffuse(fog=TRUE, fogdensity=0.05,color="orange")))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -137,7 +137,7 @@ scene = scene \%>\%
   add_object(segment(start = c(555,450,450),end=c(0,450,450),radius = 50, 
                      material = diffuse(color="#1f7326", gradient_color = "#a60d0d")))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 }

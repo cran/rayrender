@@ -70,13 +70,14 @@
 #'
 #'generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) %>%
 #'  add_object(sphere(material=metal())) %>%
-#'  add_object(obj_model(y=-1,x=-1.8,r_obj(), angle=c(0,135,0),material = diffuse(sigma=90))) %>%
+#'  add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
+#'                       angle=c(0,135,0),material = diffuse(sigma=90))) %>%
 #'  add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) %>%
 #'  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
 #'                              hole = nrow(star_polygon),
 #'                              material=diffuse(color="red",sigma=90))) %>%
 #'  render_scene(parallel = TRUE,width=800,height=800,
-#'               fov=70,clamp_value=10,samples=128, aperture=0.1,
+#'               fov=70,clamp_value=10,samples=16, aperture=0.1,
 #'               lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
 #'}
 #' if(run_documentation()) {
@@ -84,39 +85,42 @@
 #'#Render the scene with ambient occlusion
 #'generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) %>%
 #'  add_object(sphere(material=metal())) %>%
-#'  add_object(obj_model(y=-1,x=-1.8,r_obj(), angle=c(0,135,0),material = diffuse(sigma=90))) %>%
+#'  add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
+#'                       angle=c(0,135,0),material = diffuse(sigma=90))) %>%
 #'  add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) %>%
 #'  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
 #'                              hole = nrow(star_polygon),
 #'                              material=diffuse(color="red",sigma=90))) %>%
 #'  render_ao(parallel = TRUE,width=800,height=800, sample_dist=10,
-#'            fov=70,samples=128, aperture=0.1,
+#'            fov=70,samples=16, aperture=0.1,
 #'            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
 #'  }
 #' if(run_documentation()) {
 #'#Decrease the ray occlusion search distance
 #'generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) %>%
 #'  add_object(sphere(material=metal())) %>%
-#'  add_object(obj_model(y=-1,x=-1.8,r_obj(), angle=c(0,135,0),material = diffuse(sigma=90))) %>%
+#'  add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
+#'                       angle=c(0,135,0),material = diffuse(sigma=90))) %>%
 #'  add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) %>%
 #'  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
 #'                              hole = nrow(star_polygon),
 #'                              material=diffuse(color="red",sigma=90))) %>%
 #'  render_ao(parallel = TRUE,width=800,height=800, sample_dist=1,
-#'            fov=70,samples=128, aperture=0.1,
+#'            fov=70,samples=16, aperture=0.1,
 #'            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
 #' }
 #' if(run_documentation()) {
 #'#Turn on colors
 #'generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) %>%
 #'  add_object(sphere(material=metal())) %>%
-#'  add_object(obj_model(y=-1,x=-1.8,r_obj(), angle=c(0,135,0),material = diffuse(sigma=90))) %>%
+#'  add_object(obj_model(r_obj(), y=-0.25,x=-1.8,scale=2, 
+#'                       angle=c(0,135,0),material = diffuse(sigma=90))) %>%
 #'  add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) %>%
 #'  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
 #'                              hole = nrow(star_polygon),
 #'                              material=diffuse(color="red",sigma=90))) %>%
 #'  render_ao(parallel = TRUE,width=800,height=800, sample_dist=1,
-#'            fov=70,samples=128, aperture=0.1, keep_colors = TRUE,
+#'            fov=70,samples=16, aperture=0.1, keep_colors = TRUE,
 #'            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
 #'
 #' }
@@ -185,14 +189,20 @@ render_ao = function(scene, width = 400, height = 400, fov = 20,
                                   progress = progress, verbose = verbose, sample_dist = sample_dist,
                                   keep_colors = keep_colors)
   
-  camera_info = scene_list$camera_info
-  scene_info = scene_list$scene_info
-  
-  camera_info$preview = FALSE
-  camera_info$interactive = FALSE
-  
-  #Pathrace Scene
-  rgb_mat = render_scene_rcpp(camera_info = camera_info, scene_info = scene_info) 
+    camera_info = scene_list$camera_info
+    scene_info = scene_list$scene_info
+    render_info = scene_list$render_info
+    processed_scene = scene_info$scene
+    
+    camera_info$preview = FALSE
+    camera_info$interactive = FALSE
+    debug_channel = 18  # converted to numeric
+    
+    #Pathtrace Scene
+    rgb_mat = render_scene_rcpp(scene = processed_scene, 
+                                camera_info = camera_info, 
+                                scene_info = scene_info,
+                                render_info = render_info) 
   
   return_array = post_process_scene(rgb_mat, iso, tonemap, debug_channel, filename, FALSE, bloom)
   return(invisible(return_array))

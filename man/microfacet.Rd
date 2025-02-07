@@ -22,12 +22,12 @@ microfacet(
   gradient_point_start = NA_real_,
   gradient_point_end = NA_real_,
   gradient_type = "hsv",
-  image_texture = NA_character_,
+  image_texture = "",
   image_repeat = 1,
-  alpha_texture = NA_character_,
-  bump_texture = NA_character_,
+  alpha_texture = "",
+  bump_texture = "",
   bump_intensity = 1,
-  roughness_texture = NA_character_,
+  roughness_texture = "",
   roughness_range = c(1e-04, 0.2),
   roughness_flip = FALSE,
   importance_sample = FALSE
@@ -89,19 +89,19 @@ begins with value `gradient_color`.}
 
 \item{gradient_type}{Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.}
 
-\item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
+\item{image_texture}{Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
 
 \item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
 `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
 
-\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
+\item{alpha_texture}{Default `""`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
 
-\item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+\item{bump_texture}{Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 be used to specify a bump map for the surface.}
 
 \item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
 
-\item{roughness_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+\item{roughness_texture}{Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 be used to specify a roughness map for the surface.}
 
 \item{roughness_range}{Default ` c(0.0001, 0.2)`. This is a length-2 vector that specifies the range of roughness values 
@@ -130,7 +130,7 @@ generate_cornell() \%>\%
   add_object(ellipsoid(x=555/2,555/2,y=150, a=100,b=150,c=100,
              material=microfacet(roughness=0.1,
                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) \%>\% 
- render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
  }
 if(run_documentation()) {
@@ -144,41 +144,44 @@ generate_cornell() \%>\%
  add_object(ellipsoid(x=150,555/2,y=150, a=100,b=150,c=100,
              material=microfacet(roughness=c(0.1,0.3),
                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) \%>\%  
- render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40,  parallel=TRUE,clamp_value=10)
 }
 if(run_documentation()) {
 #Render a rough silver R with a smaller golden egg in front
 generate_cornell() \%>\%
-  add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+  add_object(obj_model(r_obj(simple_r = TRUE),
+                       x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
              material=microfacet(roughness=0.2,
                                  eta=c(1.1583,0.9302,0.5996), kappa=c(6.9650,6.396,5.332)))) \%>\% 
  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
              material=microfacet(roughness=0.1,
                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) \%>\% 
- render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
  }
 if(run_documentation()) {
 #Increase the roughness
 generate_cornell() \%>\%
-  add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+  add_object(obj_model(r_obj(simple_r = TRUE),
+                       x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
              material=microfacet(roughness=0.5,
                                  eta=c(1.1583,0.9302,0.5996), kappa=c(6.9650,6.396,5.332)))) \%>\% 
  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
              material=microfacet(roughness=0.3,
                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) \%>\% 
- render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
  }
 if(run_documentation()) {
  #Use transmission for a rough dielectric
 generate_cornell() \%>\%
-  add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+  add_object(obj_model(r_obj(simple_r = TRUE),
+                       x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
              material=microfacet(roughness=0.3, transmission=T, eta=1.6))) \%>\% 
  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
              material=microfacet(roughness=0.3, transmission=T, eta=1.6))) \%>\% 
- render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+ render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, parallel=TRUE,clamp_value=10, min_variance=1e-6)
 }
 }

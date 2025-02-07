@@ -1,12 +1,24 @@
 #include "curve.h"
+#include "raylog.h"
 
-static point3f BlossomBezier(const point3f p[4], Float u0, Float u1, Float u2) {
-  point3f a[3] = { lerp(u0, p[0], p[1]),
-                lerp(u0, p[1], p[2]),
-                lerp(u0, p[2], p[3]) };
-  point3f b[2] = { lerp(u1, a[0], a[1]), lerp(u1, a[1], a[2]) };
+inline point3f BlossomBezier(const point3f p[4], Float u0, Float u1, Float u2) {
+  point3f a[3] = {lerp(u0, p[0], p[1]),
+                  lerp(u0, p[1], p[2]),
+                  lerp(u0, p[2], p[3]) };
+  point3f b[2] = {lerp(u1, a[0], a[1]), 
+                  lerp(u1, a[1], a[2]) };
   return(lerp(u2, b[0], b[1]));
 }
+
+// Adjusted function to accept precomputed a[3]
+inline point3f BlossomBezierPrecomputed(const point3f a[3], Float u1, Float u2) {
+    point3f b[2] = {
+        lerp(u1, a[0], a[1]),
+        lerp(u1, a[1], a[2])
+    };
+    return lerp(u2, b[0], b[1]);
+}
+
 
 
 static point3f EvalBezier(const point3f cp[4], Float u, vec3f *deriv = nullptr) {
@@ -32,16 +44,16 @@ static point3f EvalBezier(const point3f cp[4], Float u, vec3f *deriv = nullptr) 
 
 inline void SubdivideBezier(const point3f cp[4], point3f cpSplit[7]) {
   cpSplit[0] = cp[0];
-  cpSplit[1] = (cp[0] + cp[1]) / 2;
-  cpSplit[2] = (cp[0] + 2 * cp[1] + cp[2]) / 4;
-  cpSplit[3] = (cp[0] + 3 * cp[1] + 3 * cp[2] + cp[3]) / 8;
-  cpSplit[4] = (cp[1] + 2 * cp[2] + cp[3]) / 4;
-  cpSplit[5] = (cp[2] + cp[3]) / 2;
+  cpSplit[1] = (cp[0] + cp[1]) / static_cast<Float>(2);
+  cpSplit[2] = (cp[0] + static_cast<Float>(2) * cp[1] + cp[2]) / static_cast<Float>(4);
+  cpSplit[3] = (cp[0] + static_cast<Float>(3) * cp[1] + static_cast<Float>(3) * cp[2] + cp[3]) / static_cast<Float>(8);
+  cpSplit[4] = (cp[1] + static_cast<Float>(2) * cp[2] + cp[3]) / static_cast<Float>(4);
+  cpSplit[5] = (cp[2] + cp[3]) / static_cast<Float>(2);
   cpSplit[6] = cp[3];
 }
 
 
-CurveCommon::CurveCommon(const vec3f c[4], Float width0, Float width1,
+CurveCommon::CurveCommon(const point3f c[4], Float width0, Float width1,
                          CurveType type, const vec3f *norm)
   : type(type), cpObj{c[0], c[1], c[2], c[3]}, width{width0, width1} {
   width[0] = width0;
@@ -50,8 +62,8 @@ CurveCommon::CurveCommon(const vec3f c[4], Float width0, Float width1,
     cpObj[i] = c[i];
   }
   if (norm) {
-    n[0] = unit_vector(norm[0]);
-    n[1] = unit_vector(norm[1]);
+    n[0] = convert_to_normal3(unit_vector(norm[0]));
+    n[1] = convert_to_normal3(unit_vector(norm[1]));
     normalAngle = std::acos(clamp(dot(n[0], n[1]), 0, 1));
     invSinNormalAngle = 1.0 / std::sin(normalAngle);
   }
@@ -59,11 +71,25 @@ CurveCommon::CurveCommon(const vec3f c[4], Float width0, Float width1,
 
 bool curve::bounding_box(Float t0, Float t1, aabb& box) const {
   // Compute object-space control points for curve segment, cpObj
-  vec3f cpObj[4];
-  cpObj[0] = BlossomBezier(common->cpObj, uMin, uMin, uMin);
-  cpObj[1] = BlossomBezier(common->cpObj, uMin, uMin, uMax);
-  cpObj[2] = BlossomBezier(common->cpObj, uMin, uMax, uMax);
-  cpObj[3] = BlossomBezier(common->cpObj, uMax, uMax, uMax);
+  point3f cpObj[4];
+  // Precompute aMin[3] for u0 = uMin
+  point3f aMin[3] = {
+      lerp(uMin, common->cpObj[0], common->cpObj[1]),
+      lerp(uMin, common->cpObj[1], common->cpObj[2]),
+      lerp(uMin, common->cpObj[2], common->cpObj[3])
+  };
+
+  // Precompute aMax[3] for u0 = uMax
+  point3f aMax[3] = {
+      lerp(uMax, common->cpObj[0], common->cpObj[1]),
+      lerp(uMax, common->cpObj[1], common->cpObj[2]),
+      lerp(uMax, common->cpObj[2], common->cpObj[3])
+  };
+  
+  cpObj[0] = BlossomBezierPrecomputed(aMin, uMin, uMin);
+  cpObj[1] = BlossomBezierPrecomputed(aMin, uMin, uMax);
+  cpObj[2] = BlossomBezierPrecomputed(aMin, uMax, uMax);
+  cpObj[3] = BlossomBezierPrecomputed(aMax, uMax, uMax);
   box = surrounding_box(aabb(cpObj[0], cpObj[1]), aabb(cpObj[2], cpObj[3]));
   Float width[2] = {lerp(uMin, common->width[0], common->width[1]),
                     lerp(uMax, common->width[0], common->width[1])};
@@ -71,15 +97,31 @@ bool curve::bounding_box(Float t0, Float t1, aabb& box) const {
   return(true);
 }
 
-bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng) {
+const bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Curve");
+  
   ray r2 = (*WorldToObject)(r); 
   
   // Compute object-space control points for curve segment, cpObj
-  point3f cpObj[4];
-  cpObj[0] = BlossomBezier(common->cpObj, uMin, uMin, uMin);
-  cpObj[1] = BlossomBezier(common->cpObj, uMin, uMin, uMax);
-  cpObj[2] = BlossomBezier(common->cpObj, uMin, uMax, uMax);
-  cpObj[3] = BlossomBezier(common->cpObj, uMax, uMax, uMax);
+  alignas(16) point3f cpObj[4];
+  alignas(16) point3f aMin[3] = {
+      lerp(uMin, common->cpObj[0], common->cpObj[1]),
+      lerp(uMin, common->cpObj[1], common->cpObj[2]),
+      lerp(uMin, common->cpObj[2], common->cpObj[3])
+  };
+
+  // Precompute aMax[3] for u0 = uMax
+  alignas(16) point3f aMax[3] = {
+      lerp(uMax, common->cpObj[0], common->cpObj[1]),
+      lerp(uMax, common->cpObj[1], common->cpObj[2]),
+      lerp(uMax, common->cpObj[2], common->cpObj[3])
+  };
+
+  cpObj[0] = BlossomBezierPrecomputed(aMin, uMin, uMin);
+  cpObj[1] = BlossomBezierPrecomputed(aMin, uMin, uMax);
+  cpObj[2] = BlossomBezierPrecomputed(aMin, uMax, uMax);
+  cpObj[3] = BlossomBezierPrecomputed(aMax, uMax, uMax);
   
   // Project curve control points to plane perpendicular to ray
   vec3f unit_dir = unit_vector(r2.direction()); 
@@ -90,7 +132,7 @@ bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_ge
     // orientation for the ray coordinate system so that intersection
     // tests can proceed in this unusual case.
     onb uvw;
-    uvw.build_from_w(unit_dir);
+    uvw.build_from_w_normalized(unit_dir);
     dx = uvw.v();
   } else {
     dx.make_unit_vector();
@@ -134,9 +176,9 @@ bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_ge
   for (int i = 0; i < 2; ++i) {
     L0 = std::fmax(
       L0, std::fmax(
-          std::fmax(std::fabs(cp[i].x() - 2 * cp[i + 1].x() + cp[i + 2].x()),
-                   std::fabs(cp[i].y() - 2 * cp[i + 1].y() + cp[i + 2].y())),
-                   std::fabs(cp[i].z() - 2 * cp[i + 1].z() + cp[i + 2].z())));
+          std::fmax(ffabs(cp[i].x() - 2 * cp[i + 1].x() + cp[i + 2].x()),
+                   ffabs(cp[i].y() - 2 * cp[i + 1].y() + cp[i + 2].y())),
+                   ffabs(cp[i].z() - 2 * cp[i + 1].z() + cp[i + 2].z())));
   }
   
   Float eps = std::fmax(common->width[0], common->width[1]) * .05f;  // width / 20
@@ -157,9 +199,10 @@ bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_ge
                             uMax, maxDepth, Inverse(objectToRay)));
 }
 
-#include "RcppThread.h"
-
-bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler) {
+const bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Curve");
+  
   ray r2 = (*WorldToObject)(r); 
   
   // Compute object-space control points for curve segment, cpObj
@@ -178,7 +221,7 @@ bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* 
     // orientation for the ray coordinate system so that intersection
     // tests can proceed in this unusual case.
     onb uvw;
-    uvw.build_from_w(unit_dir);
+    uvw.build_from_w_normalized(unit_dir);
     dx = uvw.v();
   } else {
     dx.make_unit_vector();
@@ -224,9 +267,9 @@ bool curve::hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* 
   for (int i = 0; i < 2; ++i) {
     L0 = std::fmax(
       L0, std::fmax(
-          std::fmax(std::fabs(cp[i].x() - 2 * cp[i + 1].x() + cp[i + 2].x()),
-                    std::fabs(cp[i].y() - 2 * cp[i + 1].y() + cp[i + 2].y())),
-                    std::fabs(cp[i].z() - 2 * cp[i + 1].z() + cp[i + 2].z())));
+          std::fmax(ffabs(cp[i].x() - 2 * cp[i + 1].x() + cp[i + 2].x()),
+                    ffabs(cp[i].y() - 2 * cp[i + 1].y() + cp[i + 2].y())),
+                    ffabs(cp[i].z() - 2 * cp[i + 1].z() + cp[i + 2].z())));
   }
   
   Float eps = std::fmax(common->width[0], common->width[1]) * .05f;  // width / 20
@@ -382,7 +425,7 @@ bool curve::recursiveIntersect(const ray& r, Float tmin, Float tmax, hit_record&
       Transform rot = Rotate(theta, dpduPlane);
       dpdvPlane = rot(dpdvPlane);
       rec.dpdv = rayToObject(dpdvPlane);
-      rec.normal = unit_vector(-cross(rec.dpdu ,rec.dpdv));
+      rec.normal = convert_to_normal3(unit_vector(-cross(rec.dpdu ,rec.dpdv)));
     } else if (common->type == CurveType::Ribbon) {
       rec.dpdv = unit_vector(cross(vec3f(nHit.x(),nHit.y(),nHit.z()), rec.dpdu)) * hitWidth;
       rec.normal = !flipped_n ? nHit : -nHit;
@@ -390,7 +433,7 @@ bool curve::recursiveIntersect(const ray& r, Float tmin, Float tmax, hit_record&
       //Compute curve dpdv for flat and cylinder curves
       //Assumes z-axis faces directly at viewer
       rec.dpdv = unit_vector(cross(rec.dpdu,-r.direction()));
-      rec.normal = unit_vector(-r.direction());
+      rec.normal = convert_to_normal3(unit_vector(-r.direction()));
     } 
     rec.dpdu.make_unit_vector();
     

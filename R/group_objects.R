@@ -22,7 +22,7 @@
 #'         add_object(cube(x=555/2,y=555/8,z=555/2,width=555/4)) %>%
 #'         add_object(cube(x=555/2,y=555/4+555/16,z=555/2,width=555/8))
 #' render_scene(scene,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=16, fov=50, parallel=TRUE, clamp_value=5)
 #' }
 #' if(run_documentation()) {
 #' 
@@ -34,7 +34,7 @@
 #'         add_object(cube(x=555/2,y=555/4+555/16,z=555/2,width=555/8))
 #'                        
 #' render_scene(scene2,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=16, fov=50, parallel=TRUE, clamp_value=5)
 #' }
 #' if(run_documentation()) {
 #' #Now group the cubes instead of the Cornell box, and rotate/translate them together
@@ -45,7 +45,7 @@
 #'          pivot_point = c(555/2,0,555/2)))
 #'          
 #' render_scene(scene3,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=16, fov=50, parallel=TRUE, clamp_value=5)
 #' }
 #' if(run_documentation()) {
 #' #Flatten and stretch the cubes together on two axes
@@ -55,7 +55,7 @@
 #'                                   pivot_point = c(555/2,0,555/2)))
 #'                                   
 #' render_scene(scene4,lookfrom=c(278,278,-800),lookat = c(278,278,0), aperture=0,
-#'              samples=128, fov=50, parallel=TRUE, clamp_value=5)
+#'              samples=16, fov=50, parallel=TRUE, clamp_value=5)
 #' }
 #' if(run_documentation()) {
 #' #Add another layer of grouping, including the Cornell box
@@ -97,11 +97,18 @@ group_objects = function(scene, pivot_point=c(0,0,0), translate = c(0,0,0),
   }
   for(i in seq_len(nrow(scene))) {
     if(nrow(scene$transforms[[i]]$group_transform[[1]]) == 1) {
-        scene$transforms[[i]]$group_transform[[1]] = Translation %*% PivotTranslateEnd %*% 
-          Rotation %*% Scale %*% PivotTranslateStart
+        scene$transforms[[i]]$group_transform[[1]] = Translation %*% 
+          PivotTranslateEnd %*% 
+          Rotation %*% 
+          Scale %*% 
+          PivotTranslateStart
     } else {
-      scene$transforms[[i]]$group_transform[[1]] = Translation %*% PivotTranslateEnd %*% 
-        Rotation %*% Scale %*% PivotTranslateStart %*% scene$transforms[[i]]$group_transform[[1]]
+      scene$transforms[[i]]$group_transform[[1]] = Translation %*% 
+        PivotTranslateEnd %*% 
+        Rotation %*% 
+        Scale %*% 
+        PivotTranslateStart %*% 
+        scene$transforms[[i]]$group_transform[[1]]
     }
   }
 

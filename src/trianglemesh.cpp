@@ -52,8 +52,8 @@ void LoadRayMaterials(std::vector<std::shared_ptr<material> > &mesh_materials,
     return;
   } 
   
-  std::vector<vec3f > diffuse_materials(total_materials+1);
-  std::vector<vec3f > specular_materials(total_materials+1);
+  std::vector<point3f > diffuse_materials(total_materials+1);
+  std::vector<point3f > specular_materials(total_materials+1);
   std::vector<Float > ior_materials(total_materials+1);
   std::vector<bool > has_diffuse(total_materials+1, false);
   std::vector<bool > has_transparency(total_materials+1, false);
@@ -135,13 +135,13 @@ void LoadRayMaterials(std::vector<std::shared_ptr<material> > &mesh_materials,
         }
       } else if (diffuse.size() == 3 && dissolve == 1) {
         obj_texture_data.push_back(nullptr);
-        diffuse_materials[mat_num] = vec3f(diffuse[0],diffuse[1],diffuse[2]);
+        diffuse_materials[mat_num] = point3f(diffuse[0],diffuse[1],diffuse[2]);
         has_diffuse[mat_num] = true;
         has_alpha[mat_num] = false;
         has_single_diffuse[mat_num] = true;
       } else if(dissolve < 1) {
         obj_texture_data.push_back(nullptr);
-        specular_materials[mat_num] = vec3f(diffuse[0],diffuse[1],diffuse[2]);
+        specular_materials[mat_num] = point3f(diffuse[0],diffuse[1],diffuse[2]);
         ior_materials[mat_num] = ior;
         has_alpha[mat_num] = false;
         has_transparency[mat_num] = true; 
@@ -275,8 +275,8 @@ void LoadMtlMaterials(std::vector<std::shared_ptr<material> > &mesh_materials,
   material_is_light.reserve(materials.size()+1);
 
   
-  std::vector<vec3f > diffuse_materials(materials.size()+1);
-  std::vector<vec3f > specular_materials(materials.size()+1);
+  std::vector<point3f > diffuse_materials(materials.size()+1);
+  std::vector<point3f > specular_materials(materials.size()+1);
   std::vector<Float > ior_materials(materials.size()+1);
   std::vector<bool > has_diffuse_texture(materials.size()+1, false);
   std::vector<bool > has_transparency(materials.size()+1, false);
@@ -350,13 +350,13 @@ void LoadMtlMaterials(std::vector<std::shared_ptr<material> > &mesh_materials,
         } 
       } else if (sizeof(materials[i].diffuse) == 12 && materials[i].dissolve == 1) {
         obj_texture_data.push_back(nullptr);
-        diffuse_materials[i] = vec3f(materials[i].diffuse[0],materials[i].diffuse[1],materials[i].diffuse[2]);
+        diffuse_materials[i] = point3f(materials[i].diffuse[0],materials[i].diffuse[1],materials[i].diffuse[2]);
         has_diffuse_texture[i] = false;
         has_alpha[i] = false;
         has_single_diffuse[i] = true;
       } else if(materials[i].dissolve < 1) {
         obj_texture_data.push_back(nullptr);
-        specular_materials[i] = vec3f(materials[i].diffuse[0],materials[i].diffuse[1],materials[i].diffuse[2]);
+        specular_materials[i] = point3f(materials[i].diffuse[0],materials[i].diffuse[1],materials[i].diffuse[2]);
         ior_materials[i] = materials[i].ior;
         has_alpha[i] = false;
         has_transparency[i] = true; 
@@ -519,8 +519,8 @@ TriangleMesh::TriangleMesh(std::string inputfile, std::string basedir,
                            bool load_normals, bool verbose, Float scale, 
                            bool calculate_consistent_normals,
                            TextureCache& texCache,
-                           std::shared_ptr<Transform> ObjectToWorld, 
-                           std::shared_ptr<Transform> WorldToObject, 
+                           Transform* ObjectToWorld, 
+                           Transform* WorldToObject, 
                            bool reverseOrientation) : nTriangles(0) {
   std::string warn, err;
   texture_size = 0;
@@ -696,8 +696,8 @@ TriangleMesh::TriangleMesh(Rcpp::NumericMatrix vertices,
                            std::shared_ptr<material> default_material, 
                            bool load_materials, bool load_textures,
                            TextureCache& texCache,
-                           std::shared_ptr<Transform> ObjectToWorld, 
-                           std::shared_ptr<Transform> WorldToObject, 
+                           Transform* ObjectToWorld, 
+                           Transform* WorldToObject, 
                            bool reverseOrientation) : nTriangles(0) {
   texture_size = 0;
   vertexIndices.clear();
@@ -840,11 +840,11 @@ TriangleMesh::TriangleMesh(Rcpp::List raymesh, bool verbose, bool calculate_cons
                            std::shared_ptr<bump_texture> bump,
                            TextureCache& texCache,
                            std::shared_ptr<material> default_material, 
-                           std::shared_ptr<Transform> ObjectToWorld, 
-                           std::shared_ptr<Transform> WorldToObject, 
+                           Transform* ObjectToWorld, 
+                           Transform* WorldToObject, 
                            bool reverseOrientation) : nTriangles(0) {
   Rcpp::List shape_container = Rcpp::as<Rcpp::List>(raymesh["shapes"]);
-
+  has_vertex_colors = false;
   Rcpp::List vertex_raw = raymesh["vertices"];
   Rcpp::List normals_raw = raymesh["normals"];
   Rcpp::List tex_raw = raymesh["texcoords"];
@@ -1035,9 +1035,10 @@ TriangleMesh::TriangleMesh(float* vertices,
                            std::shared_ptr<alpha_texture> alpha,
                            std::shared_ptr<bump_texture> bump,
                            std::shared_ptr<material> default_material, 
-                           std::shared_ptr<Transform> ObjectToWorld, 
-                           std::shared_ptr<Transform> WorldToObject, 
+                           Transform* ObjectToWorld, 
+                           Transform* WorldToObject, 
                            bool reverseOrientation) : nTriangles(0) {
+  has_vertex_colors = false;
   texture_size = 0;
   vertexIndices.clear();
   normalIndices.clear();

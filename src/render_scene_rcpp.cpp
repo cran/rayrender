@@ -2,76 +2,16 @@
 #define STB_IMAGE_IMPLEMENTATION 
 #endif
 
-#include <Rcpp.h>
-
-// #define DEBUG_MEMORY
-#ifdef DEBUG_MEMORY
-
-#include <cstdlib>
-#include <iostream>
-#include <new>
-
-
-static std::size_t alloc{0};
-static std::size_t dealloc{0};
-static std::size_t memory_used{0};
-static std::size_t mem_counter(0);
-
-void* operator new(std::size_t sz){
-  alloc += 1;
-  memory_used += sz;
-  Rcpp::Rcout << alloc << " : " << sz << " : " << memory_used << "\n";
-  return std::malloc(sz);
-}
-
-void operator delete(void* ptr) noexcept{
-  dealloc += 1;
-  std::free(ptr);
-}
-
-void* operator new[](std::size_t sz){
-  alloc += 1;
-  memory_used += sz;
-  // Rcpp::Rcout << alloc << " : " << sz << " : " << memory_used << "\n";
-  
-  return std::malloc(sz);
-}
-
-void operator delete[](void* ptr) noexcept {
-  dealloc += 1;
-  std::free(ptr);
-}
-
-void getInfo(){
-  Rcpp::Rcout << "Number of allocations  : " << alloc << std::endl;
-  // Rcpp::Rcout << "Number of deallocations: " << dealloc << std::endl;
-  Rcpp::Rcout << "Total memory used      : " << memory_used <<      " bytes (";
-
-  if(memory_used < 1024) {
-  } else if (memory_used <= 1024*1024) {
-    Rcpp::Rcout << (float)memory_used/(float)1024 << " KB)" << std::endl;
-  } else if (memory_used <= 1024*1024*1024) {
-    Rcpp::Rcout << (float)memory_used/(float)(1024*1024) <<      " MB)" << std::endl;
-  } else {
-    Rcpp::Rcout << (float)memory_used/float(1024*1024*1024) <<      " GB)" << std::endl;
-  }
-}
-#endif
-
 #include "float.h"
-#include "vec3.h"
+#include "vectypes.h"
 #include "vec2.h"
-#include "point3.h"
 #include "point2.h"
-#include "normal.h" 
-#include "RayMatrix.h"
 #include "mathinline.h"
 #include "transform.h"
 #include "transformcache.h"
 #include "camera.h"
 #include "float.h"
 #include "buildscene.h"
-#include "RProgress.h"
 #include "rng.h"
 #include "tonemap.h"
 #include "infinite_area_light.h"
@@ -80,15 +20,13 @@ void getInfo(){
 #include "color.h"
 #include "integrator.h"
 #include "debug.h"
-#include "bvh_node.h"
+
 #include "texturecache.h"
 #include "box.h"
 #include "sphere.h"
-using namespace Rcpp;
-// [[Rcpp::plugins(cpp11)]]
-// [[Rcpp::depends(RcppThread)]]
-#include "RcppThread.h"
 #include "PreviewDisplay.h"
+#include "raylog.h"
+#include <cfenv>
 
 // #define DEBUG
 
@@ -96,18 +34,28 @@ using namespace Rcpp;
 #include <iostream>
 #endif
 
-using namespace std;
+#ifdef HAS_OIDN
+#undef None
+#include <OpenImageDenoise/oidn.hpp>
+#endif
 
+
+#include "RProgress.h"
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::plugins(cpp11)]]
+// [[Rcpp::depends(RcppThread)]]
+#include "RayMatrix.h"
+#include "RcppThread.h"
+
+using namespace std;
 
 
 // [[Rcpp::export]]
 List render_scene_rcpp(List scene, List camera_info, List scene_info, List render_info) {
-#ifdef DEBUG_MEMORY
-  alloc = 0;
-  // dealloc = 0;
-  memory_used = 0;
-  mem_counter = 0;
-#endif
+  RESET_RAYLOG();
+  START_TIMER("Overall Time");
+  feclearexcept(FE_ALL_EXCEPT);
 
   //Unpack scene info
   IntegerVector shape = as<IntegerVector>(scene_info["shape"]);
@@ -127,6 +75,11 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
   int debug_channel = as<int>(render_info["debug_channel"]);
   Float min_variance = as<Float>(render_info["min_variance"]);
   int min_adaptive_size = as<int>(render_info["min_adaptive_size"]);
+  IntegratorType integrator_type = static_cast<IntegratorType>(as<int>(render_info["integrator_type"]));
+  bool print_debug_info = as<bool>(render_info["print_debug_info"]);
+#ifdef HAS_OIDN
+  bool denoise = as<bool>(render_info["denoise"]);
+#endif
 
   Environment pkg = Environment::namespace_env("rayrender");
   Function print_time = pkg["print_time"];
@@ -169,15 +122,38 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
   TextureCache texCache;
 
   //Initialize output matrices
-  RayMatrix routput(nx,ny);
-  RayMatrix goutput(nx,ny);
-  RayMatrix boutput(nx,ny);
-  RayMatrix alpha_output(nx,ny);
+  RayMatrix rgb_output(nx,ny, 3);
+  RayMatrix draw_rgb_output(nx,ny, 3);
+  RayMatrix alpha_output(nx,ny, 1);
+  RayMatrix normalOutput(nx,ny, 3);
+  RayMatrix albedoOutput(nx,ny, 3);
+
+#ifdef HAS_OIDN
+  // Create an Open Image Denoise device
+  oidn::DeviceRef device = oidn::newDevice(); // CPU or GPU if available
+  // oidn::DeviceRef device = oidn::newDevice(oidn::DeviceType::CPU);
+  device.commit();
+  // Create buffers for input/output images accessible by both host (CPU) and device (CPU/GPU)
+  oidn::BufferRef colorBuf  = device.newBuffer(rgb_output.begin(), nx * ny * 3 * sizeof(Float));
+  oidn::BufferRef albedoBuf = device.newBuffer(albedoOutput.begin(), nx * ny * 3 * sizeof(Float));
+  oidn::BufferRef normalBuf = device.newBuffer(normalOutput.begin(), nx * ny * 3 * sizeof(Float));
+  oidn::BufferRef colorBuf2 = device.newBuffer(draw_rgb_output.begin(), nx * ny * 3 * sizeof(Float));
+
+  // Create a filter for denoising a beauty (color) image using optional auxiliary images too
+  // This can be an expensive operation, so try no to create a new filter for every image!
+  oidn::FilterRef filter = device.newFilter("RT"); // generic ray tracing filter
+  filter.setImage("color",  colorBuf,  oidn::Format::Float3, nx, ny); // beauty
+  filter.setImage("albedo", albedoBuf, oidn::Format::Float3, nx, ny); // auxiliary
+  filter.setImage("normal", normalBuf, oidn::Format::Float3, nx, ny); // auxiliary
+  filter.setImage("output", colorBuf2,  oidn::Format::Float3, nx, ny); // denoised beauty
+  filter.set("hdr", true); // beauty image is HDR
+  filter.commit();
+#endif
   
-  vec3f lookfrom(lookfromvec[0],lookfromvec[1],lookfromvec[2]);
-  vec3f lookat(lookatvec[0],lookatvec[1],lookatvec[2]);
-  vec3f backgroundhigh(bghigh[0],bghigh[1],bghigh[2]);
-  vec3f backgroundlow(bglow[0],bglow[1],bglow[2]);
+  point3f lookfrom(lookfromvec[0],lookfromvec[1],lookfromvec[2]);
+  point3f lookat(lookatvec[0],lookatvec[1],lookatvec[2]);
+  point3f backgroundhigh(bghigh[0],bghigh[1],bghigh[2]);
+  point3f backgroundlow(bglow[0],bglow[1],bglow[2]);
   Float dist_to_focus = focus_distance;
   
   std::vector<bool> has_image;
@@ -195,7 +171,7 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
     Transform CamTransform = LookAt(lookfrom,
                                     lookat,
                                     vec3f(camera_up(0),camera_up(1),camera_up(2))).GetInverseMatrix();
-    std::shared_ptr<Transform> CameraTransform = transformCache.Lookup(CamTransform);
+    Transform* CameraTransform = transformCache.Lookup(CamTransform);
     
     AnimatedTransform CamTr(CameraTransform,0,CameraTransform,0);
     
@@ -243,8 +219,12 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
   hitable_list imp_sample_objects;
   std::vector<std::shared_ptr<hitable> > instanced_objects;
   std::vector<std::shared_ptr<hitable_list> > instance_importance_sampled;
-  
-  std::shared_ptr<bvh_node> worldbvh = build_scene(scene, 
+  std::vector<std::shared_ptr<alpha_texture> > alpha;
+  std::vector<std::shared_ptr<bump_texture> > bump;
+  std::vector<std::shared_ptr<roughness_texture> > roughness;
+  std::vector<int> texture_idx;
+
+  std::shared_ptr<hitable> worldbvh = build_scene(scene, 
                                                    shape, 
                                                    shutteropen,
                                                    shutterclose,
@@ -253,21 +233,25 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
                                                    bump_textures,
                                                    roughness_textures, 
                                                    shared_materials, 
+                                                   alpha, bump, roughness,
                                                    bvh_type,
                                                    transformCache, 
                                                    texCache,
                                                    imp_sample_objects,
                                                    instanced_objects,
                                                    instance_importance_sampled,
+                                                   texture_idx,
                                                    verbose, 
                                                    rng);
   print_time(verbose, "Built Scene BVH" );
-
+  if(print_debug_info) {
+    worldbvh->hitable_info_bounds(shutteropen,shutterclose);
+  }
   //Calculate world bounds and ensure camera is inside infinite area light
   aabb bounding_box_world;
   worldbvh->bounding_box(0,0,bounding_box_world);
   Float world_radius = bounding_box_world.Diag().length() ;
-  vec3f world_center  = bounding_box_world.Centroid();
+  vec3f world_center  = convert_to_vec3(bounding_box_world.Centroid());
   world_radius = world_radius > (lookfrom - world_center).length() ? world_radius : 
      1.1*(lookfrom - world_center).length();
   world_radius *= interactive ? 100 : 1;
@@ -291,8 +275,8 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
     BackgroundAngle = Translate(world_center);
   }
 
-  std::shared_ptr<Transform> BackgroundTransform = transformCacheBg.Lookup(BackgroundAngle);
-  std::shared_ptr<Transform> BackgroundTransformInv = transformCacheBg.Lookup(BackgroundAngle.GetInverseMatrix());
+  Transform* BackgroundTransform = transformCacheBg.Lookup(BackgroundAngle);
+  Transform* BackgroundTransformInv = transformCacheBg.Lookup(BackgroundAngle.GetInverseMatrix());
   if(hasbackground) {
     background_texture_data = texCache.LookupFloat(background, nx1, ny1, nn1, 3);
     // nn1 = 3;
@@ -302,7 +286,7 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
       background_texture = std::make_shared<image_texture_float>(background_texture_data, nx1, ny1, nn1,
                                                                  1, 1, intensity_env);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-      background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, world_center,
+      background_sphere = std::make_shared<InfiniteAreaLight>(nx1, ny1, world_radius*2, convert_to_point3(world_center),
                                                               background_texture, background_material,
                                                               BackgroundTransform,
                                                               BackgroundTransformInv, false);
@@ -310,31 +294,31 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
       Rcpp::Rcout << "Failed to load background image at " << background << "\n";
       hasbackground = false;
       ambient_light = true;
-      backgroundhigh = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
-      backgroundlow = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundhigh = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundlow = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
       background_texture = std::make_shared<gradient_texture>(backgroundlow, backgroundhigh, false, false);
       background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-      background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+      background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                                               background_texture, background_material,
                                                               BackgroundTransform,BackgroundTransformInv,false);
     }
   } else if(ambient_light) {
     //Check if both high and low are black, and set to FLT_MIN
     if(backgroundhigh.length() == 0 && backgroundlow.length() == 0) {
-      backgroundhigh = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
-      backgroundlow = vec3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundhigh = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
+      backgroundlow = point3f(FLT_MIN,FLT_MIN,FLT_MIN);
     }
     background_texture = std::make_shared<gradient_texture>(backgroundlow, backgroundhigh, false, false);
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                               background_texture, background_material,
                                               BackgroundTransform, BackgroundTransformInv, false);
 
   } else {
     //Minimum intensity FLT_MIN so the CDF isn't NAN
-    background_texture = std::make_shared<constant_texture>(vec3f(FLT_MIN,FLT_MIN,FLT_MIN));
+    background_texture = std::make_shared<constant_texture>(point3f(FLT_MIN,FLT_MIN,FLT_MIN));
     background_material = std::make_shared<diffuse_light>(background_texture, 1.0, false);
-    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, world_center,
+    background_sphere = std::make_shared<InfiniteAreaLight>(100, 100, world_radius*2, convert_to_point3(world_center),
                                               background_texture, background_material,
                                               BackgroundTransform,
                                               BackgroundTransformInv, false);
@@ -349,24 +333,31 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
     impl_only_bg = true;
   }
   preview = preview && debug_channel == 0;
-  
-  PreviewDisplay Display(nx,ny, preview, interactive, (lookat-lookfrom).length(), cam.get(),
-                         background_sphere->ObjectToWorld.get(),
-                         background_sphere->WorldToObject.get());
+#ifdef HAS_OIDN
+  PreviewDisplay Display(nx,ny, preview, interactive, 
+                         (lookat-lookfrom).length(), cam.get(),
+                         background_sphere->ObjectToWorld,
+                         background_sphere->WorldToObject,
+                         filter, denoise);
+#else
+  PreviewDisplay Display(nx,ny, preview, interactive, 
+                         (lookat-lookfrom).length(), cam.get(),
+                         background_sphere->ObjectToWorld,
+                         background_sphere->WorldToObject);
+#endif
   
   if(impl_only_bg || hasbackground) {
     imp_sample_objects.add(background_sphere);
   }
 
-  if(min_variance == 0) {
-    min_adaptive_size = 1;
-    min_variance = 10E-8;
-  }
+  QUERY_MEMORY_USAGE();
+  PRINT_CURRENT_MEMORY("Before raytracing");
+  
   // Rcpp::Rcout << "Total world size: " << world.GetSize() + texture_bytes << " (Textures: " << texture_bytes << ") \n";
   if(debug_channel != 0) {
     debug_scene(numbercores, nx, ny, ns, debug_channel,
                 min_variance, min_adaptive_size,
-                routput, goutput,boutput,
+                rgb_output, normalOutput, albedoOutput,
                 progress_bar, sample_method, stratified_dim,
                 verbose, cam.get(), fov,
                 world, imp_sample_objects, 
@@ -376,19 +367,48 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
   } else {
     pathtracer(numbercores, nx, ny, ns, debug_channel,
                min_variance, min_adaptive_size,
-               routput, goutput,boutput, alpha_output,
+               rgb_output, normalOutput, albedoOutput,
+               alpha_output,
+               draw_rgb_output,
                progress_bar, sample_method, stratified_dim,
                verbose, cam.get(),  fov,
                world, imp_sample_objects,
-               clampval, max_depth, roulette_active, Display);
+               clampval, max_depth, roulette_active, Display, integrator_type);
   }
-  
+  PRINT_CURRENT_MEMORY("After raytracing");
+#ifdef HAS_OIDN
+  if(denoise) {
+    filter.execute();
+    const char* errorMessage;
+    if (device.getError(errorMessage) != oidn::Error::None) {
+      Rcpp::Rcout << "Error: " << errorMessage << std::endl;
+    }
+  }
+#endif
   delete shared_materials;
   PutRNGstate();
   print_time(verbose, "Finished rendering" );
-  List final_image = List::create(_["r"] = routput.ConvertRcpp(), 
-                                  _["g"] = goutput.ConvertRcpp(), 
-                                  _["b"] = boutput.ConvertRcpp(),
+  RayMatrix final_output = rgb_output;
+#ifdef HAS_OIDN
+  if(denoise) {
+    final_output = draw_rgb_output;
+  }
+#endif
+  #ifdef RAY_COLOR_DEBUG
+  final_output.print();
+  #endif
+  List final_image = List::create(_["r"] = final_output.ConvertRcpp(0), 
+                                  _["g"] = final_output.ConvertRcpp(1), 
+                                  _["b"] = final_output.ConvertRcpp(2),
+
+                                  _["nx"] = normalOutput.ConvertRcpp(0), 
+                                  _["ny"] = normalOutput.ConvertRcpp(1), 
+                                  _["nz"] = normalOutput.ConvertRcpp(2),
+
+                                  _["cx"] = albedoOutput.ConvertRcpp(0), 
+                                  _["cy"] = albedoOutput.ConvertRcpp(1), 
+                                  _["cz"] = albedoOutput.ConvertRcpp(2),
+
                                   _["a"] = alpha_output.ConvertRcpp());
   if(Display.Keyframes.size() > 0) {
     List keyframes(Display.Keyframes.size());
@@ -397,11 +417,12 @@ List render_scene_rcpp(List scene, List camera_info, List scene_info, List rende
     }
     final_image.attr("keyframes") = keyframes;
   }
-#ifdef DEBUG_MEMORY
-  Rcpp::Rcout << "Test alloc #" << mem_counter << "\n";
-  mem_counter++;
-  getInfo();
-#endif
+  STOP_TIMER("Overall Time");
+
+  PRINT_LOG_REPORT(numbercores);
+
+  PRINT_CURRENT_MEMORY("After cleanup");
+  
   return(final_image);
 }
 

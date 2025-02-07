@@ -13,20 +13,15 @@ process_scene = function(scene, process_material_ids = TRUE) {
   typevec = rep(0,nrow(scene))
   
   for(i in seq_len(nrow(scene))) {
-    typevec[i] = switch(scene$material[[i]]$type,
-                        "diffuse" = 1L,"metal" = 2L,"dielectric" = 3L,
-                        "oren-nayar" = 4L, "light" = 5L, "mf" = 6L,
-                        "glossy" = 7L, "spotlight" = 8L, "hair" = 9L, "mf-t" = 10L,
-                        stop(sprintf("Material type `%s` not found",scene$material[[i]]$type)))
-    scene$material[[i]]$type = typevec[i]
+    typevec[i] = scene$material[[i]]$type
   }
   
   #alpha texture handler -- need to do this before images to override alpha if present
   alpha_temp_file_names = tempfile(sprintf("alphatemp%i",seq_len(nrow(scene))),fileext = ".png")
   for(i in seq_len(nrow(scene))) {
-    alpha_input = scene$material[[i]]$alphaimage[[1]]
+    alpha_input = scene$material[[i]]$alphaimage
     alpha_tex_bool = is.array(alpha_input)
-    alpha_is_filename = is.character(alpha_input) && !is.na(alpha_input)
+    alpha_is_filename = is.character(alpha_input) && nchar(alpha_input) > 0
     if(alpha_tex_bool) {
       if(length(dim(alpha_input)) == 2) {
         png::writePNG(fliplr(t(alpha_input)), alpha_temp_file_names[i])
@@ -42,7 +37,7 @@ process_scene = function(scene, process_material_ids = TRUE) {
       }
       scene$material[[i]]$alphaimage = alpha_temp_file_names[i]
     } else if(alpha_is_filename) {
-      if(any(!file.exists(path.expand(alpha_input)) & nchar(alpha_input) > 0)) {
+      if(any(!file.exists(path.expand(alpha_input)))) {
         stop(paste0("Cannot find the following texture file:\n",
                     paste(alpha_input, collapse="\n")))
       }
@@ -52,44 +47,57 @@ process_scene = function(scene, process_material_ids = TRUE) {
         temp_array[,,2] = temp_array[,,4]
         temp_array[,,3] = temp_array[,,4]
       }
+      if(dim(temp_array)[3] == 4 && all(temp_array[,,4] == 1) && 
+         any(temp_array[,,1:3] != 1)) {
+        temp_array[,,4] = temp_array[,,1]
+      }
       scene$material[[i]]$alphaimage = alpha_temp_file_names[i]
       png::writePNG(temp_array,alpha_temp_file_names[i])
-    } else {
-      scene$material[[i]]$alphaimage = ""
-    }
+    } 
   }
   
   #texture handler
   temp_file_names = tempfile(sprintf("imagetemp%i",seq_len(nrow(scene))), fileext = ".png")
   for(i in seq_len(nrow(scene))) {
-    image_input = scene$material[[i]]$image[[1]]
+    image_input = scene$material[[i]]$image
     image_tex_bool = is.array(image_input)
-    image_is_filename = is.character(image_input) && !is.na(image_input)
+    image_is_filename = is.character(image_input) && nchar(image_input) > 0
     if(image_tex_bool) {
       if(dim(image_input)[3] == 4) {
-        png::writePNG(fliplr(aperm(image_input[,,1:3],c(2,1,3))),temp_file_names[i])
+        png::writePNG(fliplr(aperm(image_input[,,1:4],c(2,1,3))),temp_file_names[i])
         #Handle PNG with alpha
         if(!alpha_tex_bool && any(image_input[,,4] != 1)) {
-          image_input[,,1] = image_input[,,4]
-          image_input[,,2] = image_input[,,4]
-          image_input[,,3] = image_input[,,4]
-          png::writePNG(fliplr(aperm(image_input[,,1:3],c(2,1,3))), alpha_temp_file_names[i])
-          scene$material[[i]]$alphaimage = alpha_temp_file_names[i]
+          # image_input[,,1] = image_input[,,1]
+          # image_input[,,2] = image_input[,,4]
+          # image_input[,,3] = image_input[,,4]
+          # image_input[,,4] = image_input[,,4]
+          # image_input = 
+          # png::writePNG(fliplr(aperm(image_input[,,1:4],c(2,1,3))), alpha_temp_file_names[i])
+          scene$material[[i]]$alphaimage = temp_file_names[i]
         }
       } else if(dim(image_input)[3] == 3){
         png::writePNG(fliplr(aperm(image_input,c(2,1,3))),temp_file_names[i])
       }
       scene$material[[i]]$image = temp_file_names[i]
     } else if(image_is_filename) {
-      if(any(!file.exists(path.expand(image_input)) & nchar(image_input) > 0)) {
+      tmp_image = png::readPNG(image_input)
+      if(length(dim(tmp_image)) == 3 && dim(tmp_image)[3] == 4) {
+        if(any(tmp_image[,,4] != 1)) {
+          tmp_image[,,1] = tmp_image[,,4]
+          tmp_image[,,2] = tmp_image[,,4]
+          tmp_image[,,3] = tmp_image[,,4]
+          tmp_image[,,4] = tmp_image[,,4]
+          png::writePNG(tmp_image[,,1:4], alpha_temp_file_names[i])
+          scene$material[[i]]$alphaimage = alpha_temp_file_names[i]
+        }
+      }
+      if(any(!file.exists(path.expand(image_input)))) {
         stop(paste0("Cannot find the following texture file:\n",
                     paste(image_input, collapse="\n")))
       }
       temp_file_names[i] = path.expand(image_input)
       scene$material[[i]]$image = temp_file_names[i]
-    } else {
-      scene$material[[i]]$image = ""
-    }
+      }
   }
   
   #displacement texture handler
@@ -98,9 +106,13 @@ process_scene = function(scene, process_material_ids = TRUE) {
     if(!scene$shape[[i]] %in% c(6,13,14)) { #obj, mesh3d, raymesh
       next
     }
-    image_input = scene$shape_info[[i]]$shape_properties$displacement_texture[[1]]
+    if(scene$shape[[i]] == 13) {
+      image_input = scene$shape_info[[i]]$mesh_info[[1]]$displacement_texture
+    } else {
+      image_input = scene$shape_info[[i]]$shape_properties$displacement_texture
+    }
     image_tex_bool = is.array(image_input)
-    image_is_filename = is.character(image_input) && !is.na(image_input)
+    image_is_filename = is.character(image_input) && nchar(image_input) > 0
     if(image_tex_bool) {
       if(dim(image_input)[3] == 4) {
         png::writePNG(fliplr(aperm(image_input[,,1:3],c(2,1,3))),disp_temp_file_names[i])
@@ -109,23 +121,21 @@ process_scene = function(scene, process_material_ids = TRUE) {
       }
       scene$shape_info[[i]]$shape_properties$displacement_texture = disp_temp_file_names[i]
     } else if(image_is_filename) {
-      if(any(!file.exists(path.expand(image_input)) & nchar(image_input) > 0)) {
+      if(any(!file.exists(path.expand(image_input)))) {
         stop(paste0("Cannot find the following displacement texture file:\n",
                     paste(image_input, collapse="\n")))
       }
       disp_temp_file_names[i] = path.expand(image_input)
       scene$shape_info[[i]]$shape_properties$displacement_texture = disp_temp_file_names[i]
-    } else {
-      scene$shape_info[[i]]$shape_properties$displacement_texture = ""
     }
   }
 
   #bump texture handler
   bump_temp_file_names = tempfile(sprintf("bumptemp%i",seq_len(nrow(scene))),fileext = ".png")
   for(i in seq_len(nrow(scene))) {
-    bump_input = scene$material[[i]]$bump_texture[[1]]
+    bump_input = scene$material[[i]]$bump_texture
     bump_tex_bool = is.array(bump_input)
-    bump_is_filename = is.character(bump_input)  && !is.na(bump_input)
+    bump_is_filename = is.character(bump_input) && nchar(bump_input) > 0
     if(bump_tex_bool) {
       bump_dims = dim(bump_input)
       if(length(bump_dims) == 2) {
@@ -144,23 +154,21 @@ process_scene = function(scene, process_material_ids = TRUE) {
       }
       scene$material[[i]]$bump_texture = bump_temp_file_names[i]
     } else if(bump_is_filename) {
-      if(any(!file.exists(path.expand(bump_input)) & nchar(bump_input) > 0)) {
+      if(any(!file.exists(path.expand(bump_input)))) {
         stop(paste0("Cannot find the following texture file:\n",
                     paste(bump_input, collapse="\n")))
       }
       bump_temp_file_names[i] = path.expand(bump_input)
       scene$material[[i]]$bump_texture = bump_temp_file_names[i]
-    } else {
-      scene$material[[i]]$bump_texture = ""
     }
   }
   
   #roughness texture handler
   rough_temp_file_names = tempfile(sprintf("roughtemp%i",seq_len(nrow(scene))),fileext = ".png")
   for(i in seq_len(nrow(scene))) {
-    roughness_input = scene$material[[i]]$roughness_texture[[1]]
+    roughness_input = scene$material[[i]]$roughness_texture
     rough_tex_bool = is.array(roughness_input)
-    roughness_is_filename = is.character(roughness_input)  && !is.na(roughness_input)
+    roughness_is_filename = is.character(roughness_input) && nchar(roughness_input) > 0
     if(rough_tex_bool) {
       if(length(dim(roughness_input)) == 2) {
         png::writePNG(fliplr(t(roughness_input)), rough_temp_file_names[i])
@@ -171,14 +179,12 @@ process_scene = function(scene, process_material_ids = TRUE) {
       }
       scene$material[[i]]$roughness_texture = rough_temp_file_names[i]
     } else if(roughness_is_filename) {
-      if(any(!file.exists(path.expand(roughness_input)) & nchar(roughness_input) > 0)) {
+      if(any(!file.exists(path.expand(roughness_input)))) {
         stop(paste0("Cannot find the following texture file:\n",
                     paste(roughness_input, collapse="\n")))
       }
       rough_temp_file_names[i] = path.expand(roughness_input)
       scene$material[[i]]$roughness_texture = rough_temp_file_names[i]
-    } else{
-      scene$material[[i]]$roughness_texture = ""
     }
   }
   
@@ -225,7 +231,7 @@ process_scene = function(scene, process_material_ids = TRUE) {
   #Detect any importance sampling
   any_light = FALSE
   for(i in seq_len(nrow(scene))) {
-    any_light = any_light || (scene$material[[i]]$type %in% c(5, 7)) #light and spotlight
+    any_light = any_light || (scene$material[[i]]$type %in% c(5, 8)) #light and spotlight
     if(scene$shape[[i]] == 15) { #instance
       any_light = any_light || scene$shape_info[[i]]$shape_properties$any_light 
     }

@@ -12,7 +12,7 @@ light(
   spotlight_width = 30,
   spotlight_start_falloff = 15,
   invisible = FALSE,
-  image_texture = NA_character_,
+  image_texture = "",
   image_repeat = 1,
   gradient_color = NA,
   gradient_transpose = FALSE,
@@ -42,7 +42,7 @@ the x/y/z coordinates that the spotlight should be focused on. Only works for sp
 
 \item{invisible}{Default `FALSE`. If `TRUE`, the light itself will be invisible.}
 
-\item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
+\item{image_texture}{Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
 
 \item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
 `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
@@ -74,7 +74,7 @@ Light Material
 scene = generate_cornell(light=FALSE) \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=light()))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -83,16 +83,16 @@ scene = generate_cornell(light=FALSE) \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
              material=light(intensity=15,invisible=TRUE)))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
 #All gather around the orb
 scene = generate_ground(material = diffuse(checkercolor="grey50")) \%>\%
   add_object(sphere(radius=0.5,material=light(intensity=5,color="red"))) \%>\%
-  add_object(obj_model(r_obj(), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) \%>\%
+  add_object(obj_model(r_obj(simple_r = TRUE), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) \%>\%
   add_object(pig(scale=0.3, x=1.5,z=-2,y=-1.5,angle=c(0,-135,0)))
 if(run_documentation()) {
-render_scene(scene, samples=128, parallel=TRUE, clamp_value=10)
+render_scene(scene, samples=16, parallel=TRUE, clamp_value=10)
 }
 }

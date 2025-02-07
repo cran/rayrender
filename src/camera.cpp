@@ -11,7 +11,7 @@ camera::camera(point3f lookfrom, point3f _lookat, vec3f _vup, Float vfov,
   start_fov = fov;
   lens_radius = aperture / 2;
   start_lens_radius = lens_radius;
-  Float theta = vfov * M_PI/180;
+  Float theta = vfov * static_cast<Float>(M_PI)/180;
   half_height = tan(theta/2);
   half_width = aspect * half_height;
   origin = lookfrom;
@@ -22,7 +22,7 @@ camera::camera(point3f lookfrom, point3f _lookat, vec3f _vup, Float vfov,
   focus_dist = _focus_dist;
   start_focus_dist = focus_dist;
   w = unit_vector(lookfrom - lookat);
-  u = unit_vector(cross(vup, w));
+  u = unit_vector(cross(vup, w)); //unit_same
   v = cross(w, u);
   lower_left_corner = origin - half_width * focus_dist *  u - half_height * focus_dist * v - focus_dist * w;
   horizontal = 2.0f * half_width * focus_dist * u;
@@ -59,7 +59,7 @@ void camera::update_position(vec3f delta, bool update_uvw, bool update_focal) {
 void camera::update_fov(Float delta_fov) {
   fov += delta_fov;
   fov = std::fmax(std::fmin(fov,179.9f),0.1f);
-  Float theta = fov * M_PI/180;
+  Float theta = fov * static_cast<Float>(M_PI)/180;
   half_height = tan(theta/2);
   half_width = aspect * half_height;
   lower_left_corner = origin - half_width * focus_dist *  u - half_height * focus_dist * v - focus_dist * w;
@@ -138,7 +138,7 @@ void camera::update_focal_absolute(Float focal_length) {
 void camera::update_fov_absolute(Float fov_new) {
   fov = fov_new;
   fov = std::fmax(std::fmin(fov,179.9f),0.1f);
-  Float theta = fov * M_PI/180;
+  Float theta = fov * static_cast<Float>(M_PI)/180;
   half_height = tan(theta/2);
   half_width = aspect * half_height;
   lower_left_corner = origin - half_width * focus_dist *  u - half_height * focus_dist * v - focus_dist * w;
@@ -153,7 +153,7 @@ void camera::reset() {
   lookat = start_lookat;
   focus_dist = start_focus_dist;
   fov = start_fov;
-  Float theta = start_fov * M_PI/180;
+  Float theta = start_fov * static_cast<Float>(M_PI)/180;
   half_height = tan(theta/2);
   half_width = aspect * half_height;
   lens_radius = start_lens_radius;
@@ -187,6 +187,7 @@ ortho_camera::ortho_camera(point3f lookfrom, point3f _lookat, vec3f _vup,
   lower_left_corner = origin - cam_width/2 *  u - cam_height/2 * v;
   horizontal = cam_width * u;
   vertical = cam_height * v;
+  initial_ratio = cam_width / cam_height;
 }
 
 ray ortho_camera::get_ray(Float s, Float t, point3f u3, Float u) {
@@ -214,7 +215,7 @@ void ortho_camera::update_position(vec3f delta, bool update_uvw, bool update_foc
 }
 
 void ortho_camera::update_fov(Float delta_fov) {
-  cam_width += delta_fov;
+  cam_width += delta_fov * initial_ratio;
   cam_height += delta_fov;
   cam_width = std::fmax(cam_width,0.001);
   cam_height = std::fmax(cam_height,0.001);
@@ -314,8 +315,8 @@ environment_camera::environment_camera(point3f lookfrom, point3f lookat, vec3f _
 
 ray environment_camera::get_ray(Float s, Float t, point3f u3, Float u1) {
   Float time = time0 + u1 * (time1 - time0);
-  Float theta = M_PI * t;
-  Float phi = 2 * M_PI * s;
+  Float theta = static_cast<Float>(M_PI) * t;
+  Float phi = 2 * static_cast<Float>(M_PI) * s;
   vec3f dir(std::sin(theta) * std::cos(phi), 
             std::sin(theta) * std::sin(phi),
             std::cos(theta));
@@ -609,9 +610,7 @@ bool RealisticCamera::IntersectSphericalElement(Float radius,Float zCenter,
   if (*t < 0) {
     return false;
   }
-  *n = normal3f(vec3f(o + *t * rd));
-  *n = Faceforward(unit_vector(*n), -rd);
-  
+  *n = Faceforward(unit_vector(convert_to_normal3(o + *t * rd)), -rd);
   return true;
 }
 
@@ -926,7 +925,8 @@ void RealisticCamera::update_focal_distance(Float delta_focus) {
 
 //This actually takes the position of the intersection
 void RealisticCamera::update_look_direction(vec3f dir) {
-  CamTransform = Transform(LookAt(get_origin(), dir, camera_up).GetInverseMatrix());
+  
+  CamTransform = Transform(LookAt(get_origin(), convert_to_point3(dir), camera_up).GetInverseMatrix());
 }
 
 void RealisticCamera::update_lookat(point3f point) {

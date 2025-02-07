@@ -2,7 +2,6 @@
 #include "hitable.h"
 #include "sphere.h"
 #include "hitablelist.h"
-#include "bvh_node.h"
 #include "perlin.h"
 #include "texture.h"
 #include "rectangle.h"
@@ -23,6 +22,8 @@
 #include "transform.h"
 #include "transformcache.h"
 #include "texturecache.h"
+#include "raylog.h"
+#include "bvh.h"
 
 Transform rotation_order_matrix(NumericVector temprotvec, NumericVector order_rotation) {
   Transform M;
@@ -383,7 +384,7 @@ std::shared_ptr<material> LoadSingleMaterial(List SingleMaterial,
 }
 
 
-std::shared_ptr<bvh_node> build_scene(List& scene,
+std::shared_ptr<hitable> build_scene(List& scene,
                                      IntegerVector& shape,
                                      Float shutteropen, 
                                      Float shutterclose,
@@ -392,23 +393,29 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
                                      std::vector<unsigned char * >& bump_textures, 
                                      std::vector<unsigned char * >& roughness_textures,  
                                      std::vector<std::shared_ptr<material> >* shared_materials, 
+                                     std::vector<std::shared_ptr<alpha_texture> >& alpha,
+                                     std::vector<std::shared_ptr<bump_texture> >& bump,
+                                     std::vector<std::shared_ptr<roughness_texture> >& roughness,
                                      int bvh_type,
                                      TransformCache& transformCache, 
                                      TextureCache& texCache,
                                      hitable_list& imp_sample_objects,
                                      std::vector<std::shared_ptr<hitable> >& instanced_objects,
                                      std::vector<std::shared_ptr<hitable_list> >& instance_importance_sampled,
-                                     bool verbose,
+                                     std::vector<int>& texture_idx,
+                                     bool verbose, 
                                      random_gen& rng) {
   auto nvec  = std::make_unique<int[]>(3);
   auto nveca = std::make_unique<int[]>(3);
   auto nvecb = std::make_unique<int[]>(3);
   auto nvecr = std::make_unique<int[]>(3);
-  std::vector<int> texture_idx;
+  int init_texture_size = texture_idx.size();
   
   hitable_list list;
   NumericMatrix IdentityMat(4,4);
   IdentityMat.fill_diag(1);
+  Transform IdentityTransform(IdentityMat);
+  Transform* Iden = transformCache.Lookup(IdentityTransform);
   
   List RayMaterials = as<List>(scene["material"]);
   List ShapeInfo = as<List>(scene["shape_info"]);
@@ -419,10 +426,6 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
   NumericVector x = scene["x"];
   NumericVector y = scene["y"];
   NumericVector z = scene["z"];
-  
-  std::vector<std::shared_ptr<alpha_texture> > alpha;
-  std::vector<std::shared_ptr<bump_texture> > bump;
-  std::vector<std::shared_ptr<roughness_texture> > roughness;
   
   for(size_t i = 0; i < n; i++) {
     List SingleShape = ShapeInfo(i);
@@ -438,7 +441,7 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
     Float importance_sample = as<bool>(SingleMaterial["implicit_sample"]);
     
     IntegerVector material_id_vec = as<IntegerVector>(SingleShape["material_id"]);
-    bool is_shared_mat = Rcpp::IntegerVector::is_na(material_id_vec(0));
+    bool is_shared_mat = !Rcpp::IntegerVector::is_na(material_id_vec(0));
     int material_id = material_id_vec(0);
     std::shared_ptr<material> shape_material;
     bool has_image = false;
@@ -465,7 +468,7 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
                                           has_bump,
                                           has_roughness,
                                           tricolorinfo);
-      texture_idx.push_back(i);
+      texture_idx.push_back(init_texture_size + i);
     }
     if(is_shared_mat && shared_materials->size() < static_cast<size_t>(material_id)) {
       shared_materials->push_back(shape_material);
@@ -504,7 +507,7 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
     
     
     //`mat_idx` selects the index of the texture, in case there's a shared material.
-    int mat_idx = texture_idx[i];
+    int mat_idx = texture_idx.back();
     if(has_alpha) {
       alpha.push_back(std::make_shared<alpha_texture>(alpha_textures[mat_idx], nveca[0], nveca[1], nveca[2]));
     } else {
@@ -524,14 +527,14 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
     Transform TempM = GroupTransform * Translate(center) *
       rotation_order_matrix(angle, order_rotation) * 
       Scale(scales[0], scales[1], scales[2]);
-    std::shared_ptr<Transform> ObjToWorld = transformCache.Lookup(TempM);
-    std::shared_ptr<Transform> WorldToObj = transformCache.Lookup(TempM.GetInverseMatrix());
+    Transform* ObjToWorld = transformCache.Lookup(TempM);
+    Transform* WorldToObj = transformCache.Lookup(TempM.GetInverseMatrix());
     
     
     Transform AnimationStartTransform(StartTransformAnimationMat);
     Transform AnimationEndTransform(EndTransformAnimationMat);
-    std::shared_ptr<Transform> StartAnim = transformCache.Lookup(AnimationStartTransform);
-    std::shared_ptr<Transform> EndAnim = transformCache.Lookup(AnimationEndTransform);
+    Transform* StartAnim = transformCache.Lookup(AnimationStartTransform);
+    Transform* EndAnim = transformCache.Lookup(AnimationEndTransform);
     
     AnimatedTransform Animate(StartAnim, start_time, EndAnim, end_time);
     
@@ -704,7 +707,7 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
         Float a =  Rcpp::as<Float>(shape_properties["a"]);
         Float b =  Rcpp::as<Float>(shape_properties["b"]);
         Float c =  Rcpp::as<Float>(shape_properties["c"]);
-        entry = std::make_shared<ellipsoid>(vec3f(0,0,0), 1, 
+        entry = std::make_shared<ellipsoid>(point3f(0), 1, 
                                             vec3f(a,b,c),
                                             shape_material, alpha[mat_idx], bump[mat_idx],
                                             ObjToWorld,WorldToObj, is_flipped);
@@ -731,12 +734,12 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
         NumericVector normal     = as<NumericVector>(shape_properties["normal"]);
         NumericVector normal_end = as<NumericVector>(shape_properties["normal_end"]);
         
-        vec3f p[4];
+        point3f p[4];
         vec3f n[2];
-        p[0] = vec3f(p1(0),p1(1),p1(2));
-        p[1] = vec3f(p2(0),p2(1),p2(2));
-        p[2] = vec3f(p3(0),p3(1),p3(2));
-        p[3] = vec3f(p4(0),p4(1),p4(2));
+        p[0] = point3f(p1(0),p1(1),p1(2));
+        p[1] = point3f(p2(0),p2(1),p2(2));
+        p[2] = point3f(p3(0),p3(1),p3(2));
+        p[3] = point3f(p4(0),p4(1),p4(2));
         
         n[0] = vec3f(normal(0),normal(1),normal(2));
         n[1] = vec3f(normal_end(0),normal_end(1),normal_end(2));
@@ -860,7 +863,7 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
         NumericVector scale_z = as<NumericVector>(shape_properties["scale_z"]);
         IntegerVector shape_vec = as<IntegerVector>(original_scene["shape"]);
         auto instance_importance_sample_list = std::make_shared<hitable_list>();
-        std::shared_ptr<bvh_node> instance_scene = build_scene(original_scene,
+        std::shared_ptr<hitable> instance_scene = build_scene(original_scene,
                                                               shape_vec,
                                                               shutteropen,
                                                               shutterclose,
@@ -869,12 +872,14 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
                                                               bump_textures, 
                                                               roughness_textures,  
                                                               shared_materials,
+                                                              alpha, bump, roughness,
                                                               bvh_type,
                                                               transformCache,
                                                               texCache,
                                                               (*instance_importance_sample_list),
                                                               instanced_objects,
                                                               instance_importance_sampled,
+                                                              texture_idx,
                                                               false,
                                                               rng);
         instanced_objects.push_back(instance_scene);
@@ -891,8 +896,8 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
             Translate(center_instance) * 
             rotation_order_matrix(angle_instance, order_rotation) * 
             Scale(scale_x(ii), scale_y(ii), scale_z(ii));
-          std::shared_ptr<Transform> ObjToWorldInst = transformCache.Lookup(InstanceTransform);
-          std::shared_ptr<Transform> WorldToObjInst = transformCache.Lookup(InstanceTransform.GetInverseMatrix());
+          Transform* ObjToWorldInst = transformCache.Lookup(InstanceTransform);
+          Transform* WorldToObjInst = transformCache.Lookup(InstanceTransform.GetInverseMatrix());
           list.add(std::make_shared<instance>(instance_scene.get(),
                                               ObjToWorldInst, 
                                               WorldToObjInst,
@@ -908,8 +913,10 @@ std::shared_ptr<bvh_node> build_scene(List& scene,
       imp_sample_objects.add(entry);
     }
   }
-  auto world_bvh = std::make_shared<bvh_node>(list, shutteropen, shutterclose, bvh_type, rng);
-#ifdef FULL_DEBUG
+  std::shared_ptr<BVHAggregate> world_bvh = std::make_shared<BVHAggregate>(list.objects, shutteropen, shutterclose, 1, true,
+                                                   Iden,Iden,false );
+  
+  #ifdef FULL_DEBUG
   world_bvh->validate_bvh();
 #endif
   // auto nodeleaf = world_bvh->CountNodeLeaf();

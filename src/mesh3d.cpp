@@ -15,8 +15,8 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
                TextureCache &texCache, bool recalculate_normals,
                bool verbose, 
                Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
-               std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) :
-  hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
+               Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) :
+  hitable(ObjectToWorld, WorldToObject, mat, reverseOrientation) {
   Rcpp::NumericMatrix vertices = Rcpp::as<Rcpp::NumericMatrix>(mesh_info["vertices"]);
   Rcpp::IntegerMatrix indices = Rcpp::as<Rcpp::IntegerMatrix>(mesh_info["indices"]);
   Rcpp::NumericMatrix norms = Rcpp::as<Rcpp::NumericMatrix>(mesh_info["normals"]);
@@ -131,17 +131,25 @@ mesh3d::mesh3d(Rcpp::List mesh_info, std::shared_ptr<material> mat,
                                              ObjectToWorld, WorldToObject, reverseOrientation));
   }
     
-  mesh_bvh = std::make_shared<bvh_node>(triangles, shutteropen, shutterclose, bvh_type, rng);
+  mesh_bvh = std::make_shared<BVHAggregate>(triangles.objects, shutteropen, shutterclose, bvh_type, true);
   triangles.objects.clear();
 }
 
-bool mesh3d::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool mesh3d::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
   return(mesh_bvh->hit(r, t_min, t_max, rec, rng));
 };
 
 
-bool mesh3d::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool mesh3d::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
   return(mesh_bvh->hit(r, t_min, t_max, rec, sampler));
+};
+
+bool mesh3d::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  return(mesh_bvh->HitP(r, t_min, t_max, rng));
+};
+
+bool mesh3d::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  return(mesh_bvh->HitP(r, t_min, t_max, sampler));
 };
 
 bool mesh3d::bounding_box(Float t0, Float t1, aabb& box) const {

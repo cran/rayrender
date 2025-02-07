@@ -63,12 +63,18 @@ Transform() { }
                    m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
   }
   
-  template <typename T> normal3<T> operator()(const normal3<T> &n) const {
-    T x = n.x(), y = n.y(), z = n.z();
-    return normal3<T>(mInv.m[0][0] * x + mInv.m[1][0] * y + mInv.m[2][0] * z,
+  #ifndef RAYSIMDVEC
+  normal3f operator()(const normal3f &n) const {
+    Float x = n.x(), y = n.y(), z = n.z();
+    normal3f new_norm(mInv.m[0][0] * x + mInv.m[1][0] * y + mInv.m[2][0] * z,
                       mInv.m[0][1] * x + mInv.m[1][1] * y + mInv.m[2][1] * z,
                       mInv.m[0][2] * x + mInv.m[1][2] * y + mInv.m[2][2] * z);
+    new_norm.make_unit_vector();
+    return new_norm;
   }
+  #else 
+  normal3f operator()(const normal3f &n) const;
+  #endif
   
   // template <typename T> void operator()(const normal3<T> &, normal3<T> *nt) const;
   ray operator()(const ray &r) const;
@@ -101,7 +107,6 @@ private:
   friend struct Quaternion;
   
 };
-
 
 Transform Translate(const vec3f &delta);
 Transform Scale(Float x, Float y, Float z);

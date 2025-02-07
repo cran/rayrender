@@ -4,6 +4,7 @@
 #include "plymesh.h"
 #include "loopsubdiv.h"
 #include "calcnormals.h"
+#include "raylog.h"
 
 inline char separator_ply() {
 #if defined _WIN32 || defined __CYGWIN__
@@ -118,8 +119,8 @@ plymesh::plymesh(std::string inputfile, std::string basedir, std::shared_ptr<mat
                  Float scale, int subdivision_levels, bool recalculate_normals,
                  bool verbose,
                  Float shutteropen, Float shutterclose, int bvh_type, random_gen rng,
-                 std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) :
-  hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
+                 Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) :
+  hitable(ObjectToWorld, WorldToObject, mat, reverseOrientation) {
   TriMesh* tri = parse_file_with_miniply(inputfile.c_str(), false);
 
   if(tri == nullptr) {
@@ -153,19 +154,36 @@ plymesh::plymesh(std::string inputfile, std::string basedir, std::shared_ptr<mat
                                              &mesh->texIndices[i], i / 3,
                                              ObjectToWorld, WorldToObject, reverseOrientation));
   }
-  ply_mesh_bvh = std::make_shared<bvh_node>(triangles, shutteropen, shutterclose, bvh_type, rng);
+  ply_mesh_bvh = std::make_shared<BVHAggregate>(triangles.objects, shutteropen, shutterclose, bvh_type, true);
   // ply_mesh_bvh->validate_bvh();
   triangles.objects.clear();
   delete tri;
 };
 
 
-bool plymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool plymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("PlyMesh");
   return(ply_mesh_bvh->hit(r, t_min, t_max, rec, rng));
 };
 
-bool plymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool plymesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("PlyMesh");
+  
   return(ply_mesh_bvh->hit(r, t_min, t_max, rec, sampler));
+};
+
+bool plymesh::HitP(const ray& r, Float t_min, Float t_max,random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("PlyMesh");
+  return(ply_mesh_bvh->HitP(r, t_min, t_max, rng));
+};
+
+bool plymesh::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("PlyMesh");
+  return(ply_mesh_bvh->HitP(r, t_min, t_max, sampler));
 };
 
 bool plymesh::bounding_box(Float t0, Float t1, aabb& box) const {

@@ -23,12 +23,12 @@
 #' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 #' begins with value `gradient_color`.
 #' @param gradient_type Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.
-#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_texture Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
 #' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
 #' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
-#' @param alpha_texture Default `NA`. A matrix or filename (specifying a greyscale image) to 
+#' @param alpha_texture Default `""`. A matrix or filename (specifying a greyscale image) to 
 #' be used to specify the transparency.
-#' @param bump_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param bump_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a bump map for the surface.
 #' @param bump_intensity Default `1`. Intensity of the bump map. High values may lead to unphysical results.
 #' @param fog Default `FALSE`. If `TRUE`, the object will be a volumetric scatterer.
@@ -50,7 +50,7 @@
 #' scene = generate_cornell() %>%
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=diffuse()))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
@@ -59,7 +59,7 @@
 #'   add_object(cube(x=555/2,y=555/8,z=555/2,xwidth=555/2,ywidth=555/4,zwidth=555/2,
 #'   material = diffuse(checkercolor="purple",checkerperiod=20)))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #'   
@@ -68,7 +68,7 @@
 #'   add_object(sphere(x=555/2+555/4,y=555/2,z=555/2,radius=555/8,
 #'   material = diffuse(noise=1/20)))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
@@ -77,7 +77,7 @@
 #'   add_object(cube(x=555/2-555/4,y=555/2,z=555/2,xwidth=555/4,ywidth=555/4,zwidth=555/4,
 #'   material = diffuse(fog=TRUE, fogdensity=0.05,color="orange")))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
@@ -86,7 +86,7 @@
 #'   add_object(segment(start = c(555,450,450),end=c(0,450,450),radius = 50, 
 #'                      material = diffuse(color="#1f7326", gradient_color = "#a60d0d")))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 diffuse = function(color = "#ffffff", 
@@ -94,8 +94,8 @@ diffuse = function(color = "#ffffff",
                    noise = 0, noisephase = 0, noiseintensity = 10, noisecolor = "#000000",
                    gradient_color = NA, gradient_transpose = FALSE, 
                    gradient_point_start = NA, gradient_point_end = NA, gradient_type = "hsv",
-                   image_texture = NA_character_, image_repeat = 1, alpha_texture = NA,
-                   bump_texture = NA, bump_intensity = 1,
+                   image_texture = "", image_repeat = 1, alpha_texture = "",
+                   bump_texture = "", bump_intensity = 1,
                    fog = FALSE, fogdensity = 0.01, 
                    sigma = NULL, importance_sample = FALSE) {
   if(all(!is.na(checkercolor))) {
@@ -146,17 +146,17 @@ diffuse = function(color = "#ffffff",
     image_repeat = c(image_repeat,image_repeat)
   }
   stopifnot(checkerperiod != 0)
-  ray_material(list(type = type, 
+  ray_material(list(type = get_material_enum(type), 
                properties = list(info), checkercolor=list(c(checkercolor,checkerperiod)), 
                gradient_color = list(gradient_color), gradient_transpose = gradient_transpose,
                world_gradient = is_world_gradient,gradient_point_info = list(gradient_point_info),
                gradient_type = gradient_type,
                noise=noise, noisephase = noisephase * pi / 180, noiseintensity = noiseintensity, noisecolor = list(noisecolor),
-               image = list(image_texture), image_repeat = list(image_repeat), 
-               alphaimage = list(alpha_texture), lightintensity = NA_real_,
+               image = image_texture, image_repeat = list(image_repeat), 
+               alphaimage = alpha_texture, lightintensity = NA_real_,
                fog=fog, fogdensity=fogdensity,implicit_sample = importance_sample, 
-               sigma = sigma, glossyinfo = list(NA), bump_texture = list(bump_texture),
-               bump_intensity = bump_intensity, roughness_texture = list(NA_character_)))
+               sigma = sigma, glossyinfo = list(NA), bump_texture = bump_texture,
+               bump_intensity = bump_intensity, roughness_texture = ""))
 }
 
 #' Metallic Material
@@ -190,11 +190,11 @@ diffuse = function(color = "#ffffff",
 #' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 #' begins with value `gradient_color`.
 #' @param gradient_type Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.
-#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_texture Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
 #' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
 #' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
-#' @param alpha_texture Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
-#' @param bump_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param alpha_texture Default `""`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
+#' @param bump_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a bump map for the surface.
 #' @param bump_intensity Default `1`. Intensity of the bump map. High values may lead to unphysical results.
 #' @param importance_sample Default `FALSE`. If `TRUE`, the object will be sampled explicitly during 
@@ -214,7 +214,7 @@ diffuse = function(color = "#ffffff",
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
 #'   material=metal(eta=c(3.2176,3.1029,2.1839), k = c(3.3018,3.33,3.0339))))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=50,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' #Add an aluminum rotated shiny metal block     
@@ -222,7 +222,7 @@ diffuse = function(color = "#ffffff",
 #'   add_object(cube(x=380,y=150/2,z=200,xwidth=150,ywidth=150,zwidth=150,
 #'   material = metal(eta = c(1.07,0.8946,0.523), k = c(6.7144,6.188,4.95)),angle=c(0,45,0)))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' #Add a copper metal cube      
@@ -232,7 +232,7 @@ diffuse = function(color = "#ffffff",
 #'                                    k = c(2.898,2.476,2.298)),
 #'                   angle=c(0,-30,0)))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
@@ -243,7 +243,7 @@ diffuse = function(color = "#ffffff",
 #'                                    k = c(3.18,3.36,3.43)),
 #'                   angle=c(0,-30,0)))
 #' if(run_documentation()) {
-#' render_scene(scene2, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene2, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 metal = function(color = "#ffffff", 
@@ -252,8 +252,8 @@ metal = function(color = "#ffffff",
                  noise = 0, noisephase = 0, noiseintensity = 10, noisecolor = "#000000",
                  gradient_color = NA, gradient_transpose = FALSE,
                  gradient_point_start = NA, gradient_point_end = NA, gradient_type = "hsv",
-                 image_texture = NA_character_, image_repeat = 1, alpha_texture = NA,
-                 bump_texture = NA, bump_intensity = 1,
+                 image_texture = "", image_repeat = 1, alpha_texture = "",
+                 bump_texture = "", bump_intensity = 1,
                  importance_sample = FALSE) {
   color = convert_color(color)
   if(all(!is.na(checkercolor))) {
@@ -298,7 +298,7 @@ metal = function(color = "#ffffff",
     image_repeat = c(image_repeat,image_repeat)
   }
   glossyinfo = list(c(1, 0, 0, eta, kappa));
-  ray_material(list(type = "metal", 
+  ray_material(list(type = get_material_enum("metal"), 
                  properties = list(c(color,fuzz)), 
                  checkercolor=list(c(checkercolor,checkerperiod)), 
                  gradient_color = list(gradient_color), gradient_transpose = gradient_transpose,
@@ -307,12 +307,12 @@ metal = function(color = "#ffffff",
                  noise=noise, noisephase = noisephase * pi / 180, 
                  noiseintensity = noiseintensity, noisecolor = list(noisecolor),
                  lightinfo = list(NA), 
-                 image = list(image_texture), image_repeat = list(image_repeat),
-                 alphaimage = list(alpha_texture), 
+                 image = image_texture, image_repeat = list(image_repeat),
+                 alphaimage = alpha_texture, 
                  lightintensity = NA_real_,fog=FALSE,fogdensity=0.01,
                  implicit_sample = importance_sample, 
-                 sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
-                 bump_intensity = bump_intensity, roughness_texture = list(NA_character_)))
+                 sigma = 0, glossyinfo = glossyinfo, bump_texture = bump_texture,
+                 bump_intensity = bump_intensity, roughness_texture = ""))
 }
 
 #' Dielectric (glass) Material
@@ -335,7 +335,7 @@ metal = function(color = "#ffffff",
 #' the rendering process. If the object is particularly important in contributing to the light paths
 #' in the image (e.g. light sources, refracting glass ball with caustics, metal objects concentrating light),
 #' this will help with the convergence of the image.
-#' @param bump_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param bump_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a bump map for the surface.
 #' @param bump_intensity Default `1`. Intensity of the bump map. High values may lead to unphysical results.
 #'
@@ -346,14 +346,14 @@ metal = function(color = "#ffffff",
 #' #Generate a checkered ground
 #' scene = generate_ground(depth=-0.5, material = diffuse(checkercolor="grey30",checkerperiod=2))
 #' if(run_documentation()) {
-#' render_scene(scene,parallel=TRUE)
+#' render_scene(scene,parallel=TRUE, samples=16)
 #' }
 #' 
 #' #Add a glass sphere
 #' if(run_documentation()) {
 #' scene %>%
 #'   add_object(sphere(x=-0.5,radius=0.5,material=dielectric())) %>%
-#'   render_scene(parallel=TRUE,samples=128)
+#'   render_scene(parallel=TRUE,samples=16)
 #' }
 #' 
 #' #Add a rotated colored glass cube
@@ -361,7 +361,7 @@ metal = function(color = "#ffffff",
 #' scene %>%
 #'   add_object(sphere(x=-0.5,radius=0.5,material=dielectric())) %>%
 #'   add_object(cube(x=0.5,xwidth=0.5,material=dielectric(color="darkgreen"),angle=c(0,-45,0))) %>%
-#'   render_scene(parallel=TRUE,samples=128)
+#'   render_scene(parallel=TRUE,samples=16)
 #' }
 #' 
 #' #Add an area light behind and at an angle and turn off the ambient lighting
@@ -372,7 +372,7 @@ metal = function(color = "#ffffff",
 #'   add_object(yz_rect(z=-3,y=1,x=0,zwidth=3,ywidth=1.5,
 #'                      material=light(intensity=15),
 #'                      angle=c(0,-90,45), order_rotation = c(3,2,1))) %>%
-#'   render_scene(parallel=TRUE,aperture=0, ambient_light=FALSE,samples=1000)
+#'   render_scene(parallel=TRUE,aperture=0, ambient_light=FALSE,samples=16)
 #' }
 #' 
 #' #Color glass using Beer-Lambert attenuation, which attenuates light on a per-channel
@@ -384,7 +384,7 @@ metal = function(color = "#ffffff",
 #'   add_object(sphere(z=-5,x=-0.5,y=1,material=light(intensity=10))) %>%
 #'   add_object(cube(y=0.3,ywidth=0.1,xwidth=2,zwidth=2,
 #'                   material=dielectric(attenuation=c(1.2,0.2,1.2)),angle=c(45,110,0))) %>%
-#'   render_scene(parallel=TRUE, samples = 1000)
+#'   render_scene(parallel=TRUE, samples = 16)
 #' }
 #' 
 #' #If you have overlapping dielectrics, the `priority` value can help disambiguate what 
@@ -398,7 +398,7 @@ metal = function(color = "#ffffff",
 #'                     material = dielectric(priority=0,attenuation = c(10,3,10) ))) %>%
 #'   add_object(sphere(radius=0.25,x=-0.5,z=0.5,y=0.5,
 #'                     material = dielectric(priority=0,attenuation = c(10,3,10)))) %>%
-#'   render_scene(parallel=TRUE, samples = 128,lookfrom=c(5,1,5)) 
+#'   render_scene(parallel=TRUE, samples = 16,lookfrom=c(5,1,5)) 
 #' }
 #' 
 #' # We can also use this as a basic Constructive Solid Geometry interface by setting 
@@ -412,12 +412,12 @@ metal = function(color = "#ffffff",
 #'   add_object(sphere(radius=1,x=-1.01, 
 #'                     material = dielectric(priority=0,refraction=1))) %>%
 #'   add_object(sphere(y=10,x=3,material=light(intensit=150))) %>%
-#'   render_scene(parallel=TRUE, samples = 128,lookfrom=c(5,3,5))
+#'   render_scene(parallel=TRUE, samples = 16,lookfrom=c(5,3,5))
 #' }
 dielectric = function(color="white", refraction = 1.5,  
                       attenuation = c(0,0,0), attenuation_intensity = 1,
                       priority = 0, importance_sample = FALSE,
-                      bump_texture = NA, bump_intensity = 1) {
+                      bump_texture = "", bump_intensity = 1) {
   color = convert_color(color)
   stopifnot(attenuation_intensity >= 0 && 
             is.numeric(attenuation_intensity) && 
@@ -429,18 +429,18 @@ dielectric = function(color="white", refraction = 1.5,
   attenuation = attenuation * attenuation_intensity
   
   bump_texture  = check_image_texture(bump_texture)
-  ray_material(list(type = "dielectric", 
+  ray_material(list(type = get_material_enum("dielectric"), 
                     properties = list(c(color, refraction, attenuation, priority)), 
                     checkercolor=list(NA), 
                     gradient_color = list(NA), gradient_transpose = FALSE,
                     world_gradient = FALSE,gradient_point_info = list(NA),
                     gradient_type = NA,
                     noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
-                    image = list(NA_character_), image_repeat = list(c(1,1)), 
-                    alphaimage = list(NA_character_), lightintensity = NA_real_, 
+                    image = "", image_repeat = list(c(1,1)), 
+                    alphaimage = "", lightintensity = NA_real_, 
                     fog=FALSE, fogdensity=NA_real_, implicit_sample = importance_sample, 
-                    sigma = 0, glossyinfo = list(NA), bump_texture = list(bump_texture),
-                    bump_intensity = bump_intensity, roughness_texture = list(NA_character_)))
+                    sigma = 0, glossyinfo = list(NA), bump_texture = bump_texture,
+                    bump_intensity = bump_intensity, roughness_texture = ""))
 }
 
 #' Microfacet Material
@@ -483,14 +483,14 @@ dielectric = function(color="white", refraction = 1.5,
 #' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 #' begins with value `gradient_color`.
 #' @param gradient_type Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.
-#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_texture Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
 #' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
 #' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
-#' @param alpha_texture Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
-#' @param bump_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param alpha_texture Default `""`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
+#' @param bump_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a bump map for the surface.
 #' @param bump_intensity Default `1`. Intensity of the bump map. High values may lead to unphysical results.
-#' @param roughness_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param roughness_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a roughness map for the surface.
 #' @param roughness_range Default ` c(0.0001, 0.2)`. This is a length-2 vector that specifies the range of roughness values 
 #' that the `roughness_texture` can take. 
@@ -513,7 +513,7 @@ dielectric = function(color="white", refraction = 1.5,
 #'   add_object(ellipsoid(x=555/2,555/2,y=150, a=100,b=150,c=100,
 #'              material=microfacet(roughness=0.1,
 #'                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) %>% 
-#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
 #'  }
 #' if(run_documentation()) {
@@ -527,41 +527,44 @@ dielectric = function(color="white", refraction = 1.5,
 #'  add_object(ellipsoid(x=150,555/2,y=150, a=100,b=150,c=100,
 #'              material=microfacet(roughness=c(0.1,0.3),
 #'                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) %>%  
-#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40,  parallel=TRUE,clamp_value=10)
 #'}
 #' if(run_documentation()) {
 #' #Render a rough silver R with a smaller golden egg in front
 #' generate_cornell() %>%
-#'   add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+#'   add_object(obj_model(r_obj(simple_r = TRUE),
+#'                        x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
 #'              material=microfacet(roughness=0.2,
 #'                                  eta=c(1.1583,0.9302,0.5996), kappa=c(6.9650,6.396,5.332)))) %>% 
 #'  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
 #'              material=microfacet(roughness=0.1,
 #'                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) %>% 
-#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
 #'  }
 #' if(run_documentation()) {
 #' #Increase the roughness
 #' generate_cornell() %>%
-#'   add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+#'   add_object(obj_model(r_obj(simple_r = TRUE),
+#'                        x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
 #'              material=microfacet(roughness=0.5,
 #'                                  eta=c(1.1583,0.9302,0.5996), kappa=c(6.9650,6.396,5.332)))) %>% 
 #'  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
 #'              material=microfacet(roughness=0.3,
 #'                                  eta=c(0.216,0.42833,1.3184), kappa=c(3.239,2.4599,1.8661)))) %>% 
-#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, parallel=TRUE,clamp_value=10)
 #'  }
 #' if(run_documentation()) {
 #'  #Use transmission for a rough dielectric
 #' generate_cornell() %>%
-#'   add_object(obj_model(r_obj(),x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
+#'   add_object(obj_model(r_obj(simple_r = TRUE),
+#'                        x=555/2,z=350,y=0, scale_obj = 200, angle=c(0,200,0),
 #'              material=microfacet(roughness=0.3, transmission=T, eta=1.6))) %>% 
 #'  add_object(ellipsoid(x=200,z=200,y=80, a=50,b=80,c=50,
 #'              material=microfacet(roughness=0.3, transmission=T, eta=1.6))) %>% 
-#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#'  render_scene(lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, parallel=TRUE,clamp_value=10, min_variance=1e-6)
 #' }
 microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
@@ -570,9 +573,9 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
                       noise = 0, noisephase = 0, noiseintensity = 10, noisecolor = "#000000",
                       gradient_color = NA, gradient_transpose = FALSE,
                       gradient_point_start = NA_real_, gradient_point_end = NA_real_, gradient_type = "hsv",
-                      image_texture = NA_character_, image_repeat = 1, alpha_texture = NA_character_,
-                      bump_texture = NA_character_, bump_intensity = 1, 
-                      roughness_texture = NA_character_, roughness_range = c(0.0001, 0.2), roughness_flip = FALSE,
+                      image_texture = "", image_repeat = 1, alpha_texture = "",
+                      bump_texture = "", bump_intensity = 1, 
+                      roughness_texture = "", roughness_range = c(0.0001, 0.2), roughness_flip = FALSE,
                       importance_sample = FALSE) {
   microtype = switch(microfacet, "tbr" = 1,"beckmann" = 2, 1)
   roughness[roughness <= 0] = 0
@@ -590,8 +593,8 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
   if(roughness_range[1] > roughness_range[2]) {
     roughness_range = rev(roughness_range)
   }
-  if(roughness_range[1] == roughness_range[2] && !is.na(roughness_texture)) {
-    roughness_texture = NA
+  if(roughness_range[1] == roughness_range[2] && nchar(roughness_texture) > 0) {
+    roughness_texture = ""
     roughness = roughness_range[1]
   }
   if(length(eta) == 1) {
@@ -641,7 +644,7 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
   glossyinfo = list(c(microtype, alphax, alphay, eta, kappa, roughness_range,roughness_flip))
   if(alphax == 0 && alphay == 0 ) {
     if(!transmission) {
-      ray_material(list(type = "metal", 
+      ray_material(list(type = get_material_enum("metal"), 
                         properties = list(c(color, 0)), 
                         gradient_color = list(gradient_color), gradient_transpose = FALSE,
                         world_gradient = is_world_gradient, gradient_point_info = list(gradient_point_info),
@@ -649,24 +652,24 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
                         checkercolor=list(c(checkercolor,checkerperiod)), 
                         noise=noise, noisephase = noisephase * pi / 180, 
                         noiseintensity = noiseintensity, noisecolor = list(noisecolor),
-                        image = list(image_texture), image_repeat = list(image_repeat), 
-                        alphaimage = list(alpha_texture), lightintensity = NA_real_, 
+                        image = image_texture, image_repeat = list(image_repeat), 
+                        alphaimage = alpha_texture, lightintensity = NA_real_, 
                         fog=FALSE, fogdensity=NA_real_, implicit_sample = importance_sample, 
-                        sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
-                        bump_intensity = bump_intensity, roughness_texture = list(NA_character_)))
+                        sigma = 0, glossyinfo = glossyinfo, bump_texture = bump_texture,
+                        bump_intensity = bump_intensity, roughness_texture = ""))
     } else {
-      ray_material(list(type = "dielectric", 
+      ray_material(list(type = get_material_enum("dielectric"), 
                         properties = list(c(color, eta[1], c(0,0,0), 0)), 
                         gradient_color = list(gradient_color), gradient_transpose = FALSE,
                         world_gradient = is_world_gradient, gradient_point_info = list(gradient_point_info),
                         gradient_type = gradient_type,
                         checkercolor=list(c(checkercolor,checkerperiod)), 
                         noise=noise, noisephase = noisephase * pi / 180, noiseintensity = noiseintensity, noisecolor = list(noisecolor),
-                        image = list(image_texture), image_repeat = list(image_repeat), 
-                        alphaimage = list(alpha_texture), lightintensity = NA_real_, 
+                        image = image_texture, image_repeat = list(image_repeat), 
+                        alphaimage = alpha_texture, lightintensity = NA_real_, 
                         fog=FALSE, fogdensity=NA_real_, implicit_sample = importance_sample, 
-                        sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
-                        bump_intensity = bump_intensity, roughness_texture = list(NA_character_)))
+                        sigma = 0, glossyinfo = glossyinfo, bump_texture = bump_texture,
+                        bump_intensity = bump_intensity, roughness_texture = ""))
     }
   } else {
     if(transmission) {
@@ -674,18 +677,18 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
     } else {
       typeval = "mf"
     }
-    ray_material(list(type = typeval, 
+    ray_material(list(type = get_material_enum(typeval), 
                  properties = list(c(color)), 
                  gradient_color = list(gradient_color), gradient_transpose = FALSE,
                  world_gradient = is_world_gradient,gradient_point_info = list(gradient_point_info),
                  gradient_type = gradient_type,
                  checkercolor=list(c(checkercolor,checkerperiod)), 
                  noise=noise, noisephase = noisephase * pi / 180, noiseintensity = noiseintensity, noisecolor = list(noisecolor),
-                 image = list(image_texture), image_repeat = list(image_repeat), 
-                 alphaimage = list(alpha_texture), lightintensity = NA_real_, 
+                 image = image_texture, image_repeat = list(image_repeat), 
+                 alphaimage = alpha_texture, lightintensity = NA_real_, 
                  fog=FALSE, fogdensity=NA_real_, implicit_sample = importance_sample, 
-                 sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
-                 bump_intensity = bump_intensity, roughness_texture = list(roughness_texture)))
+                 sigma = 0, glossyinfo = glossyinfo, bump_texture = bump_texture,
+                 bump_intensity = bump_intensity, roughness_texture = roughness_texture))
   }
 }
 
@@ -704,7 +707,7 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
 #' @param spotlight_width Default `30`. Angular width of the spotlight.
 #' @param spotlight_start_falloff Default `15`. Angle at which the light starts fading in intensity.
 #' @param invisible Default `FALSE`. If `TRUE`, the light itself will be invisible.
-#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_texture Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
 #' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
 #' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
 #' @param gradient_color Default `NA`. If not `NA`, creates a secondary color for a linear gradient 
@@ -728,7 +731,7 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
 #' scene = generate_cornell(light=FALSE) %>%
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=light()))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
@@ -737,21 +740,21 @@ microfacet = function(color="white", roughness = 0.0001, transmission = FALSE,
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
 #'              material=light(intensity=15,invisible=TRUE)))
 #' if(run_documentation()) {
-#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+#' render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 #' 
 #' #All gather around the orb
 #' scene = generate_ground(material = diffuse(checkercolor="grey50")) %>%
 #'   add_object(sphere(radius=0.5,material=light(intensity=5,color="red"))) %>%
-#'   add_object(obj_model(r_obj(), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) %>%
+#'   add_object(obj_model(r_obj(simple_r = TRUE), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) %>%
 #'   add_object(pig(scale=0.3, x=1.5,z=-2,y=-1.5,angle=c(0,-135,0)))
 #' if(run_documentation()) {
-#' render_scene(scene, samples=128, parallel=TRUE, clamp_value=10)
+#' render_scene(scene, samples=16, parallel=TRUE, clamp_value=10)
 #' }
 light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE, 
                  spotlight_focus = NA, spotlight_width = 30, spotlight_start_falloff = 15,
-                 invisible = FALSE, image_texture = NA_character_, image_repeat = 1, 
+                 invisible = FALSE, image_texture = "", image_repeat = 1, 
                  gradient_color = NA, gradient_transpose = FALSE,
                  gradient_point_start = NA, gradient_point_end = NA, gradient_type = "hsv") {
   info = convert_color(color)
@@ -785,30 +788,30 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
     spotlight_width = min(c(spotlight_width,180))
     spotlight_start_falloff = min(c(spotlight_start_falloff,90))
     info = c(info, spotlight_focus, cospi(spotlight_width/180), cospi(spotlight_start_falloff/180), invisible)
-    ray_material(list(type = "spotlight", 
+    ray_material(list(type = get_material_enum("spotlight"), 
                       properties = list(info), checkercolor=list(NA_real_), 
                       gradient_color = list(NA_real_), gradient_transpose = FALSE,
                       world_gradient = FALSE, gradient_point_info = list(NA_real_),
                       gradient_type = NA,
                       noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
-                      image = list(image_texture), image_repeat = list(image_repeat),
-                      alphaimage = list(NA_character_), lightintensity = intensity,
+                      image = image_texture, image_repeat = list(image_repeat),
+                      alphaimage = "", lightintensity = intensity,
                       fog=FALSE, fogdensity = 0.01, implicit_sample = importance_sample, 
-                      sigma = 0, glossyinfo = list(NA_real_), bump_texture = list(NA_character_),
-                      bump_intensity = 1, roughness_texture = list(NA_character_)))
+                      sigma = 0, glossyinfo = list(NA_real_), bump_texture = "",
+                      bump_intensity = 1, roughness_texture = ""))
   } else {
     info = c(info, invisible)
-    ray_material(list(type = "light", 
+    ray_material(list(type = get_material_enum("light"), 
                       properties = list(info), checkercolor=list(NA_real_), 
                       gradient_color = list(gradient_color), gradient_transpose = gradient_transpose,
                       world_gradient = is_world_gradient, gradient_point_info = list(gradient_point_info),
                       gradient_type = gradient_type,
                       noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
-                      image = list(image_texture), image_repeat = list(image_repeat),
-                      alphaimage = list(NA_character_), lightintensity = intensity,
+                      image = image_texture, image_repeat = list(image_repeat),
+                      alphaimage = "", lightintensity = intensity,
                       fog=FALSE, fogdensity = 0.01, implicit_sample = importance_sample, 
-                      sigma = 0, glossyinfo = list(NA_real_), bump_texture = list(NA_character_),
-                      bump_intensity = 1, roughness_texture = list(NA_character_)))
+                      sigma = 0, glossyinfo = list(NA_real_), bump_texture = "",
+                      bump_intensity = 1, roughness_texture = ""))
   }
 }
 
@@ -841,14 +844,14 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
 #' mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 #' begins with value `gradient_color`.
 #' @param gradient_type Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.
-#' @param image_texture Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
+#' @param image_texture Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.
 #' @param image_repeat Default `1`. Number of times to repeat the image across the surface.
 #' `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.
-#' @param alpha_texture Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
-#' @param bump_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param alpha_texture Default `""`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.
+#' @param bump_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a bump map for the surface.
 #' @param bump_intensity Default `1`. Intensity of the bump map. High values may lead to unphysical results.
-#' @param roughness_texture Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+#' @param roughness_texture Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 #' be used to specify a roughness map for the surface.
 #' @param roughness_range Default ` c(0.0001, 0.2)`. This is a length-2 vector that specifies the range of roughness values 
 #' that the `roughness_texture` can take. 
@@ -868,7 +871,7 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
 #' generate_ground(material=diffuse(sigma=90)) %>%
 #'   add_object(sphere(y=0.2,material=glossy(color="#2b6eff"))) %>% 
 #'   add_object(sphere(y=2.8,material=light())) %>%
-#'   render_scene(parallel=TRUE,clamp_value=10,samples=128,sample_method="sobol_blue")
+#'   render_scene(parallel=TRUE,clamp_value=10,samples=16,sample_method="sobol_blue")
 #'  }
 #' if(run_documentation()) {
 #' #Change the color of the underlying diffuse layer
@@ -877,7 +880,7 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
 #'   add_object(sphere(y=0.2,material=glossy(color="#2b6eff"))) %>% 
 #'   add_object(sphere(y=0.2,x=2.1,material=glossy(color="#2fed4f"))) %>% 
 #'   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) %>%
-#'   render_scene(parallel=TRUE,clamp_value=10,samples=128,fov=40,sample_method="sobol_blue")
+#'   render_scene(parallel=TRUE,clamp_value=10,samples=16,fov=40,sample_method="sobol_blue")
 #'  }
 #' if(run_documentation()) {
 #' #Change the amount of gloss 
@@ -886,7 +889,7 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
 #'   add_object(sphere(y=0.2,material=glossy(gloss=0.5,color="#2b6eff"))) %>% 
 #'   add_object(sphere(y=0.2,x=2.1,material=glossy(gloss=0,color="#2fed4f"))) %>% 
 #'   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) %>%
-#'   render_scene(parallel=TRUE,clamp_value=10,samples=128,fov=40,sample_method="sobol_blue")
+#'   render_scene(parallel=TRUE,clamp_value=10,samples=16,fov=40,sample_method="sobol_blue")
 #'  }
 #' if(run_documentation()) {
 #' #Add gloss to a pattern 
@@ -895,25 +898,26 @@ light = function(color = "#ffffff", intensity = 10, importance_sample = TRUE,
 #'   add_object(sphere(y=0.2,material=glossy(color="#ff365a",checkercolor="#2b6eff"))) %>% 
 #'   add_object(sphere(y=0.2,x=2.1,material=glossy(color="blue",gradient_color="#2fed4f"))) %>% 
 #'   add_object(sphere(y=8,z=-5,radius=3,material=light(intensity=20))) %>%
-#'   render_scene(parallel=TRUE,clamp_value=10,samples=128,fov=40,sample_method="sobol_blue")
+#'   render_scene(parallel=TRUE,clamp_value=10,samples=16,fov=40,sample_method="sobol_blue")
 #'  }
 #' if(run_documentation()) {
 #' #Add an R and a fill light (this may look familiar)
 #' generate_ground(material=diffuse()) %>%
 #'   add_object(sphere(y=0.2,material=glossy(color="#2b6eff",reflectance=0.05))) %>% 
-#'   add_object(obj_model(r_obj(),z=1,y=-0.05,scale=0.45,material=diffuse())) %>%
+#'   add_object(obj_model(r_obj(simple_r = TRUE),
+#'                        z=1,y=-0.05,scale=0.45,material=diffuse())) %>%
 #'   add_object(sphere(y=6,z=1,radius=4,material=light(intensity=3))) %>%
 #'   add_object(sphere(z=15,material=light(intensity=50))) %>%
-#'   render_scene(parallel=TRUE,clamp_value=10,samples=128,sample_method="sobol_blue")
+#'   render_scene(parallel=TRUE,clamp_value=10,samples=16,sample_method="sobol_blue")
 #' }
 glossy = function(color="white", gloss = 1, reflectance = 0.05, microfacet = "tbr", 
                   checkercolor = NA, checkerperiod = 3,
                   noise = 0, noisephase = 0, noiseintensity = 10, noisecolor = "#000000",
                   gradient_color = NA, gradient_transpose = FALSE,
                   gradient_point_start = NA_real_, gradient_point_end = NA_real_, gradient_type = "hsv",
-                  image_texture = NA_character_, image_repeat = 1, alpha_texture = NA_character_, 
-                  bump_texture = NA_character_, bump_intensity = 1,
-                  roughness_texture = NA_character_, roughness_range = c(0.0001, 0.2), 
+                  image_texture = "", image_repeat = 1, alpha_texture = "", 
+                  bump_texture = "", bump_intensity = 1,
+                  roughness_texture = "", roughness_range = c(0.0001, 0.2), 
                   roughness_flip = FALSE,
                   importance_sample = FALSE) {
   microtype = switch(microfacet, "tbr" = 1,"beckmann" = 2, 1)
@@ -934,8 +938,8 @@ glossy = function(color="white", gloss = 1, reflectance = 0.05, microfacet = "tb
   if(roughness_range[1] > roughness_range[2]) {
     roughness_range = rev(roughness_range)
   }
-  if(roughness_range[1] == roughness_range[2] && !is.na(roughness_texture)) {
-    roughness_texture = NA_character_
+  if(roughness_range[1] == roughness_range[2] && nchar(roughness_texture) > 0) {
+    roughness_texture = ""
     gloss = 1-roughness_range[1]
   }
   color = convert_color(color)
@@ -973,18 +977,18 @@ glossy = function(color="white", gloss = 1, reflectance = 0.05, microfacet = "tb
   roughness_flip = ifelse(roughness_flip,1,0)
   
   glossyinfo = list(c(microtype, alphax, alphay, reflectance, c(1,1,1), roughness_range, roughness_flip));
-  ray_material(list(type = "glossy", 
+  ray_material(list(type = get_material_enum("glossy"), 
                     properties = list(c(color)), 
                     gradient_color = list(gradient_color), gradient_transpose = FALSE,
                     world_gradient = is_world_gradient, gradient_point_info = list(gradient_point_info),
                     gradient_type = gradient_type,
                     checkercolor=list(c(checkercolor,checkerperiod)), 
                     noise=noise, noisephase = noisephase * pi / 180, noiseintensity = noiseintensity, noisecolor = list(noisecolor),
-                    image = list(image_texture), image_repeat = list(image_repeat), 
-                    alphaimage = list(alpha_texture), lightintensity = NA_real_, 
+                    image = image_texture, image_repeat = list(image_repeat), 
+                    alphaimage = alpha_texture, lightintensity = NA_real_, 
                     fog=FALSE, fogdensity = NA_real_, implicit_sample = importance_sample, 
-                    sigma = 0, glossyinfo = glossyinfo, bump_texture = list(bump_texture),
-                    bump_intensity = bump_intensity, roughness_texture = list(roughness_texture)))
+                    sigma = 0, glossyinfo = glossyinfo, bump_texture = bump_texture,
+                    bump_intensity = bump_intensity, roughness_texture = roughness_texture))
 }
 
 
@@ -1046,8 +1050,8 @@ SigmaAFromReflectance = function(c, beta_n) {
 #'   add_object(sphere()) %>%
 #'   add_object(hairball) %>%
 #'   add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) %>%
-#'   render_scene(samples=64, lookfrom=c(0,3,10),clamp_value = 10,
-#'                fov=20)
+#'   render_scene(samples=16, lookfrom=c(0,3,10),clamp_value = 10,
+#'                fov=20, width=800, height=800)
 #' }
 #' if(run_documentation()) {         
 #'                
@@ -1070,8 +1074,8 @@ SigmaAFromReflectance = function(c, beta_n) {
 #'   add_object(sphere()) %>%
 #'   add_object(hairball) %>%
 #'   add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) %>%
-#'   render_scene(samples=64, lookfrom=c(0,3,10),clamp_value = 10,
-#'                fov=20)
+#'   render_scene(samples=16, lookfrom=c(0,3,10),clamp_value = 10,
+#'                fov=20, width=800, height=800)
 #' }
 hair = function(pigment = 1.3, red_pigment = 0, color = NA, sigma_a = NA, 
                 eta = 1.55, beta_m = 0.3, beta_n = 0.3, alpha = 2) {
@@ -1086,17 +1090,17 @@ hair = function(pigment = 1.3, red_pigment = 0, color = NA, sigma_a = NA,
   }
   
   info = c(sigma_a, eta, beta_m, beta_n, alpha)
-  ray_material(list(type = "hair", 
+  ray_material(list(type = get_material_enum("hair"), 
                     properties = list(info), checkercolor=list(NA_real_), 
                     gradient_color = list(NA_real_), gradient_transpose = NA,
                     world_gradient = FALSE, gradient_point_info = list(NA_real_),
                     gradient_type = NA,
                     noise=0, noisephase = 0, noiseintensity = 0, noisecolor = list(c(0,0,0)),
-                    image = list(NA_character_), image_repeat = list(NA_real_),
-                    alphaimage = list(NA_character_), lightintensity = NA_real_,
+                    image = "", image_repeat = list(NA_real_),
+                    alphaimage = "", lightintensity = NA_real_,
                     fog=FALSE, fogdensity = NA_real_, implicit_sample = FALSE, 
-                    sigma = NA_real_, glossyinfo = list(NA_real_), bump_texture = list(NA_character_),
-                    bump_intensity = NA_real_, roughness_texture = list(NA_character_)))
+                    sigma = NA_real_, glossyinfo = list(NA_real_), bump_texture = "",
+                    bump_intensity = NA_real_, roughness_texture = ""))
 }
 
 #' Lambertian Material (deprecated)
@@ -1112,7 +1116,7 @@ hair = function(pigment = 1.3, red_pigment = 0, color = NA, sigma_a = NA,
 #' if(run_documentation()) {
 #' scene = generate_cornell() %>%
 #'   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=lambertian()))
-#'   render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=10,
+#'   render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
 #'              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 #' }
 lambertian = function(...) {
@@ -1123,15 +1127,39 @@ lambertian = function(...) {
 #' Check Image Texture
 #' @keywords internal
 check_image_texture = function(image_texture) {
-  if(!is.array(image_texture) && !is.na(image_texture) && !is.character(image_texture)) {
-    image_texture = NA_character_
+  if(!is.array(image_texture) && !is.character(image_texture)) {
+    image_texture = ""
     warning("Texture not in recognized format (array, matrix, or filename), ignoring.")
   }
-  if(!is.array(image_texture) && !is.na(image_texture) && 
+  if(!is.array(image_texture) && nchar(image_texture) > 0 &&
      !tools::file_ext(tolower(image_texture)) %in% c("jpg", "jpeg", "png", "exr", "hdr")) {
-    image_texture = NA_character_
+    image_texture = ""
     warning("Texture not in recognized format (JPEG, PNG, EXR,or HDR), ignoring.")
   }
   return(image_texture)
 }
 
+#' get_material_enum
+#' @keywords internal
+get_material_enum = function(material) {
+  switch(material,
+    "diffuse" = 1L,"metal" = 2L,"dielectric" = 3L,
+    "oren-nayar" = 4L, "light" = 5L, "mf" = 6L,
+    "glossy" = 7L, "spotlight" = 8L, "hair" = 9L, "mf-t" = 10L,
+    stop(sprintf("Material type `%s` not found",material)))
+}
+
+#' get_material_name
+#' @keywords internal
+get_material_name = function(material) {
+    c("diffuse",
+    "metal", 
+    "dielectric",
+    "oren-nayar", 
+    "light", 
+    "mf",
+    "glossy", 
+    "spotlight",
+    "hair", 
+    "mf-t")[material]
+}

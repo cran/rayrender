@@ -5,9 +5,9 @@ static void BeckmannSample11(Float cosThetaI, Float U1, Float U2,
                              Float *slope_x, Float *slope_y) {
   /* Special case (normal incidence) */
   if (cosThetaI > .9999) {
-    Float r = std::sqrt(-std::log(1.0f - U1));
-    Float sinPhi = std::sin(2 * M_PI * U2);
-    Float cosPhi = std::cos(2 * M_PI * U2);
+    Float r = std::sqrt(-std::log(static_cast<Float>(1) - U1));
+    Float sinPhi = std::sin(2 * static_cast<Float>(M_PI) * U2);
+    Float cosPhi = std::cos(2 * static_cast<Float>(M_PI) * U2);
     *slope_x = r * cosPhi;
     *slope_y = r * sinPhi;
     return;
@@ -36,7 +36,7 @@ static void BeckmannSample11(Float cosThetaI, Float U1, Float U2,
   Float b = c - (1 + c) * std::pow(1 - sample_x, fit);
   
   /* Normalization factor for the CDF */
-  static const Float SQRT_PI_INV = 1.f / std::sqrt(M_PI);
+  static const Float SQRT_PI_INV = static_cast<Float>(1) / std::sqrt(static_cast<Float>(M_PI));
   Float normalization = 1 / (1 + c + SQRT_PI_INV * tanThetaI * std::exp(-cotThetaI * cotThetaI));
   
   int it = 0;
@@ -103,7 +103,7 @@ static void TrowbridgeReitzSample11(Float cosTheta, Float U1, Float U2,
   // special case (normal incidence)
   if (cosTheta > 0.9999f) {
     Float r = sqrt(U1 / (1 - U1));
-    Float phi = 2 * M_PI * U2;
+    Float phi = 2 * static_cast<Float>(M_PI) * U2;
     *slope_x = r * cos(phi);
     *slope_y = r * sin(phi);
     return;
@@ -112,7 +112,7 @@ static void TrowbridgeReitzSample11(Float cosTheta, Float U1, Float U2,
   Float sinTheta = std::sqrt(std::fmax((Float)0, (Float)1 - cosTheta * cosTheta));
   Float tanTheta = sinTheta / cosTheta;
   Float a = 1 / tanTheta;
-  Float G1 = 2 / (1 + std::sqrt(1.f + 1.f / (a * a)));
+  Float G1 = 2 / (1 + std::sqrt(static_cast<Float>(1) + static_cast<Float>(1) / (a * a)));
   
   // sample slope_x
   Float A = 2 * U1 / G1 - 1;
@@ -137,7 +137,7 @@ static void TrowbridgeReitzSample11(Float cosTheta, Float U1, Float U2,
   }
   Float z = (U2 * (U2 * (U2 * 0.27385f - 0.73369f) + 0.46341f)) /
     (U2 * (U2 * (U2 * 0.093073f + 0.309420f) - 1.000000f) + 0.597999f);
-  *slope_y = S * z * std::sqrt(1.f + *slope_x * *slope_x);
+  *slope_y = S * z * std::sqrt(static_cast<Float>(1) + *slope_x * *slope_x);
 }
 
 static vec3f TrowbridgeReitzSample(const vec3f &wi, Float alpha_x,
@@ -170,7 +170,7 @@ Float TrowbridgeReitzDistribution::D(const vec3f &normal) const {
   const Float cos4Theta = Cos2Theta(normal) * Cos2Theta(normal);
   Float e = tan2Theta * (Cos2Phi(normal) / (alphax_constant * alphax_constant) + 
     Sin2Phi(normal) / (alphay_constant * alphay_constant));
-  return(1.0/(M_PI * alphax_constant * alphay_constant * cos4Theta * (1.0+e) * (1.0+e)));
+  return(1.0/(static_cast<Float>(M_PI) * alphax_constant * alphay_constant * cos4Theta * (1.0+e) * (1.0+e)));
 }
 
 Float TrowbridgeReitzDistribution::Lambda(const vec3f &w) const {
@@ -180,7 +180,7 @@ Float TrowbridgeReitzDistribution::Lambda(const vec3f &w) const {
   }
   Float alpha = std::sqrt(Cos2Phi(w) * alphax_constant * alphax_constant + Sin2Phi(w) * alphay_constant * alphay_constant);
   Float alpha2Tan2Theta = (alpha * absTanTheta) * (alpha * absTanTheta);
-  return((-1 + std::sqrt(1.0f + alpha2Tan2Theta)) / 2);
+  return((-1 + std::sqrt(static_cast<Float>(1) + alpha2Tan2Theta)) / 2);
 }
 
 
@@ -202,7 +202,7 @@ Float BeckmannDistribution::D(const vec3f &wh) const {
   }
   Float cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
   return(std::exp(-tan2Theta * (Cos2Phi(wh) / (alphax_constant * alphax_constant) + 
-         Sin2Phi(wh) / (alphay_constant * alphay_constant))) / (M_PI * alphax_constant * alphay_constant * cos4Theta));
+         Sin2Phi(wh) / (alphay_constant * alphay_constant))) / (static_cast<Float>(M_PI) * alphax_constant * alphay_constant * cos4Theta));
 }
 
 Float BeckmannDistribution::Lambda(const vec3f &w) const {
@@ -256,7 +256,7 @@ Float TrowbridgeReitzDistribution::D(const vec3f &normal, Float u, Float v) cons
   point2f alphas = GetAlphas(u,v);
   Float e = tan2Theta * (Cos2Phi(normal) / (alphas.x() * alphas.x()) + 
     Sin2Phi(normal) / (alphas.y() * alphas.y()));
-  return(1.0/(M_PI * alphas.x() * alphas.y() * cos4Theta * (1.0+e) * (1.0+e)));
+  return(1.0/(static_cast<Float>(M_PI) * alphas.x() * alphas.y() * cos4Theta * (1.0+e) * (1.0+e)));
 }
 
 Float TrowbridgeReitzDistribution::Lambda(const vec3f &w, Float u, Float v) const {
@@ -268,7 +268,7 @@ Float TrowbridgeReitzDistribution::Lambda(const vec3f &w, Float u, Float v) cons
   
   Float alpha = std::sqrt(Cos2Phi(w) * alphas.x() * alphas.x() + Sin2Phi(w) * alphas.y() * alphas.y());
   Float alpha2Tan2Theta = (alpha * absTanTheta) * (alpha * absTanTheta);
-  return((-1 + std::sqrt(1.0f + alpha2Tan2Theta)) / 2);
+  return((-1 + std::sqrt(static_cast<Float>(1) + alpha2Tan2Theta)) / 2);
 }
 
 
@@ -293,7 +293,7 @@ Float BeckmannDistribution::D(const vec3f &wh, Float u, Float v) const {
   }
   Float cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
   return(std::exp(-tan2Theta * (Cos2Phi(wh) / (alphas.x() * alphas.x()) + 
-         Sin2Phi(wh) / (alphas.y() * alphas.y()))) / (M_PI * alphas.x() * alphas.y() * cos4Theta));
+         Sin2Phi(wh) / (alphas.y() * alphas.y()))) / (static_cast<Float>(M_PI) * alphas.x() * alphas.y() * cos4Theta));
 }
 
 Float BeckmannDistribution::Lambda(const vec3f &w, Float u, Float v) const {

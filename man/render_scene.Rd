@@ -13,10 +13,11 @@ render_scene(
   camera_description_file = NA,
   preview = interactive(),
   interactive = TRUE,
+  denoise = TRUE,
   camera_scale = 1,
   iso = 100,
   film_size = 22,
-  min_variance = 5e-05,
+  min_variance = 0,
   min_adaptive_size = 8,
   sample_method = "sobol_blue",
   max_depth = NA,
@@ -46,7 +47,9 @@ render_scene(
   return_raw_array = FALSE,
   progress = interactive(),
   verbose = FALSE,
-  new_page = TRUE
+  print_debug_info = FALSE,
+  new_page = TRUE,
+  integrator_type = "rtiow"
 )
 }
 \arguments{
@@ -67,7 +70,7 @@ The total number of samples in this case will be the product of the two numbers.
 \item{camera_description_file}{Default `NA`. Filename of a camera description file for rendering with
 a realistic camera. Several camera files are built-in: `"50mm"`,`"wide"`,`"fisheye"`, and `"telephoto"`.}
 
-\item{preview}{Default `TRUE`. Whether to display a real-time progressive preview of the render. Press ESC to cancel the render.}
+\item{preview}{Default `interactive()`. Whether to display a real-time progressive preview of the render. Press ESC to cancel the render.}
 
 \item{interactive}{Default `interactive()`. Whether the scene preview should be interactive. Camera movement orbits around the 
 lookat point (unless the mode is switched to free flying), with the following control mapping:
@@ -88,6 +91,12 @@ the aperture and field of view cannot be changed from their initial settings. Ad
 clicking to direct the camera at the background environment image while using a realistic camera will
 not always point to the exact position selected.}
 
+\item{denoise}{Default `TRUE`. Whether to de-noise the final image and preview images. Note, this requires 
+the free Intel Open Image Denoise (OIDN) library be installed on your system. Pre-compiled binaries can be installed from
+ppenimagedenoise.org, as well as . Linking during rayrender installation is done by defining the environment variable
+OIDN_PATH (set it in the .Renviron file by calling `usethis::edit_r_environ()`) to the top-level directory for OIDN (the directory containing the "lib", "bin", and "include"
+directories) and re-installing this package from source.}
+
 \item{camera_scale}{Default `1`. Amount to scale the camera up or down in size. Use this rather than scaling a 
 scene.}
 
@@ -96,7 +105,7 @@ scene.}
 \item{film_size}{Default `22`, in `mm` (scene units in `m`. Size of the film if using a realistic camera, otherwise
 ignored.}
 
-\item{min_variance}{Default `0.00005`. Minimum acceptable variance for a block of pixels for the 
+\item{min_variance}{Default `0`. Minimum acceptable variance for a block of pixels for the 
 adaptive sampler. Smaller numbers give higher quality images, at the expense of longer rendering times.
 If this is set to zero, the adaptive sampler will be turned off and the renderer
 will use the maximum number of samples everywhere.}
@@ -193,13 +202,20 @@ values (with white for `metal` and `dielectric` materials).}
 \item{return_raw_array}{Default `FALSE`. If `TRUE`, function will return raw array with RGB intensity
 information.}
 
-\item{progress}{Default `TRUE` if interactive session, `FALSE` otherwise.}
+\item{progress}{Default `interactive()` if interactive session, `FALSE` otherwise.}
 
 \item{verbose}{Default `FALSE`. Prints information and timing information about scene
 construction and raytracing progress.}
 
+\item{print_debug_info}{Default `FALSE`. This will print out additional information on the compilation environment with
+each render.}
+
 \item{new_page}{Default `TRUE`. Whether to call `grid::grid.newpage()` when plotting the image (if
 no filename specified). Set to `FALSE` for faster plotting (does not affect render time).}
+
+\item{integrator_type}{Default `"rtiow"` (the algorithm specified in the book "Raytracing in One Weekend", a basic
+form of path guiding). Other options include `"nee"` (Next Event Estimation, with direct light sampling) 
+and `"basic"` (basic pathtracing, for high sample reference renders and debugging only).}
 }
 \value{
 A pathtraced image to the current device, or an image saved to a file. Invisibly returns the
@@ -215,19 +231,19 @@ or are on Windows.
 if (run_documentation()) {
   scene = generate_ground(depth = -0.5, 
                           material = diffuse(color = "white", checkercolor = "darkgreen"))
-  render_scene(scene, parallel = TRUE, samples = 128, sample_method = "sobol")
+  render_scene(scene, parallel = TRUE, samples = 16, sample_method = "sobol")
 }
 if (run_documentation()) {
   # Add a sphere to the center
   scene = scene \%>\%
     add_object(sphere(x = 0, y = 0, z = 0, radius = 0.5, material = diffuse(color = c(1, 0, 1))))
-  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 16)
 }
 if (run_documentation()) {
   # Add a marbled cube
   scene = scene \%>\%
     add_object(cube(x = 1.1, y = 0, z = 0, material = diffuse(noise = 3)))
-  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 16)
 }
 if (run_documentation()) {
   # Add a metallic gold sphere, using stratified sampling for a higher quality render
@@ -236,7 +252,7 @@ if (run_documentation()) {
     add_object(sphere(x = -1.1, y = 0, z = 0, radius = 0.5, 
                       material = metal(color = "gold", fuzz = 0.1))) \%>\%
     add_object(sphere(y=10,z=13,radius=2,material=light(intensity=40)))
-  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 16)
 }
 if (run_documentation()) {
   # Lower the number of samples to render more quickly (here, we also use only one core).
@@ -252,7 +268,7 @@ if (run_documentation()) {
   scene = scene \%>\%
     add_object(xy_rect(x = 0, y = 1.1, z = 0, xwidth = 2, angle = c(0, 0, 0), 
                        material = diffuse(image_texture = image_array)))
-  render_scene(scene, fov = 20, parallel = TRUE, samples = 128)
+  render_scene(scene, fov = 20, parallel = TRUE, samples = 16)
 }
 if (run_documentation()) {
   # Move the camera
@@ -263,12 +279,12 @@ if (run_documentation()) {
   render_scene(scene, lookfrom = c(7, 1.5, 10), lookat = c(0, 0.5, 0), fov = 15,
                backgroundhigh = "orange", backgroundlow = "red", parallel = TRUE,
                ambient = TRUE,
-               samples = 128)
+               samples = 16)
 }
 if (run_documentation()) {    
   # Increase the aperture to blur objects that are further from the focal plane.
   render_scene(scene, lookfrom = c(7, 1.5, 10), lookat = c(0, 0.5, 0), fov = 15,
-               aperture = 1, parallel = TRUE, samples = 128)
+               aperture = 1, parallel = TRUE, samples = 16)
 }
 if (run_documentation()) {
   # We can also capture a 360 environment image by setting `fov = 360` (can be used for VR)
@@ -285,7 +301,7 @@ if (run_documentation()) {
                        material = glossy(checkercolor = "white",
                                          checkerperiod = 10, color = "dodgerblue"))) \%>\%
     render_scene(lookfrom = c(278, 278, 30), lookat = c(278, 278, 500), clamp_value = 10,
-                 fov = 360,  samples = 128, width = 800, height = 800)
+                 fov = 360,  samples = 16, width = 800, height = 800)
 }
 if (run_documentation()) {            
   # Spin the camera around the scene, decreasing the number of samples to render faster. To make 

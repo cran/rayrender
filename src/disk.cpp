@@ -1,7 +1,10 @@
 #include "disk.h"
+#include "raylog.h"
 
-
-bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Disk");
+  
   ray r2 = (*WorldToObject)(r);
   // First we intersect with the plane containing the disk
   Float t = -r2.origin().y() / r2.direction().y();
@@ -46,7 +49,7 @@ bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_g
   
   if(bump_tex) {
     point3f bvbu = bump_tex->value(rec.u,rec.v, rec.p);
-    rec.bump_normal = rec.normal + normal3f(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
+    rec.bump_normal = rec.normal + convert_to_normal3(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
     rec.bump_normal.make_unit_vector();
 
   }
@@ -63,7 +66,10 @@ bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_g
 }
 
 
-bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Disk");
+  
   ray r2 = (*WorldToObject)(r);
   // First we intersect with the plane containing the disk
   Float t = -r2.origin().y() / r2.direction().y();
@@ -108,7 +114,7 @@ bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler*
   
   if(bump_tex) {
     point3f bvbu = bump_tex->value(rec.u,rec.v, rec.p);
-    rec.bump_normal = rec.normal + normal3f(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
+    rec.bump_normal = rec.normal + convert_to_normal3(bvbu.x() * rec.dpdu + bvbu.y() * rec.dpdv); 
     rec.bump_normal.make_unit_vector();
   }
   rec.pError = vec3f(0,0,0);
@@ -124,10 +130,53 @@ bool disk::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler*
 }
 
 
+bool disk::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Disk");
+  
+  ray r2 = (*WorldToObject)(r);
+  // First we intersect with the plane containing the disk
+  Float t = -r2.origin().y() / r2.direction().y();
+  
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float z = r2.origin().z() + t*r2.direction().z();
+  Float radHit2 = x*x + z*z;
+  if(radHit2 >= radius * radius || radHit2 <= inner_radius * inner_radius) {
+    return(false);
+  }
+  return(true);
+}
+
+
+bool disk::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Disk");
+  
+  ray r2 = (*WorldToObject)(r);
+  // First we intersect with the plane containing the disk
+  Float t = -r2.origin().y() / r2.direction().y();
+  
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float z = r2.origin().z() + t*r2.direction().z();
+  Float radHit2 = x*x + z*z;
+  if(radHit2 >= radius * radius || radHit2 <= inner_radius * inner_radius) {
+    return(false);
+  }
+  return(true);
+}
+
+
+
 Float disk::pdf_value(const point3f& o, const vec3f& v, random_gen& rng, Float time) {
   hit_record rec;
   if(this->hit(ray(o,v), 0.001, FLT_MAX, rec, rng)) {
-    Float area =  M_PI * (radius * radius - inner_radius * inner_radius);
+    Float area =  static_cast<Float>(M_PI) * (radius * radius - inner_radius * inner_radius);
     Float distance_squared = rec.t * rec.t * v.squared_length();
     Float cosine = fabs(dot(v,rec.normal)/v.length());
     return(distance_squared / (cosine * area));
@@ -139,7 +188,7 @@ Float disk::pdf_value(const point3f& o, const vec3f& v, random_gen& rng, Float t
 Float disk::pdf_value(const point3f& o, const vec3f& v, Sampler* sampler, Float time) {
   hit_record rec;
   if(this->hit(ray(o,v), 0.001, FLT_MAX, rec, sampler)) {
-    Float area =  M_PI * (radius * radius - inner_radius * inner_radius);
+    Float area =  static_cast<Float>(M_PI) * (radius * radius - inner_radius * inner_radius);
     Float distance_squared = rec.t * rec.t * v.squared_length();
     Float cosine = fabs(dot(v,rec.normal)/v.length());
     return(distance_squared / (cosine * area));
@@ -151,7 +200,7 @@ Float disk::pdf_value(const point3f& o, const vec3f& v, Sampler* sampler, Float 
 vec3f disk::random(const point3f& o, random_gen& rng, Float time) {
   Float r1 = rng.unif_rand();
   Float r2 = sqrt(rng.unif_rand());
-  Float phi = 2 * M_PI * r1;
+  Float phi = 2 * static_cast<Float>(M_PI) * r1;
   Float x = ((radius - inner_radius) * r2 + inner_radius) * cos(phi);
   Float z = ((radius - inner_radius) * r2 + inner_radius) * sin(phi);
   return((*ObjectToWorld)(point3f(x,0,z))+center-o);
@@ -161,7 +210,7 @@ vec3f disk::random(const point3f& o, Sampler* sampler, Float time) {
   vec2f u = sampler->Get2D();
   Float r1 = u.x();
   Float r2 = sqrt(u.y());
-  Float phi = 2 * M_PI * r1;
+  Float phi = 2 * static_cast<Float>(M_PI) * r1;
   Float x = ((radius - inner_radius) * r2 + inner_radius) * cos(phi);
   Float z = ((radius - inner_radius) * r2 + inner_radius) * sin(phi);
   return((*ObjectToWorld)(point3f(x,0,z))+center-o);

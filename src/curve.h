@@ -12,7 +12,7 @@ enum class CurveType {
 };
 
 struct CurveCommon {
-  CurveCommon(const vec3f c[4], Float w0, Float w1, CurveType type,
+  CurveCommon(const point3f c[4], Float w0, Float w1, CurveType type,
               const vec3f *norm);
   const CurveType type;
   point3f cpObj[4];
@@ -29,12 +29,14 @@ class curve: public hitable {
     }
     curve(Float uMin, Float uMax, 
           const std::shared_ptr<CurveCommon> common, std::shared_ptr<material> mat,
-          std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) : 
-      hitable(ObjectToWorld, WorldToObject, reverseOrientation), 
-      mat_ptr(mat), common(common), uMin(uMin), uMax(uMax) {};
-    virtual bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng);
-    virtual bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler);
-    
+          Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) : 
+      hitable(ObjectToWorld, WorldToObject, mat, reverseOrientation), 
+      common(common), uMin(uMin), uMax(uMax) {};
+    virtual const bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, random_gen& rng) const;
+    virtual const bool hit(const ray& r, Float tmin, Float tmax, hit_record& rec, Sampler* sampler) const;
+    // virtual bool HitP(const ray &r, Float t_min, Float t_max, random_gen& rng) const;
+    // virtual bool HitP(const ray &r, Float t_min, Float t_max, Sampler* sampler) const;
+
     virtual bool bounding_box(Float t0, Float t1, aabb& box) const;
     virtual Float pdf_value(const point3f& o, const vec3f& v, random_gen& rng, Float time = 0);
     virtual Float pdf_value(const point3f& o, const vec3f& v, Sampler* sampler, Float time = 0);
@@ -47,7 +49,11 @@ class curve: public hitable {
     size_t GetSize()  {
       return(sizeof(*this) + sizeof(*common));
     }
-    std::shared_ptr<material> mat_ptr;
+    virtual void hitable_info_bounds(Float t0, Float t1) const {
+      aabb box;
+      bounding_box(t0, t1, box);
+      Rcpp::Rcout << GetName() << ": " <<  box.min() << "-" << box.max() << "\n";
+    }
   private:
     bool recursiveIntersect(const ray& r, Float tmin, Float tmax, hit_record& rec,
                             const point3f cp[4], Float u0, Float u1, int depth,

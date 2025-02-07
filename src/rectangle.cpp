@@ -1,6 +1,10 @@
 #include "rectangle.h"
+#include "raylog.h"
 
-bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().z()) * r2.inv_dir_pad.z();
@@ -40,12 +44,12 @@ bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[2] = k;
   rec.pError = vec3f(0,0,0);
@@ -53,12 +57,12 @@ bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   rec = (*ObjectToWorld)(rec);
   rec.shape = this;
   rec.alpha_miss = alpha_miss;
-  
-  
   return(true);
 }
 
-bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().z()) * r2.inv_dir_pad.z();
@@ -82,7 +86,7 @@ bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
     if(alpha_mask->value(u, v, rec.p) < sampler->Get1D()) {
       alpha_miss = true;
     }
-    rec.normal = dot(r2.direction(),vec3f(0,0,1)) < 0 ? vec3f(0,0,1) : vec3f(0,0,-1);
+    rec.normal = convert_to_normal3(dot(r2.direction(),vec3f(0,0,1)) < 0 ? vec3f(0,0,1) : vec3f(0,0,-1));
   } else {
     rec.normal = normal3f(0,0,1);
   }
@@ -98,12 +102,12 @@ bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[2] = k;
   rec.pError = vec3f(0,0,0);
@@ -111,7 +115,44 @@ bool xy_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   rec = (*ObjectToWorld)(rec);
   rec.shape = this;
   rec.alpha_miss = alpha_miss;
+  return(true);
+}
+
+bool xy_rect::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
   
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().z()) * r2.inv_dir_pad.z();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float y = r2.origin().y() + t*r2.direction().y();
+  if(x < x0 || x > x1 || y < y0 || y > y1) {
+    return(false);
+  }
+  return(true);
+}
+
+bool xy_rect::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().z()) * r2.inv_dir_pad.z();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float y = r2.origin().y() + t*r2.direction().y();
+  if(x < x0 || x > x1 || y < y0 || y > y1) {
+    return(false);
+  }
   return(true);
 }
 
@@ -155,7 +196,10 @@ vec3f xy_rect::random(const point3f& o, Sampler* sampler, Float time) {
   return(random_point - o);
 }
 
-bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().y()) * r2.inv_dir_pad.y();
@@ -198,12 +242,12 @@ bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[1] = k;
   rec.pError = vec3f(0,0,0);
@@ -216,7 +260,10 @@ bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
 }
 
 
-bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().y()) * r2.inv_dir_pad.y();
@@ -257,12 +304,12 @@ bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[1] = k;
   rec.pError = vec3f(0,0,0);
@@ -270,6 +317,49 @@ bool xz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   rec = (*ObjectToWorld)(rec);
   rec.shape = this;
   rec.alpha_miss = alpha_miss;
+  
+  return(true);
+}
+
+bool xz_rect::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().y()) * r2.inv_dir_pad.y();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float z = r2.origin().z() + t*r2.direction().z();
+  if(x < x0 || x > x1 || z < z0 || z > z1) {
+    return(false);
+  }
+  
+  return(true);
+}
+
+
+bool xz_rect::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().y()) * r2.inv_dir_pad.y();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  
+  Float x = r2.origin().x() + t*r2.direction().x();
+  Float z = r2.origin().z() + t*r2.direction().z();
+  if(x < x0 || x > x1 || z < z0 || z > z1) {
+    return(false);
+  }
   
   return(true);
 }
@@ -313,7 +403,9 @@ vec3f xz_rect::random(const point3f& o, Sampler* sampler, Float time) {
   return(random_point - o);
 }
 
-bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().x()) * r2.inv_dir_pad.x();
@@ -350,7 +442,7 @@ bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   rec.dpdv = vec3f(0, 1, 0);
   rec.has_bump = bump_tex ? true : false;
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[0] = k;
   rec.pError = vec3f(0,0,0);
@@ -361,8 +453,8 @@ bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   rec.shape = this;
@@ -371,8 +463,10 @@ bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, rando
   return(true);
 }
 
-
-bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  
   ray r2 = (*WorldToObject)(r);
   
   Float t = (k-r2.origin().x()) * r2.inv_dir_pad.x();
@@ -413,12 +507,12 @@ bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   }
   if(bump_tex) {
     point3f bvbu = bump_tex->value(u,v, rec.p);
-    rec.bump_normal = cross(rec.dpdu + bvbu.x() * rec.normal.convert_to_vec3() , 
-                            rec.dpdv - bvbu.y() * rec.normal.convert_to_vec3() );
+    rec.bump_normal = convert_to_normal3(cross(rec.dpdu + bvbu.x() * convert_to_vec3(rec.normal) , 
+                            rec.dpdv - bvbu.y() * convert_to_vec3(rec.normal) ));
     rec.bump_normal.make_unit_vector();
   }
   
-  rec.mat_ptr = mp.get();
+  rec.mat_ptr = mat_ptr.get();
   rec.p = r2.point_at_parameter(t);
   rec.p.e[0] = k;
   rec.pError = vec3f(0,0,0);
@@ -430,6 +524,46 @@ bool yz_rect::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampl
   
   return(true);
 }
+
+
+bool yz_rect::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().x()) * r2.inv_dir_pad.x();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float z = r2.origin().z() + t*r2.direction().z();
+  Float y = r2.origin().y() + t*r2.direction().y();
+  if(z < z0 || z > z1 || y < y0 || y > y1) {
+    return(false);
+  }
+  
+  return(true);
+}
+
+bool yz_rect::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("Hit");
+  SCOPED_TIMER_COUNTER("Rect");
+  ray r2 = (*WorldToObject)(r);
+  
+  Float t = (k-r2.origin().x()) * r2.inv_dir_pad.x();
+
+  if(t < t_min || t > t_max) {
+    return(false);
+  }
+  Float z = r2.origin().z() + t*r2.direction().z();
+  Float y = r2.origin().y() + t*r2.direction().y();
+  if(z < z0 || z > z1 || y < y0 || y > y1) {
+    return(false);
+  }
+  
+  return(true);
+}
+
 
 bool yz_rect::bounding_box(Float t0, Float t1, aabb& box) const {
   box = (*ObjectToWorld)(aabb(vec3f(k-0.001,y0,z0), vec3f(k+0.001,y1,z1)));

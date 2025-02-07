@@ -1,10 +1,12 @@
 #include "trimesh.h"
 #include "RProgress.h"
+#include "bvh.h"
 #include "loopsubdiv.h"
 #include "displacement.h"
 #include "calctangents.h"
 #include "assert.h"
 #include "calcnormals.h"
+#include "raylog.h"
 
 trimesh::trimesh(std::string inputfile, std::string basedir, Float scale, Float sigma,
                  std::shared_ptr<material> default_material, 
@@ -16,8 +18,8 @@ trimesh::trimesh(std::string inputfile, std::string basedir, Float scale, Float 
                  bool displacement_vector, TextureCache& texCache, bool recalculate_normals,
                  hitable_list& imp_sample_objects, 
                  Float shutteropen, Float shutterclose, int bvh_type, random_gen rng, bool verbose,
-                 std::shared_ptr<Transform> ObjectToWorld, std::shared_ptr<Transform> WorldToObject, bool reverseOrientation) : 
-  hitable(ObjectToWorld, WorldToObject, reverseOrientation) {
+                 Transform* ObjectToWorld, Transform* WorldToObject, bool reverseOrientation) : 
+  hitable(ObjectToWorld, WorldToObject, default_material, reverseOrientation) {
   mesh = std::unique_ptr<TriangleMesh>(new TriangleMesh(inputfile, basedir, default_material, 
                                                         alpha_default, bump_default,
                                                         load_materials, load_textures, load_vertex_colors, load_normals, verbose,
@@ -70,19 +72,39 @@ trimesh::trimesh(std::string inputfile, std::string basedir, Float scale, Float 
     }
   }
   if(n > 0) {
-    tri_mesh_bvh = std::make_shared<bvh_node>(triangles, shutteropen, shutterclose, bvh_type, rng);
+    tri_mesh_bvh = std::make_shared<BVHAggregate>(triangles.objects, shutteropen, shutterclose, bvh_type, true);
     triangles.objects.clear();
   } else {
     throw std::runtime_error(inputfile + ": No triangles loaded.");
   }
 }
 
-bool trimesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) {
+const bool trimesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("ObjMesh");
+  
   return(tri_mesh_bvh->hit(r, t_min, t_max, rec, rng));
 }
 
-bool trimesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) {
+const bool trimesh::hit(const ray& r, Float t_min, Float t_max, hit_record& rec, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("ObjMesh");
+  
   return(tri_mesh_bvh->hit(r, t_min, t_max, rec, sampler));
+}
+
+bool trimesh::HitP(const ray& r, Float t_min, Float t_max, random_gen& rng) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("ObjMesh");
+  
+  return(tri_mesh_bvh->HitP(r, t_min, t_max, rng));
+}
+
+bool trimesh::HitP(const ray& r, Float t_min, Float t_max, Sampler* sampler) const {
+  SCOPED_CONTEXT("MultiHit");
+  SCOPED_TIMER_COUNTER("ObjMesh");
+  
+  return(tri_mesh_bvh->HitP(r, t_min, t_max, sampler));
 }
 
 bool trimesh::bounding_box(Float t0, Float t1, aabb& box) const {

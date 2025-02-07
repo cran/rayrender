@@ -1,7 +1,7 @@
 #ifndef DEBUGH
 #define DEBUGH
 
-#include "vec3.h"
+#include "vectypes.h"
 #include "vec2.h"
 #include "mathinline.h"
 #include "camera.h"
@@ -55,7 +55,7 @@ inline vec3f calculate_normals(const ray& r, hitable *world, size_t max_depth, r
         if(srec.is_specular) { //returns specular ray
           if(i == max_depth-1) {
             hrec.normal.make_unit_vector();
-            return((vec3f(1,1,1) + vec3f(hrec.normal.x(),hrec.normal.y(),hrec.normal.z()))/2);
+            return((vec3f(1,1,1) + convert_to_vec3(hrec.normal))/ static_cast<Float>(2));
           }
           r2 = srec.specular_ray;
           continue;
@@ -70,17 +70,17 @@ inline vec3f calculate_normals(const ray& r, hitable *world, size_t max_depth, r
         dir = srec.pdf_ptr->generate(rng, diffuse_bounce, r2.time());
         if((dir.x() == 0 && dir.y() == 0 && dir.z() == 0)) {
           hrec.normal.make_unit_vector();
-          return((vec3f(1,1,1) + vec3f(hrec.normal.x(),hrec.normal.y(),hrec.normal.z()))/2);
+          return((vec3f(1,1,1) + convert_to_vec3(hrec.normal))/static_cast<Float>(2));
         }
         r2 = ray(OffsetRayOrigin(offset_p, hrec.pError, hrec.normal, dir), dir, r2.pri_stack, r2.time());
         
         if(i == max_depth-1) {
           hrec.normal.make_unit_vector();
-          return((vec3f(1,1,1) + vec3f(hrec.normal.x(),hrec.normal.y(),hrec.normal.z()))/2);
+          return((vec3f(1,1,1) + convert_to_vec3(hrec.normal))/static_cast<Float>(2));
         }
       } else {
         hrec.normal.make_unit_vector();
-        return((vec3f(1,1,1) + vec3f(hrec.normal.x(),hrec.normal.y(),hrec.normal.z()))/2);
+        return((vec3f(1,1,1) + convert_to_vec3(hrec.normal))/static_cast<Float>(2));
       }
     } else {
       return(vec3f(0,0,0));
@@ -89,12 +89,12 @@ inline vec3f calculate_normals(const ray& r, hitable *world, size_t max_depth, r
   return(vec3f(0,0,0));
 }
 
-inline vec3f calculate_uv(const ray& r, hitable *world, random_gen &rng) {
+inline point3f calculate_uv(const ray& r, hitable *world, random_gen &rng) {
   hit_record hrec;
   if(world->hit(r, 0.001, FLT_MAX, hrec, rng)) {
-    return(vec3f(hrec.u,hrec.v,1-hrec.u-hrec.v));
+    return(point3f(hrec.u,hrec.v,1-hrec.u-hrec.v));
   } else {
-    return(vec3f(0,0,0));
+    return(point3f(0,0,0));
   }
 }
 
@@ -102,9 +102,9 @@ inline vec3f calculate_dpduv(const ray& r, hitable *world, random_gen &rng, bool
   hit_record hrec;
   if(world->hit(r, 0.001, FLT_MAX, hrec, rng)) {
     if(u) {
-      return((unit_vector(hrec.dpdu) + 1)/2);
+      return((unit_vector(hrec.dpdu) + static_cast<Float>(1))/static_cast<Float>(2));
     } else {
-      return((unit_vector(hrec.dpdv) + 1)/2);
+      return((unit_vector(hrec.dpdv) + static_cast<Float>(1))/static_cast<Float>(2));
     }
   } else {
     return(vec3f(0,0,0));
@@ -116,22 +116,33 @@ inline point3f calculate_color(const ray& r, hitable *world, random_gen &rng) {
   scatter_record srec;
   ray r2 = r;
   bool invisible = false;
-  if(world->hit(r2, 0.001, FLT_MAX, hrec, rng)) {
-    point3f emit = hrec.mat_ptr->emitted(r2, hrec, hrec.u, hrec.v, hrec.p, invisible);
-    if(emit.x() != 0 || emit.y() != 0 || emit.z() != 0) {
-      return(emit);
-    }
-    if(hrec.mat_ptr->scatter(r2, hrec, srec, rng)) { //generates scatter record, world space
-      if(srec.is_specular) { 
-        return(point3f(1,1,1));
+  bool hit_alpha = false;
+  do {
+    if(world->hit(r2, 0.001, FLT_MAX, hrec, rng)) {
+      if(!hrec.alpha_miss) {
+        hit_alpha = false;
+      } else {
+        hit_alpha = true;
+        r2.A = OffsetRayOrigin(hrec.p, hrec.pError, hrec.normal, r2.direction());
+        continue;
       }
-      return(hrec.mat_ptr->get_albedo(r2, hrec));
+      point3f emit = hrec.mat_ptr->emitted(r2, hrec, hrec.u, hrec.v, hrec.p, invisible);
+      if(emit.x() != 0 || emit.y() != 0 || emit.z() != 0) {
+        return(emit);
+      }
+      if(hrec.mat_ptr->scatter(r2, hrec, srec, rng)) { //generates scatter record, world space
+        if(srec.is_specular) { 
+          return(point3f(1,1,1));
+        }
+        return(hrec.mat_ptr->get_albedo(hrec));
+      } else {
+        return(point3f(0,0,0));
+      }
     } else {
       return(point3f(0,0,0));
     }
-  } else {
-    return(point3f(0,0,0));
-  }
+  } while (hit_alpha);
+  return(point3f(0,0,0));
 }
 
 inline point3f quick_render(const ray& r, hitable *world, random_gen &rng, vec3f lightdir, Float n) {
@@ -150,7 +161,7 @@ inline point3f quick_render(const ray& r, hitable *world, random_gen &rng, vec3f
       }
       normal3f normal = hrec.has_bump ? hrec.bump_normal : hrec.normal;
       vec3f R = Reflect(lightdir, hrec.normal); 
-      return(hrec.mat_ptr->get_albedo(r2, hrec) * (dot(normal, lightdir)+1)/2 + 
+      return(hrec.mat_ptr->get_albedo(hrec) * (dot(normal, lightdir)+1) / static_cast<Float>(2) + 
              std::pow(std::fmax(0.f, dot(R, -unit_vector(r.direction()))), n));
     } else {
       return(point3f(0,0,0));
@@ -230,10 +241,10 @@ inline point3f calculate_position(const ray& r, hitable *world, hitable_list *hl
         return(hrec.p);
       }
     } else {
-      return(vec3f(0,0,0));
+      return(point3f(0,0,0));
     }
   }
-  return(vec3f(0,0,0));
+  return(point3f(0,0,0));
 }
 
 inline point3f calculate_bounce_dir(const ray& r, hitable *world, hitable_list *hlist,
@@ -256,7 +267,7 @@ inline point3f calculate_bounce_dir(const ray& r, hitable *world, hitable_list *
       if(hrec.mat_ptr->scatter(r2, hrec, srec, rng)) { //generates scatter record, world space
         if(srec.is_specular) { //returns specular ray
           if(i == max_depth-1) {
-            return(unit_vector(srec.specular_ray.direction()));
+            return(convert_to_point3(unit_vector(srec.specular_ray.direction())));
           }
           r2 = srec.specular_ray;
           continue;
@@ -270,21 +281,21 @@ inline point3f calculate_bounce_dir(const ray& r, hitable *world, hitable_list *
         vec3f dir;
         dir = p.generate(rng, diffuse_bounce, r2.time());
         if((dir.x() == 0 && dir.y() == 0 && dir.z() == 0)) {
-          return(dir);
+          return(convert_to_point3(dir));
         }
         r2 = ray(OffsetRayOrigin(offset_p, hrec.pError, hrec.normal, dir), dir, r2.pri_stack, r2.time());
         
         if(i == max_depth-1) {
-          return(unit_vector(dir));
+          return(convert_to_point3(unit_vector(dir)));
         }
       } else {
-        return(vec3f(0,0,0));
+        return(point3f(0,0,0));
       }
     } else {
-      return(vec3f(0,0,0));
+      return(point3f(0,0,0));
     }
   }
-  return(vec3f(0,0,0));
+  return(point3f(0,0,0));
 }
 
 inline Float calculate_time(const ray& r, hitable *world, hitable_list *hlist,
@@ -319,9 +330,9 @@ inline point3f calculate_shape(const ray& r, hitable *world, hitable_list *hlist
     Float r2 = (Float)r/128;
     Float g2 = (Float)g/128;
     Float b2 = (Float)b/128;
-    return(vec3f(r2,g2,b2));
+    return(point3f(r2,g2,b2));
   } else {
-    return(vec3f(0,0,0));
+    return(point3f(0,0,0));
   }
 }
 
@@ -338,9 +349,9 @@ inline point3f calculate_material(const ray& r, hitable *world, hitable_list *hl
     Float r2 = (Float)r/128;
     Float g2 = (Float)g/128;
     Float b2 = (Float)b/128;
-    return(vec3f(r2,g2,b2));
+    return(point3f(r2,g2,b2));
   } else {
-    return(vec3f(0,0,0));
+    return(point3f(0,0,0));
   }
 }
 
@@ -485,7 +496,7 @@ inline Float calculate_bounces(const ray& r, hitable *world, hitable_list *hlist
         r2 = ray(OffsetRayOrigin(hrec.p, hrec.pError, hrec.normal, dir), dir, r2.pri_stack, r2.time());
         
         pdf_val = p.value(dir, rng, r2.time()); //generates a pdf value based the intersection point and the mixture pdf
-        throughput *= hrec.mat_ptr->f(r1, hrec, r2) / pdf_val;
+        throughput *= hrec.mat_ptr->f(r1, hrec, r2.direction()) / pdf_val;
       } else {
         return((Float)i);
       }
@@ -497,8 +508,8 @@ inline Float calculate_bounces(const ray& r, hitable *world, hitable_list *hlist
 }
 
 inline point3f calculate_ao(const ray& r, hitable *world, hitable_list *hlist,
-                          Float sample_distance, random_gen& rng, Sampler* sampler,
-                          bool keep_colors, vec3f bg) {
+                            Float sample_distance, random_gen& rng, Sampler* sampler,
+                            bool keep_colors, point3f bg) {
   ray r1 = r;
   ray r2 = r;
   point3f final_color(1.0f);
@@ -527,29 +538,31 @@ inline point3f calculate_ao(const ray& r, hitable *world, hitable_list *hlist,
       if(keep_colors && hrec.mat_ptr->scatter(r2, hrec, srec, rng)) { 
         if(!srec.is_specular) {
           Float pdf_val = p.value(dir, rng, r2.time());
-          final_color = hrec.mat_ptr->f(r1, hrec, r2) / pdf_val;
+          final_color = hrec.mat_ptr->f(r1, hrec, r2.direction()) / pdf_val;
         }
       }
     } else {
       if(i == 1) {
         return(final_color);
       }
-      return(bg);
+      return((bg));
     }
   }
-  return(bg);
+  return((bg));
 }
 
 void debug_scene(size_t numbercores, size_t nx, size_t ny, size_t ns, int debug_channel,
                  Float min_variance, size_t min_adaptive_size, 
-                 RayMatrix& routput, RayMatrix& goutput, RayMatrix& boutput,
+                 RayMatrix& rgb_output,
+                 RayMatrix& normalOutput,
+                 RayMatrix& albedoOutput, 
                  bool progress_bar, int sample_method, Rcpp::NumericVector& stratified_dim,
                  bool verbose, RayCamera *cam,
                  Float fov,
                  hitable_list& world, hitable_list& hlist,
                  Float clampval, size_t max_depth, size_t roulette_active,
                  Rcpp::NumericVector& light_direction, random_gen& rng, Float sample_dist,
-                 bool keep_colors, vec3f backgroundhigh);
+                 bool keep_colors, point3f backgroundhigh);
 
 
 

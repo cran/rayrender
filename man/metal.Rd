@@ -20,10 +20,10 @@ metal(
   gradient_point_start = NA,
   gradient_point_end = NA,
   gradient_type = "hsv",
-  image_texture = NA_character_,
+  image_texture = "",
   image_repeat = 1,
-  alpha_texture = NA,
-  bump_texture = NA,
+  alpha_texture = "",
+  bump_texture = "",
   bump_intensity = 1,
   importance_sample = FALSE
 )
@@ -73,14 +73,14 @@ begins with value `gradient_color`.}
 
 \item{gradient_type}{Default `hsv`. Colorspace to calculate the gradient. Alternative `rgb`.}
 
-\item{image_texture}{Default `NA`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
+\item{image_texture}{Default `""`. A 3-layer RGB array or filename to be used as the texture on the surface of the object.}
 
 \item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
 `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
 
-\item{alpha_texture}{Default `NA`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
+\item{alpha_texture}{Default `""`. A matrix or filename (specifying a greyscale image) to be used to specify the transparency.}
 
-\item{bump_texture}{Default `NA`. A matrix, array, or filename (specifying a greyscale image) to 
+\item{bump_texture}{Default `""`. A matrix, array, or filename (specifying a greyscale image) to 
 be used to specify a bump map for the surface.}
 
 \item{bump_intensity}{Default `1`. Intensity of the bump map. High values may lead to unphysical results.}
@@ -104,7 +104,7 @@ scene = generate_cornell() \%>\%
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
   material=metal(eta=c(3.2176,3.1029,2.1839), k = c(3.3018,3.33,3.0339))))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=50,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 #Add an aluminum rotated shiny metal block     
@@ -112,7 +112,7 @@ scene = scene \%>\%
   add_object(cube(x=380,y=150/2,z=200,xwidth=150,ywidth=150,zwidth=150,
   material = metal(eta = c(1.07,0.8946,0.523), k = c(6.7144,6.188,4.95)),angle=c(0,45,0)))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 #Add a copper metal cube      
@@ -122,7 +122,7 @@ scene = scene \%>\%
                                    k = c(2.898,2.476,2.298)),
                   angle=c(0,-30,0)))
 if(run_documentation()) {
-render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 
@@ -133,7 +133,7 @@ scene2 = scene \%>\%
                                    k = c(3.18,3.36,3.43)),
                   angle=c(0,-30,0)))
 if(run_documentation()) {
-render_scene(scene2, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=128,
+render_scene(scene2, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
 }
 }

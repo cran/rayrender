@@ -9,6 +9,11 @@
 #' @param width Default `400`. Width of the render, in pixels.
 #' @param height Default `400`. Height of the render, in pixels.
 #' @param preview Default `interactive()`. Whether to display a realtime progressive preview of the render. Press ESC to cancel the render.
+#' @param denoise Default `TRUE`. Whether to de-noise the final image and preview images. Note, this requires 
+#' the free Intel Open Image Denoise (OIDN) library be installed on your system. Pre-compiled binaries can be installed from
+#' ppenimagedenoise.org, as well as . Linking during rayrender installation is done by defining the environment variable
+#' OIDN_PATH (set it in the .Renviron file by calling `usethis::edit_r_environ()`) to the top-level directory for OIDN (the directory containing the "lib", "bin", and "include"
+#' directories) and re-installing this package from source.
 #' @param samples Default `100`. The maximum number of samples for each pixel. If this is a length-2
 #' vector and the `sample_method` is `stratified`, this will control the number of strata in each dimension.
 #' The total number of samples in this case will be the product of the two numbers.
@@ -19,7 +24,7 @@
 #' @param iso Default `100`. Camera exposure.
 #' @param film_size Default `22`, in `mm` (scene units in `m`. Size of the film if using a realistic camera, otherwise
 #' ignored.
-#' @param min_variance Default `0.00005`. Minimum acceptable variance for a block of pixels for the 
+#' @param min_variance Default `0`. Minimum acceptable variance for a block of pixels for the 
 #' adaptive sampler. Smaller numbers give higher quality images, at the expense of longer rendering times.
 #' If this is set to zero, the adaptive sampler will be turned off and the renderer
 #' will use the maximum number of samples everywhere.
@@ -93,6 +98,9 @@
 #' @param transparent_background Default `FALSE`. If `TRUE`, any initial camera rays that escape the scene
 #' will be marked as transparent in the final image. If for a pixel some rays escape and others hit a surface,
 #' those pixels will be partially transparent. 
+#' @param integrator_type Default `"rtiow"` (the algorithm specified in the book "Raytracing in One Weekend", a basic
+#' form of path guiding). Other options include `"nee"` (Next Event Estimation, with direct light sampling) 
+#' and `"basic"` (basic pathtracing, for high sample reference renders and debugging only).
 #' @export
 #' @importFrom  grDevices col2rgb
 #' @return Raytraced plot to current device, or an image saved to a file. 
@@ -158,19 +166,20 @@
 #'   add_object(obj_model(r_obj(),x=10,y=-5,z=10,scale=7, angle=c(-45,-45,0), 
 #'                        material=dielectric(attenuation=c(1,1,0.3)))) %>% 
 #'   add_object(pig(x=-7,y=10,z=-5,scale=1,angle=c(0,-45,80),emotion="angry")) %>% 
-#'   add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(30,225,30),
+#'   add_object(pig(x=0,y=-0.25,z=-15,scale=1,angle=c(0,225,-22), order_rotation = c(3,2,1),
 #'                  emotion="angry", spider=TRUE)) %>% 
 #'   add_object(path(camera_pos, y=-0.2,material=diffuse(color="red"))) %>% 
-#'   render_animation(filename = NA, camera_motion = camera_motion, samples=100,
+#'   render_animation(filename = NA, camera_motion = camera_motion, samples=16,
 #'                    sample_method="sobol_blue", 
 #'                    clamp_value=10, width=400, height=400)
 #' 
 #' }
 render_animation = function(scene, camera_motion, start_frame = 1, end_frame = NA,
                             width = 400, height = 400, 
-                            preview = interactive(), camera_description_file = NA, 
+                            preview = interactive(), denoise = TRUE,
+                            camera_description_file = NA, 
                             camera_scale = 1, iso = 100, film_size = 22, 
-                            samples = 100, min_variance = 0.00005, min_adaptive_size = 8,
+                            samples = 100, min_variance = 0, min_adaptive_size = 8,
                             sample_method = "sobol", 
                             ambient_occlusion = FALSE, keep_colors = FALSE,  sample_dist = 10,
                             max_depth = 50, roulette_active_depth = 10,
@@ -182,7 +191,8 @@ render_animation = function(scene, camera_motion, start_frame = 1, end_frame = N
                             environment_light = NULL, rotate_env = 0, intensity_env = 1,
                             debug_channel = "none", return_raw_array = FALSE,
                             progress = interactive(), verbose = FALSE, transparent_background = FALSE,
-                            preview_light_direction = c(0,-1,0), preview_exponent = 6) { 
+                            preview_light_direction = c(0,-1,0), preview_exponent = 6,
+                            integrator_type = "rtiow") { 
   if(ambient_occlusion) {
     debug_channel = "ao"
   }
@@ -207,7 +217,8 @@ render_animation = function(scene, camera_motion, start_frame = 1, end_frame = N
                                   intensity_env = intensity_env,
                                   debug_channel = debug_channel, return_raw_array = return_raw_array,
                                   progress = progress, verbose = verbose, sample_dist = sample_dist,
-                                  keep_colors = keep_colors)
+                                  keep_colors = keep_colors,integrator_type = integrator_type,
+                                  denoise = denoise)
   
   
   camera_info = scene_list$camera_info
