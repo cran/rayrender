@@ -1,4 +1,4 @@
-52cfcb33f36e8f7fdfbe9328cbef36e7 *DESCRIPTION
+890599edd098518d6096a17baca3b226 *DESCRIPTION
 8522ee2724dc077fbf8ec580de1011bc *NAMESPACE
 4bba8fc68e4af1d9787d3be28920bbcd *R/RcppExports.R
 31c32ea1becd4c7527e98e1714fbee51 *R/add_object.R
@@ -239,7 +239,7 @@ c6aa8c1cb82671036a9de0b1d9cf0605 *src/loopsubdiv.h
 d80a202cc0eb8c9ea13306931623adff *src/material.cpp
 d69b3f8732b57fa29d035d32b84fc6c6 *src/material.h
 8bd86243b9c1fc386132ba9323425ed9 *src/mathinline.h
-154f3c1b606decf2bf96168d359a0507 *src/matrix.cpp
+f6135d9c1710dbd660ad69ac2d427568 *src/matrix.cpp
 19bfe559d9a84a0d5bbc297955fe5ff3 *src/matrix.h
 f8859b4e200ea768b444649caa80ab2c *src/mesh3d.cpp
 60bd87f26a98a546f1c025e7d4363d05 *src/mesh3d.h
@@ -275,14 +275,14 @@ b29fa0aa67eac43429dfc219c4fcb7b4 *src/rng.cpp
 c5fcc024ca879b5301de8a3fd7b61843 *src/rng.h
 2650f1422d882874964f2082700d21ff *src/sampler.cpp
 07d482501718d26e7871d7000277dbaf *src/sampler.h
-ec3fc3cb28cebc2a20e33f0ae275445c *src/simd.cpp
+1a4a8853f4c552fba4e5cc2bdf6bf8c0 *src/simd.cpp
 ff26f97a8fc703f2a0b86deb8f2b02c4 *src/simd.h
 343795d3ab81e869e9157cc1a72b2861 *src/sphere.cpp
 213292bad294b580a92ca145a0e7a728 *src/sphere.h
 7d267c7f0037b56e4b6accbe02c9d895 *src/stb/stb_image.h
 7381a7070120fd5a36d8fb9e3179dd7c *src/stb/stb_image_resize.h
 754fc47d4b93c3ce8a2bdc374b537f22 *src/stb/stb_image_write.h
-c2cb0c30e10da611f9fbe56aea52f7a9 *src/test-runner.cpp
+22b6628ab54def69f77dd991cbdccfa0 *src/test-runner.cpp
 96919ce480c9781d815f7d22d0ea900a *src/texture.cpp
 081cd76edfe0033b56eb6edbb4d4a073 *src/texture.h
 1defe8690fa62aa517af2b858714d103 *src/texturecache.cpp
@@ -292,7 +292,7 @@ c2cb0c30e10da611f9fbe56aea52f7a9 *src/test-runner.cpp
 71ffebf9afe5f0cc48e89f17a9669745 *src/tinyobj/tinyexr.h
 e13eb1833a85a8cce76e581c3308aae2 *src/tonemap.cpp
 921960bd81d55ed78d28108ea8f147a1 *src/tonemap.h
-01f7c345c9187bcf9cbf70a7b080c7cd *src/transform.cpp
+ee032b14462782b373f6ee9c283701f7 *src/transform.cpp
 c447fc15dce09375cac579711624a7ce *src/transform.h
 fe7985943e2777e1ac86c4251ee3fb87 *src/transformcache.cpp
 a414a78bda3b40e8bc4aa436a64fc582 *src/transformcache.h
@@ -304,5 +304,5 @@ d4a3e9a4108e760839ba4b013f772cf1 *src/trimesh.cpp
 f747c92176862e5772dd6638c4b81c44 *src/trimesh.h
 88a60ae560b0ac362e8dd7aaf64df567 *src/vec2.h
 6cefb31360707de7fff9a8cabf8ffba7 *src/vec3.h
-f18c96f5a985ff63cb865518ed7a8944 *src/vectypes.cpp
+ac283e00f7d5bfcdf674c54619bb374d *src/vectypes.cpp
 0db9e1cbc0108f0fed365c68cf3a0d54 *src/vectypes.h
