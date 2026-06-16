@@ -39,8 +39,8 @@ Single row of a tibble describing the hair material.
 Hair Material
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #Create a hairball
-if(run_documentation()) {
 #Generate rendom points on a sphere
 lengthval = 0.5
 theta = acos(2*runif(10000)-1.0);
@@ -54,7 +54,7 @@ for(i in 1:length(phi)) {
                sin(theta[i]) * cos(phi[i]))
   bezier_list[[i]] = bezier_curve(width=0.01, width_end=0.008,
                                   p1 = pointval,
-                                  p2 = (1+(lengthval*0.33))*pointval, 
+                                  p2 = (1+(lengthval*0.33))*pointval,
                                   p3 = (1+(lengthval*0.66))*pointval,
                                   p4 = (1+(lengthval)) * pointval,
                                   material=hair(pigment = 0.3, red_pigment = 1.3,
@@ -63,15 +63,13 @@ for(i in 1:length(phi)) {
 }
 hairball = dplyr::bind_rows(bezier_list)
 
-generate_ground(depth=-2,material=diffuse(color="grey20")) \%>\%
-  add_object(sphere()) \%>\%
-  add_object(hairball) \%>\%
-  add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) \%>\%
+generate_ground(depth=-2,material=diffuse(color="grey20")) |>
+  add_object(sphere()) |>
+  add_object(hairball) |>
+  add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) |>
   render_scene(samples=16, lookfrom=c(0,3,10),clamp_value = 10,
                fov=20, width=800, height=800)
-}
-if(run_documentation()) {         
-               
+
 #Specify the color directly and increase hair roughness
 for(i in 1:length(phi)) {
   pointval = c(sin(theta[i]) * sin(phi[i]),
@@ -79,7 +77,7 @@ for(i in 1:length(phi)) {
                sin(theta[i]) * cos(phi[i]))
   bezier_list[[i]] = bezier_curve(width=0.01, width_end=0.008,
                                   p1 = pointval,
-                                  p2 = (1+(lengthval*0.33))*pointval, 
+                                  p2 = (1+(lengthval*0.33))*pointval,
                                   p3 = (1+(lengthval*0.66))*pointval,
                                   p4 = (1+(lengthval)) * pointval,
                                   material=hair(color="purple",
@@ -87,11 +85,11 @@ for(i in 1:length(phi)) {
                                   type="flat")
 }
 hairball = dplyr::bind_rows(bezier_list)
-generate_ground(depth=-2,material=diffuse(color="grey20")) \%>\%
-  add_object(sphere()) \%>\%
-  add_object(hairball) \%>\%
-  add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) \%>\%
+generate_ground(depth=-2,material=diffuse(color="grey20")) |>
+  add_object(sphere()) |>
+  add_object(hairball) |>
+  add_object(sphere(y=20,z=20,radius=5,material=light(color="white",intensity = 100))) |>
   render_scene(samples=16, lookfrom=c(0,3,10),clamp_value = 10,
                fov=20, width=800, height=800)
-}
+\dontshow{\}) # examplesIf}
 }

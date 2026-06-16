@@ -8,10 +8,11 @@ post_process_frame(
   rgb_mat,
   debug_channel,
   filename,
-  toneval,
+  tonemap,
   bloom = TRUE,
   transparent_background = FALSE,
-  write_file = TRUE
+  write_file = TRUE,
+  plot_scene = TRUE
 )
 }
 \value{

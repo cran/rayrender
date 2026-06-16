@@ -7,19 +7,32 @@
 post_process_scene(
   rgb_mat,
   iso,
+  use_iso,
   tonemap,
   debug_channel,
   filename,
-  return_raw_array,
+  plot_scene,
   bloom,
   new_page = TRUE,
-  transparent_background = FALSE
+  transparent_background = FALSE,
+  auto_exposure = FALSE,
+  verbose = FALSE,
+  screen_text = NULL,
+  screen_line = NULL,
+  camera_info = NULL,
+  screen_text_visible = NULL,
+  screen_text_overlay = NULL,
+  screen_line_visible = NULL,
+  screen_line_overlay = NULL,
+  exposure_adjustment = 1
 )
 }
 \description{
 Post-process the scene
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #internal
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}

@@ -28,7 +28,7 @@ a hexadecimal code, R color string, or a numeric rgb vector listing three intens
 \item{intensity}{Default `10`. If a positive value, this will turn this object into a light emitting the value specified
 in `color` (ignoring other properties). Higher values will produce a brighter light.}
 
-\item{importance_sample}{Default `TRUE`. Keeping this on for lights improves the convergence of the rendering 
+\item{importance_sample}{Default `TRUE`. Keeping this on for lights improves the convergence of the rendering
 algorithm, in most cases. If the object is particularly important in contributing to the light paths
 in the image (e.g. light sources, refracting glass ball with caustics, metal objects concentrating light),
 this will help with the convergence of the image.}
@@ -47,17 +47,17 @@ the x/y/z coordinates that the spotlight should be focused on. Only works for sp
 \item{image_repeat}{Default `1`. Number of times to repeat the image across the surface.
 `u` and `v` repeat amount can be set independently if user passes in a length-2 vector.}
 
-\item{gradient_color}{Default `NA`. If not `NA`, creates a secondary color for a linear gradient 
+\item{gradient_color}{Default `NA`. If not `NA`, creates a secondary color for a linear gradient
 between the this color and color specified in `color`. Direction is determined by `gradient_transpose`.}
 
 \item{gradient_transpose}{Default `FALSE`. If `TRUE`, this will use the `v` coordinate texture instead
 of the `u` coordinate texture to map the gradient.}
 
-\item{gradient_point_start}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+\item{gradient_point_start}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to
 mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 begins with value `color`.}
 
-\item{gradient_point_end}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to 
+\item{gradient_point_end}{Default `NA`. If not `NA`, this changes the behavior from mapping texture coordinates to
 mapping to world space coordinates. This should be a length-3 vector specifying the x,y, and z points where the gradient
 begins with value `gradient_color`.}
 
@@ -70,29 +70,25 @@ Single row of a tibble describing the light material.
 Light Material
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #Generate the cornell box without a light and add a single white sphere to the center
-scene = generate_cornell(light=FALSE) \%>\%
+scene = generate_cornell(light=FALSE) |>
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,material=light()))
-if(run_documentation()) {
 render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
-}
 
 #Remove the light for direct camera rays, but keep the lighting
-scene = generate_cornell(light=FALSE) \%>\%
+scene = generate_cornell(light=FALSE) |>
   add_object(sphere(x=555/2,y=555/2,z=555/2,radius=555/8,
              material=light(intensity=15,invisible=TRUE)))
-if(run_documentation()) {
 render_scene(scene, lookfrom=c(278,278,-800),lookat = c(278,278,0), samples=16,
              aperture=0, fov=40, ambient_light=FALSE, parallel=TRUE)
-}
 
 #All gather around the orb
-scene = generate_ground(material = diffuse(checkercolor="grey50")) \%>\%
-  add_object(sphere(radius=0.5,material=light(intensity=5,color="red"))) \%>\%
-  add_object(obj_model(r_obj(simple_r = TRUE), z=-3,x=-1.5,y=-1, angle=c(0,45,0))) \%>\%
+scene = generate_ground(material = diffuse(checkercolor="grey50")) |>
+  add_object(sphere(radius=0.25,material=light(intensity=90,color="#f11"))) |>
+  add_object(obj_model(r_obj(), scale=2.5,z=-3,x=-1.25,y=0, angle=c(0,235,0))) |>
   add_object(pig(scale=0.3, x=1.5,z=-2,y=-1.5,angle=c(0,-135,0)))
-if(run_documentation()) {
-render_scene(scene, samples=16, parallel=TRUE, clamp_value=10)
-}
+render_scene(scene, samples=16, parallel=TRUE, clamp_value=10, lookfrom=c(0,0,10))
+\dontshow{\}) # examplesIf}
 }

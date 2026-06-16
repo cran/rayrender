@@ -28,7 +28,7 @@ yz_rect(
 
 \item{zwidth}{Default `1`. z-width of the rectangle.}
 
-\item{material}{Default  \code{\link{diffuse}}.The material, called from one of the material 
+\item{material}{Default  \code{\link{diffuse}}.The material, called from one of the material
 functions \code{\link{diffuse}}, \code{\link{metal}}, or \code{\link{dielectric}}.}
 
 \item{angle}{Default `c(0, 0, 0)`. Angle of rotation around the x, y, and z axes, applied in the order specified in `order_rotation`.}
@@ -48,21 +48,19 @@ Single row of a tibble describing the YZ plane in the scene.
 Rectangular YZ Plane Object
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #Generate a purple rectangle in the cornell box.
-if(run_documentation()) {
-generate_cornell() \%>\%
+generate_cornell() |>
   add_object(yz_rect(x = 100, y = 100, z = 555/2, ywidth = 200, zwidth = 200,
-                     material = diffuse(color = "purple"))) \%>\%
-  render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
+                     material = diffuse(color = "purple"))) |>
+  render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40,
                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
-}
 #Generate a gold plane in the cornell box
-if(run_documentation()) {
-generate_cornell() \%>\%
-  add_object(yz_rect(x = 100, y = 100, z = 555/2, 
+generate_cornell() |>
+  add_object(yz_rect(x = 100, y = 100, z = 555/2,
                      ywidth = 200, zwidth = 200, angle = c(0, 30, 0),
-                     material = metal(color = "gold"))) \%>\%
-  render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40, 
+                     material = metal(color = "gold"))) |>
+  render_scene(lookfrom = c(278, 278, -800) ,lookat = c(278, 278, 0), fov = 40,
                ambient_light = FALSE, samples = 16, parallel = TRUE, clamp_value = 5)
-}
+\dontshow{\}) # examplesIf}
 }

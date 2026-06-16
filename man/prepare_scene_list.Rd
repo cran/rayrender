@@ -25,7 +25,7 @@ prepare_scene_list(
   ambient_light = FALSE,
   aperture = 0.1,
   clamp_value = Inf,
-  filename = NULL,
+  filename = NA,
   backgroundhigh = "#80b4ff",
   backgroundlow = "#ffffff",
   shutteropen = 0,
@@ -40,11 +40,12 @@ prepare_scene_list(
   rotate_env = 0,
   intensity_env = 1,
   debug_channel = "none",
-  return_raw_array = FALSE,
+  plot_scene = TRUE,
   progress = interactive(),
   verbose = FALSE,
   sample_dist = Inf,
   keep_colors = FALSE,
+  deferred_render = FALSE,
   integrator_type = "nee",
   denoise = TRUE,
   print_debug_info = FALSE
@@ -54,6 +55,8 @@ prepare_scene_list(
 Prepare the scene list
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #internal
+\dontshow{\}) # examplesIf}
 }
 \keyword{internal}

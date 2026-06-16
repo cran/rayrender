@@ -1,5 +1,5 @@
 #' New Tibble Row
-#' 
+#'
 #' Creates a row of a tibble, without the parsing and checks in tibble::new_tibble(). Internal use only.
 #'
 #' @param x Named list.
@@ -7,7 +7,7 @@
 #' @return Tibble row.
 #' @keywords internal
 #'
-#' @examples
+#'@examplesIf interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")
 #' #none
 new_tibble_row = function(x) {
   x = unclass(x)

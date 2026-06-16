@@ -25,7 +25,7 @@ render_ao(
   camera_up = c(0, 1, 0),
   aperture = 0.1,
   clamp_value = Inf,
-  filename = NULL,
+  filename = NA,
   shutteropen = 0,
   shutterclose = 1,
   focal_distance = NULL,
@@ -58,7 +58,7 @@ The total number of samples in this case will be the product of the two numbers.
 \item{camera_description_file}{Default `NA`. Filename of a camera description file for rendering with
 a realistic camera. Several camera files are built-in: `"50mm"`,`"wide"`,`"fisheye"`, and `"telephoto"`.}
 
-\item{camera_scale}{Default `1`. Amount to scale the camera up or down in size. Use this rather than scaling a 
+\item{camera_scale}{Default `1`. Amount to scale the camera up or down in size. Use this rather than scaling a
 scene.}
 
 \item{iso}{Default `100`. Camera exposure.}
@@ -66,7 +66,7 @@ scene.}
 \item{film_size}{Default `22`, in `mm` (scene units in `m`. Size of the film if using a realistic camera, otherwise
 ignored.}
 
-\item{min_variance}{Default `0.00005`. Minimum acceptable variance for a block of pixels for the 
+\item{min_variance}{Default `0.00005`. Minimum acceptable variance for a block of pixels for the
 adaptive sampler. Smaller numbers give higher quality images, at the expense of longer rendering times.
 If this is set to zero, the adaptive sampler will be turned off and the renderer
 will use the maximum number of samples everywhere.}
@@ -74,8 +74,8 @@ will use the maximum number of samples everywhere.}
 \item{min_adaptive_size}{Default `8`. Width of the minimum block size in the adaptive sampler.}
 
 \item{sample_method}{Default `sobol`. The type of sampling method used to generate
-random numbers. The other options are `random` (worst quality but fastest), 
-`stratified` (only implemented for completion), `sobol_blue` (best option for sample counts below 256), 
+random numbers. The other options are `random` (worst quality but fastest),
+`stratified` (only implemented for completion), `sobol_blue` (best option for sample counts below 256),
 and `sobol` (slowest but best quality, better than `sobol_blue` for sample counts greater than 256).}
 
 \item{background_color}{Default `"white"`. Background color.}
@@ -90,10 +90,10 @@ and `sobol` (slowest but best quality, better than `sobol_blue` for sample count
 less blurring in areas not in focus.}
 
 \item{clamp_value}{Default `Inf`. If a bright light or a reflective material is in the scene, occasionally
-there will be bright spots that will not go away even with a large number of samples. These 
+there will be bright spots that will not go away even with a large number of samples. These
 can be removed (at the cost of slightly darkening the image) by setting this to a small number greater than 1.}
 
-\item{filename}{Default `NULL`. If present, the renderer will write to the filename instead
+\item{filename}{Default `NA`. If present, the renderer will write to the filename instead
 of the current device.}
 
 \item{shutteropen}{Default `0`. Time at which the shutter is open. Only affects moving objects.}
@@ -122,72 +122,65 @@ Raytraced plot to current device, or an image saved to a file. Invisibly returns
 array (containing either debug data or the RGB)
 }
 \description{
-Takes the scene description and renders an image using ambient occlusion, 
+Takes the scene description and renders an image using ambient occlusion,
 either to the device or to a filename.
 }
 \examples{
+\dontshow{if (interactive() || identical(Sys.getenv("IN_PKGDOWN"), "true")) withAutoprint(\{ # examplesIf}
 #Generate and render a regular scene and an ambient occlusion version of that scene
-if(run_documentation()) {
 angles = seq(0,360,by=36)
 xx = rev(c(rep(c(1,0.5),5),1) * sinpi(angles/180))
 yy = rev(c(rep(c(1,0.5),5),1) * cospi(angles/180))
 star_polygon = data.frame(x=xx,y=yy)
 hollow_star = rbind(star_polygon,0.8*star_polygon)
 
-generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) \%>\%
- add_object(sphere(material=metal())) \%>\%
- add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
-                      angle=c(0,135,0),material = diffuse(sigma=90))) \%>\%
- add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) \%>\%
+generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) |>
+ add_object(sphere(material=metal())) |>
+ add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2,
+                      angle=c(0,-45,0),material = diffuse(sigma=90))) |>
+ add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) |>
  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
                              hole = nrow(star_polygon),
-                             material=diffuse(color="red",sigma=90))) \%>\%
+                             material=diffuse(color="red",sigma=90))) |>
  render_scene(parallel = TRUE,width=800,height=800,
               fov=70,clamp_value=10,samples=16, aperture=0.1,
               lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
-}
-if(run_documentation()) {
 
 #Render the scene with ambient occlusion
-generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) \%>\%
- add_object(sphere(material=metal())) \%>\%
- add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
-                      angle=c(0,135,0),material = diffuse(sigma=90))) \%>\%
- add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) \%>\%
+generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) |>
+ add_object(sphere(material=metal())) |>
+ add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2,
+                      angle=c(0,-45,0),material = diffuse(sigma=90))) |>
+ add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) |>
  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
                              hole = nrow(star_polygon),
-                             material=diffuse(color="red",sigma=90))) \%>\%
+                             material=diffuse(color="red",sigma=90))) |>
  render_ao(parallel = TRUE,width=800,height=800, sample_dist=10,
            fov=70,samples=16, aperture=0.1,
            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
- }
-if(run_documentation()) {
 #Decrease the ray occlusion search distance
-generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) \%>\%
- add_object(sphere(material=metal())) \%>\%
- add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2, 
-                      angle=c(0,135,0),material = diffuse(sigma=90))) \%>\%
- add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) \%>\%
+generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) |>
+ add_object(sphere(material=metal())) |>
+ add_object(obj_model(r_obj(),y=-0.25,x=-1.8,scale=2,
+                      angle=c(0,-45,0),material = diffuse(sigma=90))) |>
+ add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) |>
  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
                              hole = nrow(star_polygon),
-                             material=diffuse(color="red",sigma=90))) \%>\%
+                             material=diffuse(color="red",sigma=90))) |>
  render_ao(parallel = TRUE,width=800,height=800, sample_dist=1,
            fov=70,samples=16, aperture=0.1,
            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
-}
-if(run_documentation()) {
 #Turn on colors
-generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) \%>\%
- add_object(sphere(material=metal())) \%>\%
- add_object(obj_model(r_obj(), y=-0.25,x=-1.8,scale=2, 
-                      angle=c(0,135,0),material = diffuse(sigma=90))) \%>\%
- add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) \%>\%
+generate_ground(material = diffuse(color="grey20", checkercolor = "grey50",sigma=90)) |>
+ add_object(sphere(material=metal())) |>
+ add_object(obj_model(r_obj(), y=-0.25,x=-1.8,scale=2,
+                      angle=c(0,-45,0),material = diffuse(sigma=90))) |>
+ add_object(pig(x=1.8,y=-1.2,scale=0.5,angle=c(0,90,0),diffuse_sigma = 90)) |>
  add_object(extruded_polygon(hollow_star,top=-0.5,bottom=-1, z=-2,
                              hole = nrow(star_polygon),
-                             material=diffuse(color="red",sigma=90))) \%>\%
+                             material=diffuse(color="red",sigma=90))) |>
  render_ao(parallel = TRUE,width=800,height=800, sample_dist=1,
            fov=70,samples=16, aperture=0.1, keep_colors = TRUE,
            lookfrom=c(-0.9,1.2,-4.5),lookat=c(0,-1,0))
-
-}
+\dontshow{\}) # examplesIf}
 }
