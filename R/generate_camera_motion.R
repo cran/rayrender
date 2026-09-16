@@ -16,12 +16,16 @@
 #' @param ortho_dims Default `NULL`, which results in `c(1,1)` orthographic dimensions.  A list or 2-column matrix
 #' of orthographic dimensions.
 #' @param camera_ups Default `NULL`, which gives at up vector of `c(0,1,0)`. Camera up orientation.
-#' @param type Default `cubic`. Type of transition between keyframes.
-#' Other options are `linear`, `quad`, `bezier`, `exp`, and `manual`. `manual` just returns the values
-#' passed in, properly formatted to be passed to `render_animation()`.
+#' @param type Default `spline`. Type of transition between keyframes.
+#' Other options are `linear`, `quad`, `cubic`, `bezier`, `exp`, and `manual`. `spline` keeps the
+#' path linear between keyframes while using a shape-preserving cubic Hermite spline to smoothly
+#' vary speed. Closed paths use matching boundary speeds. Direction can still change abruptly at
+#' a corner because the keyed path is preserved. `manual` just returns the values passed in,
+#' properly formatted to be passed to `render_animation()`.
 #' @param frames Default `30`. Total number of frames.
 #' @param closed Default `FALSE`. Whether to close the camera curve so the first position matches the last. Set this to `TRUE` for perfect loops.
-#' @param constant_step Default `TRUE`. This will make the camera travel at a constant speed.
+#' @param constant_step Default `TRUE`. Whether to make the camera travel at a constant speed
+#' when `type = "bezier"`.
 #' @param aperture_linear Default `TRUE`. This linearly interpolates focal distances, rather than using a smooth Bezier curve  or easing function.
 #' @param fov_linear Default `TRUE`. This linearly interpolates focal distances, rather than using a smooth Bezier curve  or easing function.
 #' @param focal_linear Default `TRUE`. This linearly interpolates focal distances, rather than using a smooth Bezier curve or easing function.
@@ -43,6 +47,11 @@
 #' @param damp_magnitude Default `0.1`. Amount to damp the motion, a numeric value greater than `0` (no damping) and
 #' less than `1`.
 #' @param progress Default `TRUE`. Whether to display a progress bar.
+#' @param smooth_orientation Default `TRUE`. Whether to use a quaternion orientation spline for
+#' `spline`, `linear`, `quad`, `cubic`, and `exp` motion. This preserves the keyed camera positions
+#' and orientations while making angular velocity continuous through orientation keyframes. Closed
+#' paths use periodic orientation tangents. Set this to `FALSE` to interpolate lookat and up vectors
+#' directly with the selected `type`.
 #'
 #' @export
 #' @return Data frame of camera positions, orientations, apertures, focal distances, and field of views
@@ -116,7 +125,7 @@ generate_camera_motion = function(
   focal_distances = NULL,
   ortho_dims = NULL,
   camera_ups = NULL,
-  type = "cubic",
+  type = "spline",
   frames = 30,
   closed = FALSE,
   aperture_linear = TRUE,
@@ -129,7 +138,8 @@ generate_camera_motion = function(
   offset_lookat = 0,
   damp_motion = FALSE,
   damp_magnitude = 0.1,
-  progress = TRUE
+  progress = TRUE,
+  smooth_orientation = TRUE
 ) {
   damp_magnitude = 1 - damp_magnitude
   stopifnot(damp_magnitude >= 0 && damp_magnitude < 1)
@@ -388,21 +398,11 @@ generate_camera_motion = function(
       "upz"
     )
     if (damp_motion) {
-      current_pos = final_motion[1, ]
-      temp_list = list()
-      temp_list[[1]] = current_pos
-      for (i in seq_len(nrow(final_motion))[-1]) {
-        temp_pos = current_pos *
-          damp_magnitude +
-          final_motion[i, ] * (1 - damp_magnitude)
-        temp_list[[i]] = temp_pos
-        current_pos = temp_pos
-      }
-      final_motion = do.call(rbind, temp_list)
+      final_motion = damp_camera_motion(final_motion, damp_magnitude, closed)
     }
 
-    return(final_motion)
-  } else if (type %in% c("exp", "quad", "cubic", "linear")) {
+    return(as_ray_camera_motion(final_motion))
+  } else if (type %in% c("exp", "quad", "cubic", "linear", "spline")) {
     if (inherits(positions, "list")) {
       positions = do.call(rbind, positions)
     }
@@ -476,14 +476,44 @@ generate_camera_motion = function(
       apertures = c(apertures, apertures[1])
       fovs = c(fovs, fovs[1])
       focal_distances = c(focal_distances, focal_distances[1])
+      ortho$x = c(ortho$x, ortho$x[1])
+      ortho$y = c(ortho$y, ortho$y[1])
     }
-    final_motion = as.data.frame(apply(
-      tween_df,
-      2,
-      tween,
-      n = frames,
-      ease = type
-    ))
+    if (type == "spline") {
+      spline_groups = list(
+        c("x", "y", "z"),
+        c("dx", "dy", "dz"),
+        "aperture",
+        "fov",
+        "focal",
+        c("orthox", "orthoy"),
+        c("upx", "upy", "upz")
+      )
+      final_motion = do.call(
+        cbind,
+        lapply(
+          spline_groups,
+          function(columns) {
+            tween_spline_path(
+              tween_df[, columns, drop = FALSE],
+              n = frames,
+              closed = closed
+            )
+          }
+        )
+      )
+      final_motion = as.data.frame(final_motion)
+      colnames(final_motion) = colnames(tween_df)
+    } else {
+      final_motion = as.data.frame(apply(
+        tween_df,
+        2,
+        tween,
+        n = frames,
+        ease = type,
+        closed = closed
+      ))
+    }
     rownames(final_motion) = NULL
     if (aperture_linear) {
       final_motion$aperture = tween(apertures, n = frames, ease = "linear")
@@ -498,20 +528,21 @@ generate_camera_motion = function(
       final_motion$orthox = tween(ortho$x, n = frames, ease = "linear")
       final_motion$orthoy = tween(ortho$y, n = frames, ease = "linear")
     }
-    if (damp_motion) {
-      current_pos = final_motion[1, ]
-      temp_list = list()
-      temp_list[[1]] = current_pos
-      for (i in seq_len(nrow(final_motion))[-1]) {
-        temp_pos = current_pos *
-          damp_magnitude +
-          final_motion[i, ] * (1 - damp_magnitude)
-        temp_list[[i]] = temp_pos
-        current_pos = temp_pos
-      }
-      final_motion = do.call(rbind, temp_list)
+    if (smooth_orientation) {
+      orientation_motion = tween_camera_orientation(
+        positions = as.matrix(tween_df[, c("x", "y", "z")]),
+        lookats = as.matrix(tween_df[, c("dx", "dy", "dz")]),
+        camera_ups = as.matrix(tween_df[, c("upx", "upy", "upz")]),
+        output_positions = as.matrix(final_motion[, c("x", "y", "z")]),
+        closed = closed
+      )
+      final_motion[, c("dx", "dy", "dz")] = orientation_motion$lookats
+      final_motion[, c("upx", "upy", "upz")] = orientation_motion$camera_ups
     }
-    return(final_motion)
+    if (damp_motion) {
+      final_motion = damp_camera_motion(final_motion, damp_magnitude, closed)
+    }
+    return(as_ray_camera_motion(final_motion))
   } else if (type == "manual") {
     if (inherits(positions, "list")) {
       positions = do.call(rbind, positions)
@@ -592,22 +623,119 @@ generate_camera_motion = function(
       upz = camera_ups$z
     )
     if (damp_motion) {
-      current_pos = final_motion[1, ]
-      temp_list = list()
-      temp_list[[1]] = current_pos
-      for (i in seq_len(nrow(final_motion))[-1]) {
-        temp_pos = current_pos *
-          damp_magnitude +
-          final_motion[i, ] * (1 - damp_magnitude)
-        temp_list[[i]] = temp_pos
-        current_pos = temp_pos
-      }
-      final_motion = do.call(rbind, temp_list)
+      final_motion = damp_camera_motion(final_motion, damp_magnitude, closed)
     }
-    return(final_motion)
+    return(as_ray_camera_motion(final_motion))
   } else {
     stop("type '", type, "' not recognized")
   }
+}
+
+#' Damp Camera Motion
+#'
+#' @param motion Motion data frame.
+#' @param damp_magnitude Damping multiplier.
+#' @param closed Whether to treat the motion as a closed loop.
+#' @return Damped motion data frame.
+#'
+#' @keywords internal
+damp_camera_motion = function(motion, damp_magnitude, closed = FALSE) {
+  motion_names = colnames(motion)
+  motion_matrix = as.matrix(motion)
+  if (nrow(motion_matrix) < 2) {
+    return(motion)
+  }
+
+  if (!closed) {
+    damped_motion = damp_camera_motion_open(motion_matrix, damp_magnitude)
+  } else {
+    closed_cols = seq_len(ncol(motion_matrix))
+    if (all(c("x", "y", "z") %in% motion_names)) {
+      closed_cols = match(c("x", "y", "z"), motion_names)
+    }
+    duplicate_endpoint = all(
+      abs(
+        motion_matrix[1, closed_cols] -
+          motion_matrix[nrow(motion_matrix), closed_cols]
+      ) <
+        sqrt(.Machine$double.eps)
+    )
+
+    if (duplicate_endpoint) {
+      damped_motion = damp_camera_motion_closed(
+        motion_matrix[-nrow(motion_matrix), , drop = FALSE],
+        damp_magnitude
+      )
+      damped_motion = rbind(damped_motion, damped_motion[1, , drop = FALSE])
+    } else {
+      damped_motion = damp_camera_motion_closed(motion_matrix, damp_magnitude)
+      damped_motion = close_damped_camera_motion(damped_motion)
+    }
+  }
+
+  damped_motion = as.data.frame(damped_motion)
+  colnames(damped_motion) = motion_names
+  rownames(damped_motion) = NULL
+  return(damped_motion)
+}
+
+#' Damp Open Camera Motion
+#'
+#' @param motion_matrix Motion matrix.
+#' @param damp_magnitude Damping multiplier.
+#' @return Damped motion matrix.
+#'
+#' @keywords internal
+damp_camera_motion_open = function(motion_matrix, damp_magnitude) {
+  damped_motion = motion_matrix
+  current_pos = motion_matrix[1, ]
+  for (i in seq_len(nrow(motion_matrix))[-1]) {
+    current_pos = current_pos *
+      damp_magnitude +
+      motion_matrix[i, ] * (1 - damp_magnitude)
+    damped_motion[i, ] = current_pos
+  }
+  return(damped_motion)
+}
+
+#' Damp Closed Camera Motion
+#'
+#' @param motion_matrix Motion matrix.
+#' @param damp_magnitude Damping multiplier.
+#' @return Damped motion matrix.
+#'
+#' @keywords internal
+damp_camera_motion_closed = function(motion_matrix, damp_magnitude) {
+  damped_motion = motion_matrix
+  target_weight = 1 - damp_magnitude
+  frame_count = nrow(motion_matrix)
+  powers = damp_magnitude^(rev(seq_len(frame_count)) - 1)
+  current_pos = as.numeric(
+    target_weight *
+      (powers %*% motion_matrix) /
+      (1 - damp_magnitude^frame_count)
+  )
+
+  for (i in seq_len(frame_count)) {
+    current_pos = current_pos *
+      damp_magnitude +
+      motion_matrix[i, ] * target_weight
+    damped_motion[i, ] = current_pos
+  }
+  return(damped_motion)
+}
+
+#' Close Damped Camera Motion
+#'
+#' @param motion_matrix Motion matrix.
+#' @return Closed motion matrix.
+#'
+#' @keywords internal
+close_damped_camera_motion = function(motion_matrix) {
+  endpoint_delta = motion_matrix[nrow(motion_matrix), ] - motion_matrix[1, ]
+  correction = seq(0, 1, length.out = nrow(motion_matrix)) %o%
+    endpoint_delta
+  return(motion_matrix - correction)
 }
 
 #' Process Points to Control Points
@@ -862,6 +990,50 @@ calculate_distance_along_bezier_curve = function(cps, breaks = 20) {
   return(final_values)
 }
 
+#' Remove Stalled Path Samples
+#'
+#' @param linearized_cp Linearized path data frame.
+#' @return Linearized path data frame with repeated cumulative-distance samples removed.
+#'
+#' @keywords internal
+remove_stalled_path_samples = function(linearized_cp) {
+  if (!"total_dist" %in% colnames(linearized_cp) || nrow(linearized_cp) < 2) {
+    return(linearized_cp)
+  }
+
+  distance_tolerance = .Machine$double.eps *
+    max(1, max(abs(linearized_cp$total_dist), na.rm = TRUE)) *
+    100
+  keep_rows = c(TRUE, diff(linearized_cp$total_dist) > distance_tolerance)
+  return(linearized_cp[keep_rows, , drop = FALSE])
+}
+
+#' Calculate Path Interval
+#'
+#' @param linearized_cp Linearized path data frame.
+#' @param current_dist Current cumulative distance.
+#' @return List containing the row and interpolation value.
+#'
+#' @keywords internal
+calculate_path_interval = function(linearized_cp, current_dist) {
+  distance_tolerance = .Machine$double.eps *
+    max(1, max(abs(linearized_cp$total_dist), na.rm = TRUE)) *
+    100
+  row = max(which(linearized_cp$total_dist <= current_dist), 1)
+  if (row + 1 > nrow(linearized_cp)) {
+    row = nrow(linearized_cp) - 1
+  }
+
+  dist_delta = linearized_cp$total_dist[row + 1] -
+    linearized_cp$total_dist[row]
+  if (dist_delta <= distance_tolerance) {
+    tval = 0
+  } else {
+    tval = (current_dist - linearized_cp$total_dist[row]) / dist_delta
+  }
+  return(list(row = row, tval = tval))
+}
+
 #' Linearize and Calculate Final Points (with constant stepsize)
 #'
 #' @param linearized_cp Matrix (4x3)
@@ -887,7 +1059,21 @@ calculate_final_path = function(
       as.numeric(single_row),
       nrow = steps,
       ncol = 3,
-      byrow = T
+      byrow = TRUE
+    ))
+    colnames(single_df) = c("x", "y", "z")
+    return(single_df)
+  }
+  if (constant_step || curvature_adjust) {
+    linearized_cp = remove_stalled_path_samples(linearized_cp)
+  }
+  if (nrow(linearized_cp) < 2) {
+    single_row = linearized_cp[1, c("x", "y", "z")]
+    single_df = as.data.frame(matrix(
+      as.numeric(single_row),
+      nrow = steps,
+      ncol = 3,
+      byrow = TRUE
     ))
     colnames(single_df) = c("x", "y", "z")
     return(single_df)
@@ -897,12 +1083,9 @@ calculate_final_path = function(
     final_points = list()
     current_dist = offset
     for (i in 1:steps) {
-      row = which.min(abs(floor(linearized_cp$total_dist - current_dist)))
-      if (row + 1 > nrow(linearized_cp)) {
-        row = nrow(linearized_cp) - 1
-      }
-      tval = (current_dist - linearized_cp$total_dist[row]) /
-        (linearized_cp$total_dist[row + 1] - linearized_cp$total_dist[row])
+      path_interval = calculate_path_interval(linearized_cp, current_dist)
+      row = path_interval$row
+      tval = path_interval$tval
 
       final_points[[i]] = lerp(
         tval,
@@ -966,16 +1149,9 @@ calculate_final_path = function(
         if (progress) {
           pb$update(current_dist / maxdist)
         }
-        row = which.min(abs(linearized_cp$total_dist - current_dist))
-        if (linearized_cp$total_dist[row] - current_dist > 0) {
-          row = row - 1
-        }
-        if (row + 1 > nrow(linearized_cp)) {
-          row = nrow(linearized_cp) - 1
-        }
-
-        tval = (current_dist - linearized_cp$total_dist[row]) /
-          (linearized_cp$total_dist[row + 1] - linearized_cp$total_dist[row])
+        path_interval = calculate_path_interval(linearized_cp, current_dist)
+        row = path_interval$row
+        tval = path_interval$tval
 
         final_points[[i]] = lerp(
           tval,
@@ -988,20 +1164,59 @@ calculate_final_path = function(
           linearized_cp[row + 1, c("dx", "dy", "dz")]
         )
 
-        direction = direction / sqrt(sum(direction^2))
+        direction_length = sqrt(sum(direction^2))
+        if (is.finite(direction_length) && direction_length > 0) {
+          direction = direction / direction_length
+        } else {
+          direction = c(0, 0, 0)
+        }
         final_points[[i]] = final_points[[i]] + direction * offset
         temp_curve = lerp(
           tval,
           linearized_cp[row, c("curvature")],
           linearized_cp[row + 1, c("curvature")]
         )
-        step = min(c(1 / temp_curve / curvature_scale, default_stepsize))
+        if (!is.finite(temp_curve) || temp_curve <= 0) {
+          step = default_stepsize
+        } else {
+          step = min(c(1 / temp_curve / curvature_scale, default_stepsize))
+        }
+        if (!is.finite(step) || step <= 0) {
+          step = default_stepsize
+        }
         current_dist = current_dist + step
         i = i + 1
       }
     }
   }
   return(do.call(rbind, final_points))
+}
+
+#' Remove Sequential Duplicate Keyframes
+#'
+#' @param keyframes Keyframe data frame.
+#' @return Keyframe data frame with adjacent duplicate rows removed.
+#'
+#' @keywords internal
+remove_sequential_duplicate_keyframes = function(keyframes) {
+  if (nrow(keyframes) < 2) {
+    return(keyframes)
+  }
+
+  duplicate_rows = rep(TRUE, nrow(keyframes) - 1)
+  for (col in seq_along(keyframes)) {
+    previous_values = keyframes[-nrow(keyframes), col]
+    current_values = keyframes[-1, col]
+    values_equal = previous_values == current_values
+
+    values_equal[is.na(previous_values) & is.na(current_values)] = TRUE
+    values_equal[is.na(values_equal)] = FALSE
+    duplicate_rows = duplicate_rows & values_equal
+  }
+
+  deduped_keyframes = keyframes[c(TRUE, !duplicate_rows), , drop = FALSE]
+  rownames(deduped_keyframes) = NULL
+  return(deduped_keyframes)
 }
 
 #' Get Saved Keyframes
@@ -1021,5 +1236,5 @@ get_saved_keyframes = function() {
     )
     return(keyframes)
   }
-  return(keyframes)
+  return(remove_sequential_duplicate_keyframes(keyframes))
 }

@@ -29,6 +29,8 @@ prepare_scene_list = function(
   backgroundlow = "#ffffff",
   shutteropen = 0.0,
   shutterclose = 1.0,
+  camera_motion_blur = FALSE,
+  shutter_speed = 2,
   focal_distance = NULL,
   ortho_dimensions = c(1, 1),
   tonemap = "gamma",
@@ -52,7 +54,34 @@ prepare_scene_list = function(
   if (inherits(scene, "ray_mesh")) {
     scene = raymesh_model(scene)
   }
+  validate_shutter_speed(shutter_speed)
   #Process images, convert shapes and materials to enums, extract positions, and
+  medium_features = scene_medium_features(scene)
+  atmospheric_lights = vapply(
+    ray_scene_infinite_lights(scene),
+    function(light) {
+      isTRUE(light$atmosphere)
+    },
+    logical(1)
+  )
+  if (sum(atmospheric_lights) > 1L) {
+    stop(
+      "A scene can contain only one sky_light().",
+      call. = FALSE
+    )
+  }
+  integrator_type = switch(
+    integrator_type,
+    "nee" = 1L,
+    "rtiow" = 2L,
+    "basic" = 3L,
+    stop(integrator_type, " not recognized as valid `integrator_type`")
+  )
+  # Resolve required transport here so stills, animations, and camera previews
+  # all use NEE for atmospheres and attached media, including inside instances.
+  if (any(atmospheric_lights) || medium_features$attached) {
+    integrator_type = 1L
+  }
   scene_info = process_scene(scene)
   if (!is.numeric(debug_channel)) {
     debug_channel = unlist(lapply(
@@ -89,13 +118,6 @@ prepare_scene_list = function(
     light_direction = debug_channel
     debug_channel = 9
   }
-  integrator_type = switch(
-    integrator_type,
-    "nee" = 1L,
-    "rtiow" = 2L,
-    "basic" = 3L,
-    stop(integrator_type, " not recognized as valid `integrator_type`")
-  )
   if (debug_channel == 4) {
     message(
       "rayrender must be compiled with option DEBUGBVH for this debug option to work"
@@ -124,6 +146,7 @@ prepare_scene_list = function(
   }
   backgroundhigh = convert_color(backgroundhigh)
   backgroundlow = convert_color(backgroundlow)
+  infinite_lights = ray_scene_infinite_lights(scene)
 
   if (!tonemap %in% c("gamma", "reinhard", "uncharted", "hbd", "raw")) {
     stop("tonemap value ", tonemap, " not recognized")
@@ -131,8 +154,10 @@ prepare_scene_list = function(
 
   if (
     !scene_info$any_light &&
+      !(integrator_type == 1L && medium_features$emissive) &&
       is.null(ambient_light) &&
-      is.null(environment_light)
+      is.null(environment_light) &&
+      !length(infinite_lights)
   ) {
     ambient_light = TRUE
   } else {
@@ -145,7 +170,7 @@ prepare_scene_list = function(
   if (!is.null(environment_light) && intensity_env > 0) {
     hasbackground = TRUE
     backgroundstring = path.expand(environment_light)
-    if (!file.exists(environment_light)) {
+    if (!file.exists(backgroundstring)) {
       hasbackground = FALSE
       warning(
         "file '",
@@ -153,7 +178,7 @@ prepare_scene_list = function(
         "' cannot be found, not using background image."
       )
     }
-    if (dir.exists(environment_light)) {
+    if (dir.exists(backgroundstring)) {
       stop(
         "environment_light argument '",
         environment_light,
@@ -164,6 +189,17 @@ prepare_scene_list = function(
     hasbackground = FALSE
     backgroundstring = ""
   }
+  if (hasbackground) {
+    infinite_lights = c(
+      infinite_lights,
+      list(infinite_light(
+        backgroundstring,
+        intensity = intensity_env,
+        name = "legacy_environment"
+      ))
+    )
+  }
+  hasbackground = length(infinite_lights) > 0
 
   #scale handler
   if (length(lookfrom) != 3) {
@@ -265,6 +301,8 @@ prepare_scene_list = function(
   camera_info$camera_up = camera_up
   camera_info$shutteropen = shutteropen
   camera_info$shutterclose = shutterclose
+  camera_info$camera_motion_blur = isTRUE(camera_motion_blur)
+  camera_info$shutter_speed = shutter_speed
   camera_info$ortho_dimensions = ortho_dimensions
   camera_info$focal_distance = focal_distance
   camera_info$max_depth = max_depth
@@ -301,6 +339,7 @@ prepare_scene_list = function(
 
   render_info = list()
   render_info$ambient_light = ambient_light
+  render_info$has_atmosphere = any(atmospheric_lights)
   render_info$bghigh = backgroundhigh
   render_info$bglow = backgroundlow
   render_info$clampval = clamp_value
@@ -310,6 +349,7 @@ prepare_scene_list = function(
   render_info$background = backgroundstring
   render_info$rotate_env = rotate_env
   render_info$intensity_env = intensity_env
+  render_info$infinite_lights = prepare_scene_infinite_lights(infinite_lights)
   render_info$verbose = verbose
   render_info$debug_channel = debug_channel
   render_info$plot_scene = plot_scene
